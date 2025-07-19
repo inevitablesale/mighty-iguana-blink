@@ -23,9 +23,10 @@ export interface Opportunity {
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
+  onApproveOutreach: (opportunity: Opportunity) => void;
 }
 
-export function OpportunityCard({ opportunity }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     switch (value) {
       case "High":
@@ -73,7 +74,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
         <Button variant="outline">View Details</Button>
-        <Button>Approve Outreach</Button>
+        <Button onClick={() => onApproveOutreach(opportunity)}>Approve Outreach</Button>
       </CardFooter>
     </Card>
   );

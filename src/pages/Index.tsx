@@ -7,6 +7,7 @@ import { SearchParameters } from "@/components/SearchParameters";
 import { OpportunityList } from "@/components/OpportunityList";
 import { Opportunity } from "@/components/OpportunityCard";
 import { Bot } from "lucide-react";
+import { toast } from "sonner";
 
 const initialOpportunities: Opportunity[] = [
   {
@@ -70,10 +71,18 @@ const Index = () => {
     } catch (e) {
       const error = e as Error;
       console.error("Error calling Edge Function:", error);
-      // You could show a toast notification here for the error
+      toast.error("Failed to get opportunities. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleApproveOutreach = (opportunity: Opportunity) => {
+    console.log("Approved outreach for:", opportunity.companyName);
+    toast.success(`Outreach for ${opportunity.companyName} approved!`, {
+      description: "Generating draft in the Campaigns tab...",
+    });
+    // In the future, this will trigger the AI to generate an email draft.
   };
 
   return (
@@ -104,7 +113,7 @@ const Index = () => {
 
             {!isLoading && opportunities.length > 0 && (
               <div className="mt-4">
-                <OpportunityList opportunities={opportunities} />
+                <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} />
               </div>
             )}
             
