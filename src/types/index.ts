@@ -42,13 +42,6 @@ export interface Agent {
   last_run_at?: string;
 }
 
-export interface PredictiveLead {
-  companyName: string;
-  signalType: 'funding' | 'expansion' | 'hiring_trend';
-  signalStrength: number;
-  predictedRoles: string[];
-}
-
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';
 
 export interface Placement {

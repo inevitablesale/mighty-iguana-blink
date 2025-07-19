@@ -40,18 +40,19 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const prompt = `
-      You are an AI assistant for a recruiter. Based on the following recruiter agent specialty, generate a list of 3 realistic, but fictional, company leads.
+      You are an AI assistant for a recruiter. Your task is to generate a list of 3 realistic, but fictional, company opportunities based on the recruiter's agent specialty.
+      The agent's specialty is: "${agent.prompt}".
 
-      Agent Specialty:
-      - ${agent.prompt}
-
-      For each lead, you MUST include:
+      For each opportunity, you MUST include all of the following keys:
       - "companyName": Fictional Company Name
-      - "signalType": The type of signal ('funding', 'expansion', 'hiring_trend').
-      - "signalStrength": A score from 1-10 indicating the strength of the signal.
-      - "predictedRoles": An array of 2-3 job roles the company is likely to need soon.
+      - "role": The specific role they are hiring for
+      - "location": A plausible city and state for the company
+      - "potential": A value (High, Medium, or Low)
+      - "hiringUrgency": A value (High, Medium, or Low)
+      - "matchScore": A score from 1-10 indicating how strong a fit this lead is.
+      - "keySignal": The single most important *hypothetical* reason this is a good lead (e.g., "Just raised $20M Series B", "Hiring velocity increased 50%").
 
-      Return ONLY a single, valid JSON object with a key "leads" containing an array of these leads. Do not include any other text, explanations, or markdown.
+      Return ONLY a single, valid JSON object with a key "opportunities" containing an array of these 3 opportunities. Do not include any other text, explanations, or markdown.
     `;
 
     const geminiResponse = await fetch(
@@ -74,10 +75,27 @@ serve(async (req) => {
     const geminiResult = await geminiResponse.json();
     const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
+    
+    const opportunities = JSON.parse(aiResponseText).opportunities;
 
-    const parsedResponse = JSON.parse(aiResponseText);
+    const opportunitiesToInsert = opportunities.map(opp => ({
+      user_id: user.id,
+      agent_id: agentId,
+      company_name: opp.companyName,
+      role: opp.role,
+      location: opp.location,
+      potential: opp.potential,
+      hiring_urgency: opp.hiringUrgency,
+      match_score: opp.matchScore,
+      key_signal: opp.keySignal,
+    }));
 
-    return new Response(JSON.stringify(parsedResponse), {
+    const { error: insertError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert);
+    if (insertError) throw new Error(`Failed to save opportunities: ${insertError.message}`);
+
+    await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
+
+    return new Response(JSON.stringify({ message: `Agent found and created ${opportunities.length} new opportunities.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
