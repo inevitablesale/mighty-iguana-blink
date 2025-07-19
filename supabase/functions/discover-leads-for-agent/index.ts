@@ -3,7 +3,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { v4 as uuidv4 } from 'https://esm.sh/uuid@10.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,12 +23,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Authenticate user from request
     const userRes = await supabaseAdmin.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', ''));
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    // 1. Fetch agent prompt
     const { data: agent, error: agentError } = await supabaseAdmin
       .from('agents')
       .select('prompt')
@@ -39,24 +36,22 @@ serve(async (req) => {
 
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 
-    // 2. Call Gemini to generate opportunities
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const prompt = `
-      You are an AI assistant for a recruiter. Your task is to generate a list of 5 realistic, but fictional, company opportunities based on the recruiter's agent specialty.
-      The agent's specialty is: "${agent.prompt}".
+      You are an AI assistant for a recruiter. Based on the following recruiter agent specialty, generate a list of 3 realistic, but fictional, company leads.
 
-      For each opportunity, you MUST include:
+      Agent Specialty:
+      - ${agent.prompt}
+
+      For each lead, you MUST include:
       - "companyName": Fictional Company Name
-      - "role": The specific role they are hiring for
-      - "location": A plausible city and state for the company
-      - "potential": A value (High, Medium, or Low)
-      - "hiringUrgency": A value (High, Medium, or Low)
-      - "matchScore": A score from 1-10 indicating how strong a fit this lead is.
-      - "keySignal": The single most important *hypothetical* reason this is a good lead (e.g., "Just raised $20M Series B", "Hiring velocity increased 50%").
+      - "signalType": The type of signal ('funding', 'expansion', 'hiring_trend').
+      - "signalStrength": A score from 1-10 indicating the strength of the signal.
+      - "predictedRoles": An array of 2-3 job roles the company is likely to need soon.
 
-      Return ONLY a single, valid JSON object with a key "opportunities" containing an array of these 5 opportunities. Do not include any other text, explanations, or markdown.
+      Return ONLY a single, valid JSON object with a key "leads" containing an array of these leads. Do not include any other text, explanations, or markdown.
     `;
 
     const geminiResponse = await fetch(
@@ -77,29 +72,12 @@ serve(async (req) => {
     }
 
     const geminiResult = await geminiResponse.json();
-    const opportunities = JSON.parse(geminiResult.candidates[0].content.parts[0].text).opportunities;
+    const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
 
-    // 3. Save opportunities to the database
-    const opportunitiesToInsert = opportunities.map(opp => ({
-      id: uuidv4(),
-      user_id: user.id,
-      agent_id: agentId,
-      company_name: opp.companyName,
-      role: opp.role,
-      location: opp.location,
-      potential: opp.potential,
-      hiring_urgency: opp.hiringUrgency,
-      match_score: opp.matchScore,
-      key_signal: opp.keySignal,
-    }));
+    const parsedResponse = JSON.parse(aiResponseText);
 
-    const { error: insertError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert);
-    if (insertError) throw new Error(`Failed to save opportunities: ${insertError.message}`);
-
-    // 4. Update agent's last_run_at timestamp
-    await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-
-    return new Response(JSON.stringify({ message: `Found ${opportunities.length} new opportunities.` }), {
+    return new Response(JSON.stringify(parsedResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
