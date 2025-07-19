@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { CommandBar } from "@/components/CommandBar";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,90 +19,132 @@ const Index = () => {
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const savedProfile = localStorage.getItem("recruiterProfile");
-    const storedApprovedIds = JSON.parse(sessionStorage.getItem('approvedOpportunityIds') || '[]');
-    setApprovedIds(storedApprovedIds);
-
-    if (savedProfile && sessionStorage.getItem('allOpportunities') === null) {
-      const proactiveCommand = `Find me the top 3 opportunities based on this profile: ${savedProfile}`;
-      handleSendCommand(proactiveCommand);
-    } else if (!savedProfile) {
-        setIsInitialView(true);
-    } else {
-        setIsInitialView(false);
-        const storedOpps = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]');
-        const oppsWithIds = storedOpps.map((opp: Opportunity) => ({
-          ...opp,
-          id: opp.id || uuidv4(),
-        }));
-        sessionStorage.setItem('allOpportunities', JSON.stringify(oppsWithIds));
-        const latestSearch = oppsWithIds.slice(-3);
-        setOpportunities(latestSearch.reverse());
-    }
-  }, []);
-
-  const handleSendCommand = async (command: string) => {
+  const handleSendCommand = useCallback(async (command: string, isProactive = false) => {
     if (!command.trim()) return;
     setIsLoading(true);
+    if (!isProactive) {
+      setOpportunities([]);
+      setSearchCriteria(null);
+    }
     setIsInitialView(false);
-    setOpportunities([]);
-    setSearchCriteria(null);
 
-    const toastId = toast.loading("Finding new opportunities based on your profile...");
+    const toastId = toast.loading("Finding new opportunities...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('process-command', {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('process-command', {
         body: { command },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (functionError) throw new Error(functionError.message);
 
-      const aiResponse = data as { searchCriteria: any; opportunities: Omit<Opportunity, 'id'>[] };
+      const aiResponse = functionData as { searchCriteria: any; opportunities: Omit<Opportunity, 'id'>[] };
       
-      if (aiResponse && aiResponse.opportunities) {
+      if (aiResponse && aiResponse.opportunities && aiResponse.opportunities.length > 0) {
         const opportunitiesWithIds = aiResponse.opportunities.map(opp => ({ ...opp, id: uuidv4() }));
+        
+        const { error: insertError } = await supabase.from('opportunities').insert(
+          opportunitiesWithIds.map(({id, companyName, role, location, potential, hiringUrgency, matchScore, keySignal}) => ({
+            id, user_id: user.id, company_name: companyName, role, location, potential, hiring_urgency: hiringUrgency, match_score: matchScore, key_signal: keySignal
+          }))
+        );
+
+        if (insertError) throw new Error(insertError.message);
+
         setSearchCriteria(aiResponse.searchCriteria);
         setOpportunities(opportunitiesWithIds);
-
-        const allOpportunities = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]');
-        const newOpportunities = opportunitiesWithIds.filter(
-          (newOpp: Opportunity) => !allOpportunities.some((existingOpp: Opportunity) => 
-            existingOpp.companyName === newOpp.companyName && existingOpp.role === newOpp.role
-          )
-        );
-        
-        sessionStorage.setItem('allOpportunities', JSON.stringify([...allOpportunities, ...newOpportunities]));
         toast.success("Here are your tailored opportunities!", { id: toastId });
+      } else {
+        setOpportunities([]);
+        toast.info("No new opportunities found for that query.", { id: toastId });
       }
 
     } catch (e) {
       const error = e as Error;
-      console.error("Error calling Edge Function:", error);
-      toast.error("Failed to get opportunities. Please try again.", { id: toastId });
+      console.error("Error in handleSendCommand:", error);
+      toast.error(error.message, { id: toastId });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: campaigns, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('opportunity_id')
+        .eq('user_id', user.id);
+      
+      if (campaignsError) console.error("Error fetching campaigns:", campaignsError);
+      else if (campaigns) setApprovedIds(campaigns.map(c => c.opportunity_id));
+
+      const { data: recentOpps, error: oppsError } = await supabase
+        .from('opportunities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (oppsError) console.error("Error fetching opportunities:", oppsError);
+
+      if (recentOpps && recentOpps.length > 0) {
+        setOpportunities(recentOpps.map(o => ({...o, companyName: o.company_name, hiringUrgency: o.hiring_urgency, matchScore: o.match_score, keySignal: o.key_signal} as Opportunity)));
+        setIsInitialView(false);
+      } else {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('specialty')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error("Error fetching profile:", profileError);
+        } else if (profile && profile.specialty) {
+          await handleSendCommand(`Find me the top 3 opportunities based on this profile: ${profile.specialty}`, true);
+        } else {
+          setIsInitialView(true);
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeDashboard();
+  }, [handleSendCommand]);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
     const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
       const { data, error } = await supabase.functions.invoke('generate-outreach', {
         body: { opportunity },
       });
 
       if (error) throw new Error(error.message);
 
-      const existingDrafts = JSON.parse(sessionStorage.getItem('campaignDrafts') || '[]');
-      existingDrafts.push(data);
-      sessionStorage.setItem('campaignDrafts', JSON.stringify(existingDrafts));
+      const { draft, companyName, role } = data;
+      const { error: insertError } = await supabase.from('campaigns').insert({
+        user_id: user.id,
+        opportunity_id: opportunity.id,
+        company_name: companyName,
+        role,
+        subject: draft.subject,
+        body: draft.body,
+      });
 
-      const newApprovedIds = [...approvedIds, opportunity.id];
-      setApprovedIds(newApprovedIds);
-      sessionStorage.setItem('approvedOpportunityIds', JSON.stringify(newApprovedIds));
+      if (insertError) throw new Error(insertError.message);
+
+      setApprovedIds(prev => [...prev, opportunity.id]);
 
       toast.success(`Draft created for ${opportunity.companyName}!`, {
         id: toastId,
@@ -115,7 +157,7 @@ const Index = () => {
     } catch (e) {
       const error = e as Error;
       console.error("Error generating outreach:", error);
-      toast.error("Failed to create draft. Please try again.", { id: toastId });
+      toast.error(error.message, { id: toastId });
     }
   };
 
@@ -144,7 +186,7 @@ const Index = () => {
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-hidden">
         <div className="flex-1 overflow-auto pr-2">
           
-          {isInitialView && (
+          {isInitialView && !isLoading && (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
               <div className="flex flex-col items-center gap-2 text-center">
                 <Bot className="h-12 w-12 text-primary" />
@@ -184,7 +226,7 @@ const Index = () => {
 
         </div>
         <div className="mt-auto bg-background pt-4">
-          <CommandBar onSendCommand={handleSendCommand} isLoading={isLoading} />
+          <CommandBar onSendCommand={(cmd) => handleSendCommand(cmd, false)} isLoading={isLoading} />
         </div>
       </main>
     </div>

@@ -4,26 +4,45 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Bell, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface Draft {
+interface Campaign {
+  id: string;
+  company_name: string;
+  role: string;
   subject: string;
   body: string;
 }
 
-interface Campaign {
-  companyName: string;
-  role: string;
-  draft: Draft;
-}
-
 const Campaigns = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedDrafts = sessionStorage.getItem('campaignDrafts');
-    if (storedDrafts) {
-      setCampaigns(JSON.parse(storedDrafts));
-    }
+    const fetchCampaigns = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching campaigns:", error);
+        toast.error("Failed to load campaign drafts.");
+      } else {
+        setCampaigns(data);
+      }
+      setLoading(false);
+    };
+
+    fetchCampaigns();
   }, []);
 
   const handleCopy = (text: string) => {
@@ -31,47 +50,74 @@ const Campaigns = () => {
     toast.success("Copied to clipboard!");
   };
 
-  const handleDelete = (indexToDelete: number) => {
-    const updatedCampaigns = campaigns.filter((_, index) => index !== indexToDelete);
-    setCampaigns(updatedCampaigns);
-    sessionStorage.setItem('campaignDrafts', JSON.stringify(updatedCampaigns));
-    toast.info("Draft deleted.");
+  const handleDelete = async (campaignId: string) => {
+    const { error } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', campaignId);
+
+    if (error) {
+      console.error("Error deleting campaign:", error);
+      toast.error("Failed to delete draft.");
+    } else {
+      setCampaigns(prev => prev.filter(c => c.id !== campaignId));
+      toast.info("Draft deleted.");
+    }
   };
+
+  const renderLoadingState = () => (
+    <div className="space-y-4">
+      {[...Array(2)].map((_, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-1/3" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col">
       <Header title="Campaigns" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        {campaigns.length > 0 ? (
+        {loading ? (
+          renderLoadingState()
+        ) : campaigns.length > 0 ? (
           <div className="space-y-4">
-            {campaigns.map((campaign, index) => (
-              <Card key={index}>
+            {campaigns.map((campaign) => (
+              <Card key={campaign.id}>
                 <CardHeader>
-                  <CardTitle>To: {campaign.companyName}</CardTitle>
+                  <CardTitle>To: {campaign.company_name}</CardTitle>
                   <CardDescription>Re: {campaign.role}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-semibold">Subject</h4>
-                      <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.draft.subject)}>
+                      <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.subject)}>
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                    <p className="text-sm p-3 bg-muted rounded-md">{campaign.draft.subject}</p>
+                    <p className="text-sm p-3 bg-muted rounded-md">{campaign.subject}</p>
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-semibold">Body</h4>
-                       <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.draft.body)}>
+                       <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.body)}>
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                    <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.draft.body}</p>
+                    <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.body}</p>
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                  <Button variant="outline" size="icon" onClick={() => handleDelete(index)}>
+                  <Button variant="outline" size="icon" onClick={() => handleDelete(campaign.id)}>
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete</span>
                   </Button>

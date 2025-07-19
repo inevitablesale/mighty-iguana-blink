@@ -5,20 +5,53 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const [profile, setProfile] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem("recruiterProfile");
-    if (savedProfile) {
-      setProfile(savedProfile);
-    }
+    const fetchUserAndProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("specialty")
+          .eq("id", user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+          console.error("Error fetching profile:", error);
+          toast.error("Could not load your profile.");
+        } else if (data) {
+          setProfile(data.specialty || "");
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchUserAndProfile();
   }, []);
 
-  const handleSave = () => {
-    localStorage.setItem("recruiterProfile", profile);
-    toast.success("Your profile has been saved!");
+  const handleSave = async () => {
+    if (!userId) {
+      toast.error("You must be logged in to save your profile.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, specialty: profile });
+
+    if (error) {
+      console.error("Error saving profile:", error);
+      toast.error("Failed to save your profile.");
+    } else {
+      toast.success("Your profile has been saved!");
+    }
   };
 
   return (
@@ -41,9 +74,10 @@ const Settings = () => {
                 value={profile}
                 onChange={(e) => setProfile(e.target.value)}
                 rows={4}
+                disabled={loading}
               />
             </div>
-            <Button onClick={handleSave}>Save Profile</Button>
+            <Button onClick={handleSave} disabled={loading}>Save Profile</Button>
           </CardContent>
         </Card>
       </main>

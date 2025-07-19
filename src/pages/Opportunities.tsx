@@ -5,44 +5,77 @@ import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { v4 as uuidv4 } from 'uuid';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedOpportunities = sessionStorage.getItem('allOpportunities');
-    const storedApprovedIds = JSON.parse(sessionStorage.getItem('approvedOpportunityIds') || '[]');
-    setApprovedIds(storedApprovedIds);
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    if (storedOpportunities) {
-      const opps = JSON.parse(storedOpportunities);
-      const oppsWithIds = opps.map((opp: Opportunity) => ({
-        ...opp,
-        id: opp.id || uuidv4(),
-      }));
-      setOpportunities(oppsWithIds.reverse());
-    }
+      const { data: oppsData, error: oppsError } = await supabase
+        .from('opportunities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (oppsError) {
+        console.error("Error fetching opportunities:", oppsError);
+        toast.error("Failed to load opportunities.");
+      } else {
+        setOpportunities(oppsData.map(o => ({...o, companyName: o.company_name, hiringUrgency: o.hiring_urgency, matchScore: o.match_score, keySignal: o.key_signal} as Opportunity)));
+      }
+
+      const { data: campaignsData, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('opportunity_id')
+        .eq('user_id', user.id);
+      
+      if (campaignsError) {
+        console.error("Error fetching campaigns:", campaignsError);
+      } else {
+        setApprovedIds(campaignsData.map(c => c.opportunity_id));
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
   }, []);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
     const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
       const { data, error } = await supabase.functions.invoke('generate-outreach', {
         body: { opportunity },
       });
 
       if (error) throw new Error(error.message);
 
-      const existingDrafts = JSON.parse(sessionStorage.getItem('campaignDrafts') || '[]');
-      existingDrafts.push(data);
-      sessionStorage.setItem('campaignDrafts', JSON.stringify(existingDrafts));
+      const { draft, companyName, role } = data;
+      const { error: insertError } = await supabase.from('campaigns').insert({
+        user_id: user.id,
+        opportunity_id: opportunity.id,
+        company_name: companyName,
+        role,
+        subject: draft.subject,
+        body: draft.body,
+      });
 
-      const newApprovedIds = [...approvedIds, opportunity.id];
-      setApprovedIds(newApprovedIds);
-      sessionStorage.setItem('approvedOpportunityIds', JSON.stringify(newApprovedIds));
+      if (insertError) throw new Error(insertError.message);
+
+      setApprovedIds(prev => [...prev, opportunity.id]);
 
       toast.success(`Draft created for ${opportunity.companyName}!`, {
         id: toastId,
@@ -55,19 +88,38 @@ const Opportunities = () => {
     } catch (e) {
       const error = e as Error;
       console.error("Error generating outreach:", error);
-      toast.error("Failed to create draft. Please try again.", { id: toastId });
+      toast.error(error.message, { id: toastId });
     }
   };
+
+  const renderLoadingState = () => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {[...Array(8)].map((_, i) => (
+        <div key={i} className="p-4 border rounded-lg space-y-4 bg-card">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <div className="flex space-x-2 pt-2">
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col">
       <Header title="Opportunities" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        {opportunities.length > 0 ? (
+        {loading ? (
+          renderLoadingState()
+        ) : opportunities.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {opportunities.map((opp, index) => (
+            {opportunities.map((opp) => (
               <OpportunityCard
-                key={index}
+                key={opp.id}
                 opportunity={opp}
                 onApproveOutreach={handleApproveOutreach}
                 isApproved={approvedIds.includes(opp.id)}
