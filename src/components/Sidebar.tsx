@@ -1,4 +1,4 @@
-import { Bell, Briefcase, Home, Settings } from "lucide-react";
+import { Bell, Briefcase, Home, Settings, Target } from "lucide-react";
 
 export function Sidebar() {
   return (
@@ -23,7 +23,7 @@ export function Sidebar() {
               href="#"
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground/80 transition-all hover:bg-white/10 hover:text-sidebar-foreground"
             >
-              <Briefcase className="h-4 w-4" />
+              <Target className="h-4 w-4" />
               Opportunities
             </a>
             <a
