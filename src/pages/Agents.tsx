@@ -1,98 +1,107 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { PlusCircle } from "lucide-react";
+import { Bot } from "lucide-react";
+import { AddAgentDialog } from "@/components/AddAgentDialog";
+import { AgentCard, Agent } from "@/components/AgentCard";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 
 const Agents = () => {
-  const [profile, setProfile] = useState("");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserAndProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("specialty")
-          .eq("id", user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
-          console.error("Error fetching profile:", error);
-          toast.error("Could not load your agent profile.");
-        } else if (data) {
-          setProfile(data.specialty || "");
-        }
-      }
+  const fetchAgents = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
-    };
-
-    fetchUserAndProfile();
-  }, []);
-
-  const handleSave = async () => {
-    if (!userId) {
-      toast.error("You must be logged in to save your agent.");
       return;
     }
 
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: userId, specialty: profile });
+    const { data, error } = await supabase
+      .from("agents")
+      .select("id, name, prompt")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error saving agent:", error);
-      toast.error("Failed to save your agent profile.");
+      console.error("Error fetching agents:", error);
+      toast.error("Could not load your agents.");
+    } else if (data) {
+      setAgents(data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
+
+  const handleDeleteAgent = async (agentId: string) => {
+    const { error } = await supabase.from("agents").delete().eq("id", agentId);
+    if (error) {
+      console.error("Error deleting agent:", error);
+      toast.error("Failed to delete agent.");
     } else {
-      toast.success("Your default agent has been updated!");
+      toast.success("Agent deleted.");
+      fetchAgents(); // Refresh the list
     }
   };
+
+  const renderLoadingState = () => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {[...Array(3)].map((_, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <Skeleton className="h-6 w-3/4" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-5/6" />
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Skeleton className="h-10 w-10 rounded-md" />
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col">
       <Header title="Agents" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
         <div className="flex justify-between items-center">
+          <div>
             <h2 className="text-2xl font-bold">Your Recruiting Agents</h2>
-            <Button disabled>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                New Agent (Coming Soon)
-            </Button>
+            <p className="text-muted-foreground">
+              Create and manage specialized agents to proactively find opportunities for you.
+            </p>
+          </div>
+          <AddAgentDialog onAgentCreated={fetchAgents} />
         </div>
-        <p className="text-muted-foreground">
-            Agents proactively search for opportunities based on your criteria. Here is your default agent.
-        </p>
-        <Card>
-          <CardHeader className="coogi-gradient-bg rounded-t-lg">
-            <CardTitle className="text-primary-foreground">Default Agent Profile</CardTitle>
-            <CardDescription className="text-primary-foreground/80">
-              Describe your specialty to help this agent find the most relevant opportunities for you.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid w-full gap-1.5">
-              <Label htmlFor="profile">Agent's Specialty</Label>
-              <Textarea
-                id="profile"
-                placeholder="e.g., 'I specialize in placing Senior Software Engineers in the fintech vertical on the East Coast.'"
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                rows={4}
-                disabled={loading}
-              />
+
+        {loading ? (
+          renderLoadingState()
+        ) : agents.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {agents.map((agent) => (
+              <AgentCard key={agent.id} agent={agent} onDelete={handleDeleteAgent} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <Bot className="h-12 w-12 text-primary" />
+              <h3 className="text-xl font-bold tracking-tight">No Agents Yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Click "New Agent" to create your first automated search agent.
+              </p>
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleSave} disabled={loading} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">Save Agent</Button>
-          </CardFooter>
-        </Card>
+          </div>
+        )}
       </main>
     </div>
   );
