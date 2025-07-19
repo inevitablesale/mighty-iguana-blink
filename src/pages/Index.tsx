@@ -6,6 +6,7 @@ import { OpportunityList } from "@/components/OpportunityList";
 import { Opportunity } from "@/components/OpportunityCard";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client"; // Import Supabase client
 
 interface Message {
   id: number;
@@ -13,6 +14,8 @@ interface Message {
   content: React.ReactNode;
 }
 
+// Mock opportunities are still here for display purposes,
+// but the AI response will come from the Edge Function.
 const mockOpportunities: Opportunity[] = [
   {
     companyName: "InnovateTech",
@@ -65,7 +68,7 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendCommand = (command: string) => {
+  const handleSendCommand = async (command: string) => {
     setIsLoading(true);
     const userMessage: Message = {
       id: Date.now(),
@@ -74,24 +77,57 @@ const Index = () => {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    setTimeout(() => {
-      const thinkingMessage: Message = {
-        id: Date.now() + 1,
-        sender: "ai",
-        content: <p>On it. I'm searching for tech companies hiring developers in Texas...</p>,
-      };
-      setMessages((prev) => [...prev, thinkingMessage]);
+    try {
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('process-command', {
+        body: { command },
+      });
 
-      setTimeout(() => {
-        const resultsMessage: Message = {
-          id: Date.now() + 2,
+      if (error) {
+        console.error("Error invoking Edge Function:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "ai",
+            content: <p className="text-destructive">Error: {error.message}. Please try again.</p>,
+          },
+        ]);
+      } else {
+        // Assuming the Edge Function returns { response: "AI's text" }
+        const aiResponseText = data.response;
+
+        // For demonstration, if the AI response indicates a search, show mock opportunities
+        let aiContent: React.ReactNode = <p>{aiResponseText}</p>;
+        if (aiResponseText.toLowerCase().includes("searching for tech companies")) {
+          aiContent = (
+            <>
+              <p className="mb-4">{aiResponseText}</p>
+              <OpportunityList opportunities={mockOpportunities} />
+            </>
+          );
+        }
+
+        const aiMessage: Message = {
+          id: Date.now() + 1,
           sender: "ai",
-          content: <OpportunityList opportunities={mockOpportunities} />,
+          content: aiContent,
         };
-        setMessages((prev) => [...prev, resultsMessage]);
-        setIsLoading(false);
-      }, 2000);
-    }, 1000);
+        setMessages((prev) => [...prev, aiMessage]);
+      }
+    } catch (networkError) {
+      console.error("Network error calling Edge Function:", networkError);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: "ai",
+          content: <p className="text-destructive">Network error. Please check your connection.</p>,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
