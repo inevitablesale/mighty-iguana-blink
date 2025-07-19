@@ -6,15 +6,25 @@ import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from 'uuid';
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const storedOpportunities = sessionStorage.getItem('allOpportunities');
+    const storedApprovedIds = JSON.parse(sessionStorage.getItem('approvedOpportunityIds') || '[]');
+    setApprovedIds(storedApprovedIds);
+
     if (storedOpportunities) {
-      setOpportunities(JSON.parse(storedOpportunities).reverse());
+      const opps = JSON.parse(storedOpportunities);
+      const oppsWithIds = opps.map((opp: Opportunity) => ({
+        ...opp,
+        id: opp.id || uuidv4(),
+      }));
+      setOpportunities(oppsWithIds.reverse());
     }
   }, []);
 
@@ -30,6 +40,10 @@ const Opportunities = () => {
       const existingDrafts = JSON.parse(sessionStorage.getItem('campaignDrafts') || '[]');
       existingDrafts.push(data);
       sessionStorage.setItem('campaignDrafts', JSON.stringify(existingDrafts));
+
+      const newApprovedIds = [...approvedIds, opportunity.id];
+      setApprovedIds(newApprovedIds);
+      sessionStorage.setItem('approvedOpportunityIds', JSON.stringify(newApprovedIds));
 
       toast.success(`Draft created for ${opportunity.companyName}!`, {
         id: toastId,
@@ -55,7 +69,12 @@ const Opportunities = () => {
           {opportunities.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {opportunities.map((opp, index) => (
-                <OpportunityCard key={index} opportunity={opp} onApproveOutreach={handleApproveOutreach} />
+                <OpportunityCard
+                  key={index}
+                  opportunity={opp}
+                  onApproveOutreach={handleApproveOutreach}
+                  isApproved={approvedIds.includes(opp.id)}
+                />
               ))}
             </div>
           ) : (

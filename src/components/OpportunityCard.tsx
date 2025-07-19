@@ -9,9 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Zap } from "lucide-react";
+import { Zap, Check } from "lucide-react";
 
 export interface Opportunity {
+  id: string;
   companyName: string;
   role: string;
   location: string;
@@ -24,9 +25,10 @@ export interface Opportunity {
 interface OpportunityCardProps {
   opportunity: Opportunity;
   onApproveOutreach: (opportunity: Opportunity) => void;
+  isApproved: boolean;
 }
 
-export function OpportunityCard({ opportunity, onApproveOutreach }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     switch (value) {
       case "High":
@@ -74,7 +76,14 @@ export function OpportunityCard({ opportunity, onApproveOutreach }: OpportunityC
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
         <Button variant="outline">View Details</Button>
-        <Button onClick={() => onApproveOutreach(opportunity)}>Approve Outreach</Button>
+        {isApproved ? (
+          <Button disabled>
+            <Check className="mr-2 h-4 w-4" />
+            Drafted
+          </Button>
+        ) : (
+          <Button onClick={() => onApproveOutreach(opportunity)}>Approve Outreach</Button>
+        )}
       </CardFooter>
     </Card>
   );

@@ -10,13 +10,38 @@ import { Bot, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { v4 as uuidv4 } from 'uuid';
 
 const Index = () => {
   const [searchCriteria, setSearchCriteria] = useState<any>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialView, setIsInitialView] = useState(true);
+  const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem("recruiterProfile");
+    const storedApprovedIds = JSON.parse(sessionStorage.getItem('approvedOpportunityIds') || '[]');
+    setApprovedIds(storedApprovedIds);
+
+    if (savedProfile && sessionStorage.getItem('allOpportunities') === null) {
+      const proactiveCommand = `Find me the top 3 opportunities based on this profile: ${savedProfile}`;
+      handleSendCommand(proactiveCommand);
+    } else if (!savedProfile) {
+        setIsInitialView(true);
+    } else {
+        setIsInitialView(false);
+        const storedOpps = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]');
+        const oppsWithIds = storedOpps.map((opp: Opportunity) => ({
+          ...opp,
+          id: opp.id || uuidv4(),
+        }));
+        sessionStorage.setItem('allOpportunities', JSON.stringify(oppsWithIds));
+        const latestSearch = oppsWithIds.slice(-3);
+        setOpportunities(latestSearch.reverse());
+    }
+  }, []);
 
   const handleSendCommand = async (command: string) => {
     if (!command.trim()) return;
@@ -36,14 +61,15 @@ const Index = () => {
         throw new Error(error.message);
       }
 
-      const aiResponse = data as { searchCriteria: any; opportunities: Opportunity[] };
+      const aiResponse = data as { searchCriteria: any; opportunities: Omit<Opportunity, 'id'>[] };
       
       if (aiResponse && aiResponse.opportunities) {
+        const opportunitiesWithIds = aiResponse.opportunities.map(opp => ({ ...opp, id: uuidv4() }));
         setSearchCriteria(aiResponse.searchCriteria);
-        setOpportunities(aiResponse.opportunities);
+        setOpportunities(opportunitiesWithIds);
 
         const allOpportunities = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]');
-        const newOpportunities = aiResponse.opportunities.filter(
+        const newOpportunities = opportunitiesWithIds.filter(
           (newOpp: Opportunity) => !allOpportunities.some((existingOpp: Opportunity) => 
             existingOpp.companyName === newOpp.companyName && existingOpp.role === newOpp.role
           )
@@ -62,20 +88,6 @@ const Index = () => {
     }
   };
 
-  useEffect(() => {
-    const savedProfile = localStorage.getItem("recruiterProfile");
-    if (savedProfile && sessionStorage.getItem('allOpportunities') === null) {
-      const proactiveCommand = `Find me the top 3 opportunities based on this profile: ${savedProfile}`;
-      handleSendCommand(proactiveCommand);
-    } else if (!savedProfile) {
-        setIsInitialView(true);
-    } else {
-        setIsInitialView(false);
-        const latestSearch = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]').slice(-3);
-        setOpportunities(latestSearch.reverse());
-    }
-  }, []);
-
   const handleApproveOutreach = async (opportunity: Opportunity) => {
     const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
     try {
@@ -88,6 +100,10 @@ const Index = () => {
       const existingDrafts = JSON.parse(sessionStorage.getItem('campaignDrafts') || '[]');
       existingDrafts.push(data);
       sessionStorage.setItem('campaignDrafts', JSON.stringify(existingDrafts));
+
+      const newApprovedIds = [...approvedIds, opportunity.id];
+      setApprovedIds(newApprovedIds);
+      sessionStorage.setItem('approvedOpportunityIds', JSON.stringify(newApprovedIds));
 
       toast.success(`Draft created for ${opportunity.companyName}!`, {
         id: toastId,
@@ -153,7 +169,7 @@ const Index = () => {
                   renderLoadingState()
                 ) : opportunities.length > 0 ? (
                   <div className="mt-4">
-                    <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} />
+                    <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} approvedIds={approvedIds} />
                   </div>
                 ) : (
                   <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full mt-4">
