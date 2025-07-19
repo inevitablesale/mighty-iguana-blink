@@ -12,8 +12,8 @@ import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
-import { CampaignPipeline } from "@/components/CampaignPipeline";
-import { RevenueMetrics } from "@/components/RevenueMetrics";
+import { useRevenueChartData } from "@/hooks/useRevenueChartData";
+import { RevenueChart } from "@/components/RevenueChart";
 import { Opportunity, ProcessedCommand, PredictiveLead } from "@/types/index";
 
 export default function Index() {
@@ -23,6 +23,7 @@ export default function Index() {
   const navigate = useNavigate();
   const { leads, loading: leadsLoading } = usePredictiveLeads();
   const { stats, loading: statsLoading, refresh: refreshStats } = useDashboardStats();
+  const { data: chartData, loading: chartLoading, refresh: refreshChart } = useRevenueChartData();
   const [investigatingLead, setInvestigatingLead] = useState<PredictiveLead | null>(null);
   const [investigatedLeads, setInvestigatedLeads] = useState<string[]>([]);
 
@@ -44,6 +45,11 @@ export default function Index() {
     };
     fetchInitialData();
   }, []);
+  
+  const refreshAllStats = () => {
+    refreshStats();
+    refreshChart();
+  }
 
   const handleSendCommand = async (command: string) => {
     setIsLoading(true);
@@ -85,7 +91,7 @@ export default function Index() {
       toast.error(err.message, { id: toastId });
     } finally {
       setIsLoading(false);
-      refreshStats();
+      refreshAllStats();
     }
   };
 
@@ -132,7 +138,7 @@ export default function Index() {
           onClick: () => navigate('/campaigns'),
         },
       });
-      refreshStats();
+      refreshAllStats();
     } catch (e) {
       const error = e as Error;
       console.error("Error generating outreach:", error);
@@ -178,7 +184,7 @@ export default function Index() {
           onClick: () => navigate('/opportunities'),
         },
       });
-      refreshStats();
+      refreshAllStats();
 
     } catch (e) {
       const err = e as Error;
@@ -196,11 +202,9 @@ export default function Index() {
       <Header title="Dashboard" />
       <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto space-y-6">
         <DashboardMetrics stats={stats} loading={statsLoading} />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CampaignPipeline stats={stats} loading={statsLoading} />
-          <RevenueMetrics stats={stats} loading={statsLoading} />
-        </div>
         
+        <RevenueChart data={chartData} loading={chartLoading} />
+
         <div className="flex-1 flex flex-col justify-center">
           {isLoading && (
             <div className="flex flex-col items-center gap-2 text-center">

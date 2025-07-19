@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Briefcase, Edit, Send, Percent } from "lucide-react";
+import { Briefcase, Send, Award, DollarSign } from "lucide-react";
 import { DashboardStats } from "@/hooks/useDashboardStats";
 
 interface DashboardMetricsProps {
@@ -24,6 +24,28 @@ export function DashboardMetrics({ stats, loading }: DashboardMetricsProps) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            ${(stats?.totalRevenue ?? 0).toLocaleString()}
+          </div>
+          <p className="text-xs text-muted-foreground">From all placements</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Placements</CardTitle>
+          <Award className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats?.totalPlacements ?? 0}</div>
+          <p className="text-xs text-muted-foreground">Successful placements made</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Opportunities</CardTitle>
           <Briefcase className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
@@ -34,32 +56,12 @@ export function DashboardMetrics({ stats, loading }: DashboardMetricsProps) {
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Outreach Drafted</CardTitle>
-          <Edit className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats?.outreachDrafted ?? 0}</div>
-          <p className="text-xs text-muted-foreground">Campaigns waiting to be sent</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Outreach Sent</CardTitle>
           <Send className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.outreachSent ?? 0}</div>
           <p className="text-xs text-muted-foreground">Total emails sent to prospects</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Approval Rate</CardTitle>
-          <Percent className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats?.approvalRate ?? 0}%</div>
-          <p className="text-xs text-muted-foreground">Opportunities converted to drafts</p>
         </CardContent>
       </Card>
     </div>
