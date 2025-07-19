@@ -50,17 +50,9 @@ const Login = () => {
               supabaseClient={supabase}
               appearance={{
                 theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: 'hsl(var(--primary))',
-                      brandAccent: 'hsl(var(--primary-foreground))',
-                    },
-                  },
-                },
               }}
               providers={[]}
-              theme="dark"
+              theme="light"
             />
           </div>
         </CardContent>
