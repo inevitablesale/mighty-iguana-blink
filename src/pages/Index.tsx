@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardMetrics } from "@/components/DashboardMetrics";
+import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
+import { PredictiveLeads } from "@/components/PredictiveLeads";
 
 interface ProcessedCommand {
   searchCriteria: {
@@ -27,6 +29,7 @@ export default function Index() {
   const [processedCommand, setProcessedCommand] = useState<ProcessedCommand | null>(null);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
+  const { leads, loading: leadsLoading } = usePredictiveLeads();
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -149,16 +152,26 @@ export default function Index() {
           )}
 
           {isInitialView && (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <Bot className="h-12 w-12 text-primary" />
-                <h2 className="text-2xl font-bold tracking-tight">Welcome to Coogi</h2>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Your AI recruiting intelligence platform. Use the command bar below or{" "}
-                  <Link to="/agents" className="underline text-primary">set up your agents</Link>
-                  {" "}for automated searches.
-                </p>
-              </div>
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full p-6">
+              {leadsLoading ? (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                  <h2 className="text-xl font-semibold tracking-tight">Searching for Proactive Leads...</h2>
+                  <p className="text-sm text-muted-foreground">Your agents are on the lookout.</p>
+                </div>
+              ) : leads.length > 0 ? (
+                <PredictiveLeads leads={leads} />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <Bot className="h-12 w-12 text-primary" />
+                  <h2 className="text-2xl font-bold tracking-tight">Welcome to Coogi</h2>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Your AI recruiting intelligence platform. Use the command bar below or{" "}
+                    <Link to="/agents" className="underline text-primary">set up your agents</Link>
+                    {" "}for automated searches.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
