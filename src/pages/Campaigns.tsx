@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { CreatePlacementDialog } from "@/components/CreatePlacementDialog";
-import { ViewCampaignEmailDialog } from "@/components/ViewCampaignEmailDialog";
+import { ViewLinkedInMessageDialog } from "@/components/ViewLinkedInMessageDialog";
 import { GenerateProposalDialog } from "@/components/GenerateProposalDialog";
 import {
   Table,
@@ -172,12 +172,12 @@ const Campaigns = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <ViewCampaignEmailDialog campaign={campaign}>
+                            <ViewLinkedInMessageDialog campaign={campaign}>
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <FileText className="mr-2 h-4 w-4" />
-                                View Email
+                                View Message
                               </DropdownMenuItem>
-                            </ViewCampaignEmailDialog>
+                            </ViewLinkedInMessageDialog>
                             {campaign.status === 'draft' && (
                               <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>

@@ -74,10 +74,25 @@ const Opportunities = () => {
   }, []);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
-    const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
+    const toastId = toast.loading(`Drafting LinkedIn message for ${opportunity.companyName}...`);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated.");
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, calendly_url')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw new Error("Could not fetch your profile to get Calendly link.");
+      if (!profile?.calendly_url) {
+        toast.error("Please set your Calendly URL in your profile first.", {
+          id: toastId,
+          action: { label: "Go to Profile", onClick: () => navigate('/profile') },
+        });
+        return;
+      }
 
       const { data: agents, error: agentsError } = await supabase
         .from('agents')
@@ -88,37 +103,41 @@ const Opportunities = () => {
 
       const recruiterSpecialty = agents.map(a => a.prompt).join(', ');
 
-      const { data, error } = await supabase.functions.invoke('generate-outreach', {
-        body: { opportunity, recruiterSpecialty },
+      const { data, error } = await supabase.functions.invoke('generate-linkedin-outreach', {
+        body: { 
+          opportunity, 
+          recruiterSpecialty, 
+          calendlyUrl: profile.calendly_url,
+          recruiterFirstName: profile.first_name 
+        },
       });
 
       if (error) throw new Error(error.message);
 
-      const { draft, companyName, role } = data;
       const { error: insertError } = await supabase.from('campaigns').insert({
         user_id: user.id,
         opportunity_id: opportunity.id,
-        company_name: companyName,
-        role,
-        subject: draft.subject,
-        body: draft.body,
+        company_name: opportunity.companyName,
+        role: opportunity.role,
+        linkedin_message: data.message,
+        status: 'draft',
       });
 
       if (insertError) throw new Error(insertError.message);
 
       setApprovedIds(prev => [...prev, opportunity.id]);
 
-      toast.success(`Draft created for ${opportunity.companyName}!`, {
+      toast.success(`LinkedIn message drafted for ${opportunity.companyName}!`, {
         id: toastId,
-        description: "You can now review the draft in the Campaigns tab.",
+        description: "You can review it in the Campaigns tab.",
         action: {
-          label: "View Drafts",
+          label: "View Campaigns",
           onClick: () => navigate('/campaigns'),
         },
       });
     } catch (e) {
       const error = e as Error;
-      console.error("Error generating outreach:", error);
+      console.error("Error generating LinkedIn outreach:", error);
       toast.error(error.message, { id: toastId });
     }
   };

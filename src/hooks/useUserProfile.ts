@@ -6,6 +6,7 @@ export interface UserProfile {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  calendly_url: string | null;
 }
 
 export function useUserProfile() {

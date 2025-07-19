@@ -30,8 +30,7 @@ export interface Campaign {
   id: string;
   company_name: string;
   role: string;
-  subject: string;
-  body: string;
+  linkedin_message: string;
   status: CampaignStatus;
 }
 

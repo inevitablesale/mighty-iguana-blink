@@ -13,12 +13,14 @@ const Profile = () => {
   const { user, profile, loading, refresh } = useUserProfile();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [calendlyUrl, setCalendlyUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
+      setCalendlyUrl(profile.calendly_url || '');
     }
   }, [profile]);
 
@@ -28,7 +30,7 @@ const Profile = () => {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: firstName, last_name: lastName })
+      .update({ first_name: firstName, last_name: lastName, calendly_url: calendlyUrl })
       .eq('id', user.id);
 
     setIsSaving(false);
@@ -54,6 +56,7 @@ const Profile = () => {
             <CardContent className="space-y-4">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </CardContent>
             <CardFooter>
               <Skeleton className="h-10 w-24" />
@@ -71,7 +74,7 @@ const Profile = () => {
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
-            <CardDescription>Update your personal information.</CardDescription>
+            <CardDescription>Update your personal information and integrations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -85,6 +88,10 @@ const Profile = () => {
              <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" value={user?.email || ''} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="calendlyUrl">Calendly URL</Label>
+              <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
             </div>
           </CardContent>
           <CardFooter>

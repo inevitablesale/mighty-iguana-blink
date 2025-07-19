@@ -14,10 +14,10 @@ serve(async (req) => {
   }
 
   try {
-    const { opportunity, recruiterSpecialty } = await req.json();
+    const { opportunity, recruiterSpecialty, calendlyUrl, recruiterFirstName } = await req.json();
 
-    if (!opportunity) {
-      return new Response(JSON.stringify({ error: 'Opportunity data is required.' }), {
+    if (!opportunity || !calendlyUrl) {
+      return new Response(JSON.stringify({ error: 'Opportunity data and Calendly URL are required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -30,35 +30,32 @@ serve(async (req) => {
 
     const prompt = `
 You are an expert business development copywriter for a top-tier recruiter.
-The recruiter's specialties are: "${recruiterSpecialty || 'general recruiting'}".
-Your task is to write a concise, compelling, and personalized outreach email to a potential new client.
+Your task is to write a concise, compelling, and personalized LinkedIn message to send after a connection request is accepted.
 
-The recruiter is using an app called "Coogi".
+The recruiter's name is ${recruiterFirstName || 'your partner at Coogi'}.
+The recruiter's specialties are: "${recruiterSpecialty || 'general recruiting'}".
 The opportunity details are:
 - Company: ${opportunity.companyName}
 - Role: ${opportunity.role}
 - Key Signal: "${opportunity.keySignal}"
-- Hiring Urgency: ${opportunity.hiringUrgency}
-- Potential Value: ${opportunity.potential}
 
-Based on this information, generate a JSON object with two keys: "subject" and "body".
+The recruiter's Calendly link for booking a meeting is: ${calendlyUrl}
 
-Guidelines for the email:
-- The tone should reflect the Hiring Urgency. If urgency is High, be direct and action-oriented. If Low, be more exploratory.
-- The subject line should be compelling and relevant.
-- The body must be short and professional (under 150 words).
-- Start with a personalized hook that references the Key Signal.
-- Briefly introduce the value proposition, subtly weaving in the recruiter's specialty (e.g., "As a specialist in [specialty], I have a network of talent...").
-- End with a clear, low-friction call to action that matches the tone.
-- Do NOT use placeholders like "[Your Name]". Sign off as "A Partner at Coogi".
+Guidelines for the message:
+- The tone should be professional, helpful, and low-pressure.
+- The message should be concise (2-3 short paragraphs).
+- Start with a personalized hook that references the Key Signal or the company's hiring.
+- Briefly introduce the recruiter's value proposition, aligning with their specialty.
+- End with a clear, low-friction call to action that includes the Calendly link.
+- Do NOT use placeholders like "[Hiring Manager Name]". The message should be ready to send.
+- Sign off with the recruiter's first name.
 
-Example Output Structure:
+Return a JSON object with one key: "message".
+
+Example Output:
 {
-  "subject": "Your next hire at ${opportunity.companyName}",
-  "body": "Hi [Hiring Manager Name],\\n\\nI saw that ${opportunity.companyName} ${opportunity.keySignal}. Given this momentum, I imagine finding top-tier talent for the ${opportunity.role} position is a priority.\\n\\nAs a specialist in fintech sales, I have a network of passive talent that could be a great fit.\\n\\nWould you be open to a brief chat next week to discuss how I can help you scale your team?\\n\\nBest,\\nA Partner at Coogi"
+  "message": "Hi there,\\n\\nThanks for connecting. I saw that ${opportunity.companyName} is scaling its ${opportunity.role} team, and given the recent news about your ${opportunity.keySignal}, I imagine finding top-tier talent is a key priority.\\n\\nAs a specialist in this area, I have a network of passive talent that could be a great fit and help you hit your hiring targets faster.\\n\\nIf you're open to a brief chat, feel free to book a time on my calendar: ${calendlyUrl}\\n\\nBest,\\n${recruiterFirstName || 'Partner at Coogi'}"
 }
-
-Generate a new, unique email based on the provided opportunity.
 `;
 
     const geminiResponse = await fetch(
@@ -81,7 +78,7 @@ Generate a new, unique email based on the provided opportunity.
       throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorText}`);
     }
 
-    const geminiResult = await geminiResponse.json() as { candidates?: { content?: { parts?: { text: string }[] } }[] };
+    const geminiResult = await geminiResponse.json();
     const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!aiResponseText) {
@@ -89,13 +86,8 @@ Generate a new, unique email based on the provided opportunity.
     }
 
     const parsedResponse = JSON.parse(aiResponseText);
-    
-    const finalResponse = {
-      ...opportunity,
-      draft: parsedResponse,
-    };
 
-    return new Response(JSON.stringify(finalResponse), {
+    return new Response(JSON.stringify(parsedResponse), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
