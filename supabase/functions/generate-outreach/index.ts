@@ -14,10 +14,10 @@ serve(async (req) => {
   }
 
   try {
-    const { opportunity, recruiterSpecialty, calendlyUrl, recruiterFirstName } = await req.json();
+    const { opportunity, recruiterSpecialty, recruiterFirstName, calendlyUrl } = await req.json();
 
-    if (!opportunity || !calendlyUrl) {
-      return new Response(JSON.stringify({ error: 'Opportunity data and Calendly URL are required.' }), {
+    if (!opportunity) {
+      return new Response(JSON.stringify({ error: 'Opportunity data is required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -30,7 +30,7 @@ serve(async (req) => {
 
     const prompt = `
 You are an expert business development copywriter for a top-tier recruiter.
-Your task is to write a concise, compelling, and personalized LinkedIn message to send after a connection request is accepted.
+Your task is to write a concise, compelling, and personalized cold email.
 
 The recruiter's name is ${recruiterFirstName || 'your partner at Coogi'}.
 The recruiter's specialties are: "${recruiterSpecialty || 'general recruiting'}".
@@ -39,22 +39,22 @@ The opportunity details are:
 - Role: ${opportunity.role}
 - Key Signal: "${opportunity.keySignal}"
 
-The recruiter's Calendly link for booking a meeting is: ${calendlyUrl}
+The recruiter's Calendly link for booking a meeting is: ${calendlyUrl || '(not provided)'}
 
-Guidelines for the message:
+Guidelines for the email:
 - The tone should be professional, helpful, and low-pressure.
-- The message should be concise (2-3 short paragraphs).
+- The email should be concise (2-3 short paragraphs).
 - Start with a personalized hook that references the Key Signal or the company's hiring.
 - Briefly introduce the recruiter's value proposition, aligning with their specialty.
-- End with a clear, low-friction call to action that includes the Calendly link.
+- End with a clear, low-friction call to action. If a Calendly link is provided, include it.
 - Do NOT use placeholders like "[Hiring Manager Name]". The message should be ready to send.
-- Sign off with the recruiter's first name.
 
-Return a JSON object with one key: "message".
+Return a JSON object with two keys: "subject" and "body". The body should be a single string with \\n for newlines.
 
 Example Output:
 {
-  "message": "Hi there,\\n\\nThanks for connecting. I saw that ${opportunity.companyName} is scaling its ${opportunity.role} team, and given the recent news about your ${opportunity.keySignal}, I imagine finding top-tier talent is a key priority.\\n\\nAs a specialist in this area, I have a network of passive talent that could be a great fit and help you hit your hiring targets faster.\\n\\nIf you're open to a brief chat, feel free to book a time on my calendar: ${calendlyUrl}\\n\\nBest,\\n${recruiterFirstName || 'Partner at Coogi'}"
+  "subject": "Re: Top-tier talent for your ${opportunity.role} team",
+  "body": "Hi there,\\n\\nI saw that ${opportunity.companyName} is scaling its ${opportunity.role} team, and given the recent news about your ${opportunity.keySignal}, I imagine finding top-tier talent is a key priority.\\n\\nAs a specialist in this area, I have a network of passive talent that could be a great fit and help you hit your hiring targets faster.\\n\\nIf you're open to a brief chat, feel free to book a time on my calendar: ${calendlyUrl}\\n\\nBest,\\n${recruiterFirstName || 'Partner at Coogi'}"
 }
 `;
 

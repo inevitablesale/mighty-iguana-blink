@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { CreatePlacementDialog } from "@/components/CreatePlacementDialog";
-import { ViewLinkedInMessageDialog } from "@/components/ViewLinkedInMessageDialog";
+import { ViewCampaignEmailDialog } from "@/components/ViewCampaignEmailDialog";
 import { GenerateProposalDialog } from "@/components/GenerateProposalDialog";
 import {
   Table,
@@ -75,21 +75,6 @@ const Campaigns = () => {
     fetchCampaigns();
   }, [fetchCampaigns]);
 
-  const handleLaunchPhantom = async (campaignId: string) => {
-    const toastId = toast.loading("Launching Phantombuster connection request...");
-    try {
-      const { error } = await supabase.functions.invoke('trigger-phantom', {
-        body: { campaignId },
-      });
-      if (error) throw error;
-      toast.success("Connection request sent to Phantombuster!", { id: toastId });
-      fetchCampaigns();
-    } catch (e) {
-      const err = e as Error;
-      toast.error(`Failed to launch Phantom: ${err.message}`, { id: toastId });
-    }
-  };
-
   const handleDelete = async (campaignId: string) => {
     const { error } = await supabase.from('campaigns').delete().eq('id', campaignId);
     if (error) {
@@ -117,7 +102,7 @@ const Campaigns = () => {
 
   const getStatusBadgeVariant = (status: CampaignStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'connection_sent': return 'default';
+      case 'sent': return 'default';
       case 'placed': return 'default';
       case 'replied': return 'secondary';
       case 'meeting': return 'destructive';
@@ -170,18 +155,12 @@ const Campaigns = () => {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            {campaign.status === 'draft' && (
-                              <DropdownMenuItem onClick={() => handleLaunchPhantom(campaign.id)}>
-                                <Send className="mr-2 h-4 w-4" />
-                                Send Connection Request
-                              </DropdownMenuItem>
-                            )}
-                            <ViewLinkedInMessageDialog campaign={campaign}>
+                            <ViewCampaignEmailDialog campaign={campaign}>
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <FileText className="mr-2 h-4 w-4" />
-                                View Message
+                                View Email
                               </DropdownMenuItem>
-                            </ViewLinkedInMessageDialog>
+                            </ViewCampaignEmailDialog>
                             {campaign.status === 'draft' && (
                               <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -190,7 +169,7 @@ const Campaigns = () => {
                                 </DropdownMenuItem>
                               </EditCampaignDialog>
                             )}
-                             {['replied', 'meeting', 'connection_sent'].includes(campaign.status) && (
+                             {['replied', 'meeting', 'sent'].includes(campaign.status) && (
                               <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -198,7 +177,7 @@ const Campaigns = () => {
                                 </DropdownMenuItem>
                               </GenerateProposalDialog>
                             )}
-                            {['replied', 'meeting', 'connection_sent'].includes(campaign.status) && (
+                            {['replied', 'meeting', 'sent'].includes(campaign.status) && (
                               <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <Award className="mr-2 h-4 w-4" />
@@ -213,7 +192,8 @@ const Campaigns = () => {
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['connection_sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'sent')} disabled={campaign.status !== 'draft'}>Sent</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={!['replied'].includes(campaign.status)}>Meeting Booked</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={['closed', 'placed'].includes(campaign.status)}>Closed</DropdownMenuItem>
                                   <DropdownMenuSeparator />

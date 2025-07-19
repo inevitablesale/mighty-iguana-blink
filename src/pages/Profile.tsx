@@ -14,7 +14,6 @@ const Profile = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [calendlyUrl, setCalendlyUrl] = useState('');
-  const [phantombusterApiKey, setPhantombusterApiKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -22,8 +21,6 @@ const Profile = () => {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
       setCalendlyUrl(profile.calendly_url || '');
-      // @ts-ignore
-      setPhantombusterApiKey(profile.phantombuster_api_key || '');
     }
   }, [profile]);
 
@@ -37,7 +34,6 @@ const Profile = () => {
         first_name: firstName, 
         last_name: lastName, 
         calendly_url: calendlyUrl,
-        phantombuster_api_key: phantombusterApiKey,
       })
       .eq('id', user.id);
 
@@ -62,7 +58,6 @@ const Profile = () => {
               <Skeleton className="h-4 w-1/2" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -101,10 +96,6 @@ const Profile = () => {
             <div className="space-y-2">
               <Label htmlFor="calendlyUrl">Calendly URL</Label>
               <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phantombusterApiKey">Phantombuster API Key</Label>
-              <Input id="phantombusterApiKey" type="password" value={phantombusterApiKey} onChange={(e) => setPhantombusterApiKey(e.target.value)} placeholder="Enter your Phantombuster API Key" />
             </div>
           </CardContent>
           <CardFooter>

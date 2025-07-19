@@ -24,13 +24,14 @@ export interface ProcessedCommand {
   opportunities: Opportunity[];
 }
 
-export type CampaignStatus = 'draft' | 'connection_sent' | 'replied' | 'meeting' | 'closed' | 'placed';
+export type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed' | 'placed';
 
 export interface Campaign {
   id: string;
   company_name: string;
   role: string;
-  linkedin_message: string;
+  subject: string;
+  body: string;
   status: CampaignStatus;
 }
 

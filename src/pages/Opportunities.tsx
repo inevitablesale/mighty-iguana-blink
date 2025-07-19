@@ -74,7 +74,7 @@ const Opportunities = () => {
   }, []);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
-    const toastId = toast.loading(`Drafting LinkedIn message for ${opportunity.companyName}...`);
+    const toastId = toast.loading(`Drafting email for ${opportunity.companyName}...`);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated.");
@@ -85,13 +85,8 @@ const Opportunities = () => {
         .eq('id', user.id)
         .single();
 
-      if (profileError) throw new Error("Could not fetch your profile to get Calendly link.");
-      if (!profile?.calendly_url) {
-        toast.error("Please set your Calendly URL in your profile first.", {
-          id: toastId,
-          action: { label: "Go to Profile", onClick: () => navigate('/profile') },
-        });
-        return;
+      if (profileError) {
+        console.error("Could not fetch your profile.", profileError);
       }
 
       const { data: agents, error: agentsError } = await supabase
@@ -103,12 +98,12 @@ const Opportunities = () => {
 
       const recruiterSpecialty = agents.map(a => a.prompt).join(', ');
 
-      const { data, error } = await supabase.functions.invoke('generate-linkedin-outreach', {
+      const { data, error } = await supabase.functions.invoke('generate-outreach', {
         body: { 
           opportunity, 
           recruiterSpecialty, 
-          calendlyUrl: profile.calendly_url,
-          recruiterFirstName: profile.first_name 
+          calendlyUrl: profile?.calendly_url,
+          recruiterFirstName: profile?.first_name 
         },
       });
 
@@ -119,7 +114,8 @@ const Opportunities = () => {
         opportunity_id: opportunity.id,
         company_name: opportunity.companyName,
         role: opportunity.role,
-        linkedin_message: data.message,
+        subject: data.subject,
+        body: data.body,
         status: 'draft',
       });
 
@@ -127,7 +123,7 @@ const Opportunities = () => {
 
       setApprovedIds(prev => [...prev, opportunity.id]);
 
-      toast.success(`LinkedIn message drafted for ${opportunity.companyName}!`, {
+      toast.success(`Email drafted for ${opportunity.companyName}!`, {
         id: toastId,
         description: "You can review it in the Campaigns tab.",
         action: {
@@ -137,7 +133,7 @@ const Opportunities = () => {
       });
     } catch (e) {
       const error = e as Error;
-      console.error("Error generating LinkedIn outreach:", error);
+      console.error("Error generating email outreach:", error);
       toast.error(error.message, { id: toastId });
     }
   };

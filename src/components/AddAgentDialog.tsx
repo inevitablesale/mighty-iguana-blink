@@ -24,7 +24,6 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [phantomId, setPhantomId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -44,7 +43,6 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       user_id: user.id,
       name,
       prompt,
-      phantom_id: phantomId,
     });
 
     setIsSaving(false);
@@ -56,7 +54,6 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       onAgentCreated();
       setName("");
       setPrompt("");
-      setPhantomId("");
       setOpen(false);
     }
   };
@@ -100,18 +97,6 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
               className="col-span-3"
               placeholder="e.g., 'I specialize in placing VPs of Sales...'"
               rows={4}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="phantomId" className="text-right">
-              Phantom ID
-            </Label>
-            <Input
-              id="phantomId"
-              value={phantomId}
-              onChange={(e) => setPhantomId(e.target.value)}
-              className="col-span-3"
-              placeholder="Phantombuster Agent ID"
             />
           </div>
         </div>
