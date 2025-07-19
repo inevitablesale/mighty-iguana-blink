@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge, badgeVariants } from "@/components/ui/badge";
-import { Bell, Copy, Trash2, Send, Check, MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Copy, Trash2, Send, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,17 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed';
-
-interface Campaign {
-  id: string;
-  company_name: string;
-  role: string;
-  subject: string;
-  body: string;
-  status: CampaignStatus;
-}
+import { Campaign, CampaignStatus } from "@/types/index";
 
 const Campaigns = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);

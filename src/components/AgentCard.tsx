@@ -12,12 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
-export interface Agent {
-  id: string;
-  name: string;
-  prompt: string;
-}
+import { Agent } from "@/types/index";
 
 interface AgentCardProps {
   agent: Agent;

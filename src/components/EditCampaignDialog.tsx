@@ -15,12 +15,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Edit } from "lucide-react";
-
-interface Campaign {
-  id: string;
-  subject: string;
-  body: string;
-}
+import { Campaign } from "@/types/index";
 
 interface EditCampaignDialogProps {
   campaign: Campaign;

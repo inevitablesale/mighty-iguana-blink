@@ -1,4 +1,5 @@
-import { OpportunityCard, Opportunity } from "./OpportunityCard";
+import { OpportunityCard } from "./OpportunityCard";
+import { Opportunity } from "@/types/index";
 
 export interface OpportunityListProps {
   opportunities: Opportunity[];

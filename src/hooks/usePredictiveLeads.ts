@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
+import { PredictiveLead } from "@/types/index";
 
-export interface PredictiveLead {
-  companyName: string;
-  signalType: 'funding' | 'expansion' | 'hiring_trend';
-  signalStrength: number;
-  predictedRoles: string[];
-}
+export { PredictiveLead };
 
 export function usePredictiveLeads() {
   const [leads, setLeads] = useState<PredictiveLead[]>([]);

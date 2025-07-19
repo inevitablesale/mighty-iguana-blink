@@ -18,17 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Zap, Check } from "lucide-react";
-
-export interface Opportunity {
-  id: string;
-  companyName: string;
-  role: string;
-  location: string;
-  potential: "High" | "Medium" | "Low";
-  hiringUrgency: "High" | "Medium" | "Low";
-  matchScore: number;
-  keySignal: string;
-}
+import { Opportunity } from "@/types/index";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { OpportunityCard, Opportunity } from "@/components/OpportunityCard";
+import { OpportunityCard } from "@/components/OpportunityCard";
 import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Opportunity, OpportunityPotential } from "@/types/index";
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -31,7 +32,17 @@ const Opportunities = () => {
         console.error("Error fetching opportunities:", oppsError);
         toast.error("Failed to load opportunities.");
       } else {
-        setOpportunities(oppsData.map(o => ({...o, companyName: o.company_name, hiringUrgency: o.hiring_urgency, matchScore: o.match_score, keySignal: o.key_signal} as Opportunity)));
+        const formattedOpps = oppsData.map((o: any) => ({
+          id: o.id,
+          companyName: o.company_name,
+          role: o.role,
+          location: o.location || 'N/A',
+          potential: (o.potential as OpportunityPotential) || 'Low',
+          hiringUrgency: (o.hiring_urgency as OpportunityPotential) || 'Low',
+          matchScore: o.match_score || 0,
+          keySignal: o.key_signal || 'N/A',
+        }));
+        setOpportunities(formattedOpps);
       }
 
       const { data: campaignsData, error: campaignsError } = await supabase

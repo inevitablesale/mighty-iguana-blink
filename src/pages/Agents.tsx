@@ -4,9 +4,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot } from "lucide-react";
 import { AddAgentDialog } from "@/components/AddAgentDialog";
-import { AgentCard, Agent } from "@/components/AgentCard";
+import { AgentCard } from "@/components/AgentCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Agent } from "@/types/index";
 
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);

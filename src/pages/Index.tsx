@@ -1,7 +1,6 @@
 import { Header } from "@/components/Header";
 import { CommandBar } from "@/components/CommandBar";
 import { OpportunityList } from "@/components/OpportunityList";
-import { Opportunity } from "@/components/OpportunityCard";
 import { SearchParameters } from "@/components/SearchParameters";
 import { Bot, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -14,17 +13,7 @@ import { usePredictiveLeads, PredictiveLead } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { CampaignPipeline } from "@/components/CampaignPipeline";
-
-interface ProcessedCommand {
-  searchCriteria: {
-    role?: string | null;
-    location?: string | null;
-    quantity?: number | null;
-    vertical?: string | null;
-    keywords?: string[] | null;
-  };
-  opportunities: Opportunity[];
-}
+import { Opportunity, ProcessedCommand } from "@/types/index";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
@@ -67,12 +56,12 @@ export default function Index() {
 
       if (error) throw new Error(error.message);
 
-      const opportunitiesWithIds = data.opportunities.map((opp: any) => ({ ...opp, id: uuidv4() }));
+      const opportunitiesWithIds = data.opportunities.map((opp: Omit<Opportunity, 'id'>) => ({ ...opp, id: uuidv4() }));
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated.");
 
-      const opportunitiesToInsert = opportunitiesWithIds.map((opp: any) => ({
+      const opportunitiesToInsert = opportunitiesWithIds.map((opp: Opportunity) => ({
         id: opp.id,
         user_id: user.id,
         company_name: opp.companyName,
@@ -87,7 +76,7 @@ export default function Index() {
       const { error: insertError } = await supabase.from('opportunities').insert(opportunitiesToInsert);
       if (insertError) throw new Error(insertError.message);
 
-      setProcessedCommand({ ...data, opportunities: opportunitiesWithIds });
+      setProcessedCommand({ searchCriteria: data.searchCriteria, opportunities: opportunitiesWithIds });
       toast.success("Found new opportunities!", { id: toastId });
     } catch (e) {
       const err = e as Error;

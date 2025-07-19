@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Zap, TrendingUp, Users, Check, Sparkles } from "lucide-react";
-import { PredictiveLead } from "@/hooks/usePredictiveLeads";
+import { PredictiveLead } from "@/types/index";
 
 interface PredictiveLeadsProps {
   leads: PredictiveLead[];
