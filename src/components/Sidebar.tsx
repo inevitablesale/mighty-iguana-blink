@@ -2,7 +2,7 @@ import { Bell, Briefcase, Home, Settings } from "lucide-react";
 
 export function Sidebar() {
   return (
-    <div className="hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block">
+    <div className="hidden border-r border-sidebar-border text-sidebar-foreground md:block sidebar-gradient">
       <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
           <a href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
