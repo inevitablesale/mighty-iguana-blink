@@ -1,4 +1,4 @@
-import { Bell, Briefcase, Home, Settings, Target } from "lucide-react";
+import { Bell, Crown, Home, Settings, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 export function Sidebar() {
@@ -12,8 +12,8 @@ export function Sidebar() {
       <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
           <a href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
-            <Briefcase className="h-6 w-6 text-primary" />
-            <span className="text-lg">Contract Engine</span>
+            <Crown className="h-6 w-6 text-primary" />
+            <span className="text-lg">Picture This</span>
           </a>
         </div>
         <div className="flex-1">
