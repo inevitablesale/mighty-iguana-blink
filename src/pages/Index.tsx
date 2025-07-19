@@ -6,18 +6,48 @@ import { supabase } from "@/integrations/supabase/client";
 import { SearchParameters } from "@/components/SearchParameters";
 import { OpportunityList } from "@/components/OpportunityList";
 import { Opportunity } from "@/components/OpportunityCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot } from "lucide-react";
+
+const initialOpportunities: Opportunity[] = [
+  {
+    companyName: "InnovateHealth",
+    role: "Lead Nurse Practitioner",
+    location: "San Diego, CA",
+    potential: "High",
+    hiringUrgency: "High",
+    matchScore: 9,
+    keySignal: "Just raised $30M Series B",
+  },
+  {
+    companyName: "QuantumLeap Tech",
+    role: "Senior AI Engineer",
+    location: "Austin, TX",
+    potential: "High",
+    hiringUrgency: "Medium",
+    matchScore: 8,
+    keySignal: "Hiring velocity increased 40%",
+  },
+  {
+    companyName: "GreenScape Solutions",
+    role: "Director of Sales",
+    location: "Denver, CO",
+    potential: "Medium",
+    hiringUrgency: "Low",
+    matchScore: 7,
+    keySignal: "New office opening announced",
+  },
+];
+
 
 const Index = () => {
   const [searchCriteria, setSearchCriteria] = useState<any>(null);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities);
   const [isLoading, setIsLoading] = useState(false);
-  const [initialWelcome, setInitialWelcome] = useState(true);
+  const [isInitialView, setIsInitialView] = useState(true);
 
   const handleSendCommand = async (command: string) => {
     setIsLoading(true);
-    setInitialWelcome(false);
+    setIsInitialView(false);
     setOpportunities([]);
     setSearchCriteria(null);
 
@@ -49,24 +79,19 @@ const Index = () => {
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <Sidebar />
-      <div className="flex flex-col">
+      <div className="flex flex-col h-screen">
         <Header />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <div className="flex-1 overflow-auto pr-4">
-            {initialWelcome && (
-              <Card className="bg-muted/50">
-                <CardHeader className="flex-row items-center gap-4">
-                  <Bot className="h-8 w-8" />
-                  <CardTitle className="text-xl font-semibold">Welcome to your Contract Engine</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Tell me what kind of recruiting contracts you're looking for. For example:
-                    <br />
-                    <em className="text-foreground">"Find me new contracts for veterinary technicians in California."</em>
-                  </p>
-                </CardContent>
-              </Card>
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-hidden">
+          <div className="flex-1 overflow-auto pr-2">
+            
+            {isInitialView && (
+              <div className="flex items-center gap-4 mb-4">
+                <Bot className="h-8 w-8 text-primary" />
+                <div>
+                  <h2 className="text-xl font-semibold">Welcome Back!</h2>
+                  <p className="text-muted-foreground">Here are the top opportunities I've found for you.</p>
+                </div>
+              </div>
             )}
 
             {searchCriteria && <SearchParameters params={searchCriteria} />}
@@ -83,14 +108,19 @@ const Index = () => {
               </div>
             )}
             
-            {!isLoading && !initialWelcome && opportunities.length === 0 && (
-               <div className="mt-4 text-center text-muted-foreground">
-                <p>No opportunities found for this search. Try another command.</p>
+            {!isLoading && !isInitialView && opportunities.length === 0 && (
+               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <h3 className="text-2xl font-bold tracking-tight">No Opportunities Found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Try a different search command to find new contract opportunities.
+                  </p>
+                </div>
               </div>
             )}
 
           </div>
-          <div className="mt-auto bg-background pb-4 sticky bottom-0">
+          <div className="mt-auto bg-background pt-4">
             <CommandBar onSendCommand={handleSendCommand} isLoading={isLoading} />
           </div>
         </main>
