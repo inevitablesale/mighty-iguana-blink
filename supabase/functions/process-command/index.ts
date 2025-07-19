@@ -1,3 +1,7 @@
+/// <reference no-default-lib="true" />
+/// <reference lib="deno.ns" />
+/// <reference lib="esnext" />
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -19,11 +23,12 @@ serve(async (req) => {
       { global: { headers: { 'x-my-custom-header': 'Contract-Engine' } } }
     );
 
-    const { data, error } = await req.json();
-    const userCommand = data.command;
+    // Correctly parse the request body
+    const requestBody = await req.json();
+    const userCommand = requestBody.command;
 
     if (!userCommand) {
-      return new Response(JSON.stringify({ error: 'Command is required' }), {
+      return new Response(JSON.stringify({ error: 'Command is required in the request body.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -34,9 +39,6 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not set in environment variables.");
     }
 
-    // Placeholder for Gemini Flash API call
-    // You'll need to adjust the URL and body based on the specific Gemini API endpoint you use.
-    // For example, using the generateContent endpoint.
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
