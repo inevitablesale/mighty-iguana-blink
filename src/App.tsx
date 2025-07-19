@@ -14,6 +14,7 @@ import Opportunities from "./pages/Opportunities";
 import Campaigns from "./pages/Campaigns";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import Candidates from "./pages/Candidates";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => {
             >
               <Route index element={<Index />} />
               <Route path="opportunities" element={<Opportunities />} />
+              <Route path="opportunities/:opportunityId/candidates" element={<Candidates />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="settings" element={<Settings />} />
             </Route>

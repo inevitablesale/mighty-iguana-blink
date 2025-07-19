@@ -3,10 +3,11 @@ import { OpportunityCard, Opportunity } from "./OpportunityCard";
 export interface OpportunityListProps {
   opportunities: Opportunity[];
   onApproveOutreach: (opportunity: Opportunity) => void;
+  onSourceCandidates: (opportunity: Opportunity) => void;
   approvedIds: string[];
 }
 
-export function OpportunityList({ opportunities, onApproveOutreach, approvedIds }: OpportunityListProps) {
+export function OpportunityList({ opportunities, onApproveOutreach, onSourceCandidates, approvedIds }: OpportunityListProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Here are the top {opportunities.length} opportunities I found:</h3>
@@ -16,6 +17,7 @@ export function OpportunityList({ opportunities, onApproveOutreach, approvedIds 
             key={index}
             opportunity={opp}
             onApproveOutreach={onApproveOutreach}
+            onSourceCandidates={onSourceCandidates}
             isApproved={approvedIds.includes(opp.id)}
           />
         ))}

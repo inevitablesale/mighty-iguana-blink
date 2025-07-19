@@ -204,6 +204,45 @@ const Index = () => {
     }
   };
 
+  const handleSourceCandidates = async (opportunity: Opportunity) => {
+    const toastId = toast.loading(`Sourcing candidates for ${opportunity.role}...`);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
+      const { data, error } = await supabase.functions.invoke('source-candidates', {
+        body: { opportunity },
+      });
+
+      if (error) throw new Error(error.message);
+      
+      const { candidates } = data;
+      const candidatesToInsert = candidates.map((c: any) => ({
+        ...c,
+        user_id: user.id,
+        opportunity_id: opportunity.id,
+      }));
+
+      const { error: insertError } = await supabase.from('candidates').insert(candidatesToInsert);
+
+      if (insertError) throw new Error(insertError.message);
+
+      toast.success(`Found ${candidates.length} candidates!`, {
+        id: toastId,
+        description: "You can now view them.",
+        action: {
+          label: "View Candidates",
+          onClick: () => navigate(`/opportunities/${opportunity.id}/candidates`),
+        },
+      });
+      navigate(`/opportunities/${opportunity.id}/candidates`);
+    } catch (e) {
+      const error = e as Error;
+      console.error("Error sourcing candidates:", error);
+      toast.error(error.message, { id: toastId });
+    }
+  };
+
   const renderLoadingState = () => (
     <div className="space-y-4 mt-4">
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -251,7 +290,12 @@ const Index = () => {
                 renderLoadingState()
               ) : opportunities.length > 0 ? (
                 <div className="mt-4">
-                  <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} approvedIds={approvedIds} />
+                  <OpportunityList 
+                    opportunities={opportunities} 
+                    onApproveOutreach={handleApproveOutreach} 
+                    onSourceCandidates={handleSourceCandidates}
+                    approvedIds={approvedIds} 
+                  />
                 </div>
               ) : (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full mt-4">
