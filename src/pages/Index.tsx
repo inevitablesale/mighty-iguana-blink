@@ -13,6 +13,7 @@ import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { usePredictiveLeads, PredictiveLead } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { CampaignPipeline } from "@/components/CampaignPipeline";
 
 interface ProcessedCommand {
   searchCriteria: {
@@ -205,6 +206,7 @@ export default function Index() {
       <Header title="Dashboard" />
       <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto space-y-6">
         <DashboardMetrics stats={stats} loading={statsLoading} />
+        <CampaignPipeline stats={stats} loading={statsLoading} />
         
         <div className="flex-1 flex flex-col justify-center">
           {isLoading && (
