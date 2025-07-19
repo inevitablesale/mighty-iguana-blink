@@ -38,9 +38,18 @@ const Index = () => {
 
       const aiResponse = data as { searchCriteria: any; opportunities: Opportunity[] };
       
-      if (aiResponse) {
+      if (aiResponse && aiResponse.opportunities) {
         setSearchCriteria(aiResponse.searchCriteria);
-        setOpportunities(aiResponse.opportunities || []);
+        setOpportunities(aiResponse.opportunities);
+
+        const allOpportunities = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]');
+        const newOpportunities = aiResponse.opportunities.filter(
+          (newOpp: Opportunity) => !allOpportunities.some((existingOpp: Opportunity) => 
+            existingOpp.companyName === newOpp.companyName && existingOpp.role === newOpp.role
+          )
+        );
+        
+        sessionStorage.setItem('allOpportunities', JSON.stringify([...allOpportunities, ...newOpportunities]));
         toast.success("Here are your tailored opportunities!", { id: toastId });
       }
 
@@ -55,9 +64,15 @@ const Index = () => {
 
   useEffect(() => {
     const savedProfile = localStorage.getItem("recruiterProfile");
-    if (savedProfile) {
+    if (savedProfile && sessionStorage.getItem('allOpportunities') === null) {
       const proactiveCommand = `Find me the top 3 opportunities based on this profile: ${savedProfile}`;
       handleSendCommand(proactiveCommand);
+    } else if (!savedProfile) {
+        setIsInitialView(true);
+    } else {
+        setIsInitialView(false);
+        const latestSearch = JSON.parse(sessionStorage.getItem('allOpportunities') || '[]').slice(-3);
+        setOpportunities(latestSearch.reverse());
     }
   }, []);
 

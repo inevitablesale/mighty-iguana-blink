@@ -45,10 +45,6 @@ const Campaigns = () => {
       <div className="flex flex-col">
         <Header title="Campaigns" />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          <div className="flex items-center">
-            <h1 className="text-lg font-semibold md:text-2xl">Campaigns</h1>
-          </div>
-          
           {campaigns.length > 0 ? (
             <div className="space-y-4">
               {campaigns.map((campaign, index) => (
