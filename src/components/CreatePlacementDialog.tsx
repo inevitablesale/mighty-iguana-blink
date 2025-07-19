@@ -13,15 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Award } from "lucide-react";
 import { Campaign } from "@/types/index";
 
 interface CreatePlacementDialogProps {
   campaign: Campaign;
   onPlacementCreated: () => void;
+  children: React.ReactNode;
 }
 
-export function CreatePlacementDialog({ campaign, onPlacementCreated }: CreatePlacementDialogProps) {
+export function CreatePlacementDialog({ campaign, onPlacementCreated, children }: CreatePlacementDialogProps) {
   const [open, setOpen] = useState(false);
   const [candidateName, setCandidateName] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
@@ -78,10 +78,7 @@ export function CreatePlacementDialog({ campaign, onPlacementCreated }: CreatePl
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700 text-white">
-          <Award className="mr-2 h-4 w-4" />
-          Mark as Placed
-        </Button>
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

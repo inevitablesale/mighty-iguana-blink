@@ -1,14 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Copy, Trash2, Send, MoreHorizontal, Award } from "lucide-react";
+import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { CreatePlacementDialog } from "@/components/CreatePlacementDialog";
+import { ViewCampaignEmailDialog } from "@/components/ViewCampaignEmailDialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +25,22 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Campaign, CampaignStatus } from "@/types/index";
 
 const Campaigns = () => {
@@ -50,11 +74,6 @@ const Campaigns = () => {
     fetchCampaigns();
   }, [fetchCampaigns]);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
-  };
-
   const handleDelete = async (campaignId: string) => {
     const { error } = await supabase
       .from('campaigns')
@@ -80,7 +99,7 @@ const Campaigns = () => {
       console.error(`Error updating status to ${status}:`, error);
       toast.error(`Failed to update status.`);
     } else {
-      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status } : c));
+      fetchCampaigns();
       toast.success(`Campaign status updated to "${status}".`);
     }
   };
@@ -90,7 +109,7 @@ const Campaigns = () => {
       case 'sent': return 'default';
       case 'placed': return 'default';
       case 'replied': return 'secondary';
-      case 'meeting': return 'destructive'; // Using destructive for accent color
+      case 'meeting': return 'destructive';
       case 'closed': return 'outline';
       case 'draft':
       default:
@@ -100,18 +119,9 @@ const Campaigns = () => {
 
   const renderLoadingState = () => (
     <div className="space-y-4">
-      {[...Array(2)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-4 w-1/3" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </CardContent>
-        </Card>
-      ))}
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-12 w-full" />
     </div>
   );
 
@@ -119,109 +129,131 @@ const Campaigns = () => {
     <div className="flex flex-col">
       <Header title="Campaigns" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        {loading ? (
-          renderLoadingState()
-        ) : campaigns.length > 0 ? (
-          <div className="space-y-4">
-            {campaigns.map((campaign) => (
-              <Card key={campaign.id}>
-                <CardHeader className="coogi-gradient-bg rounded-t-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-primary-foreground">To: {campaign.company_name}</CardTitle>
-                      <CardDescription className="text-primary-foreground/80">Re: {campaign.role}</CardDescription>
-                    </div>
-                    <Badge 
-                      variant={getStatusBadgeVariant(campaign.status)}
-                      className={`${campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'placed' ? 'bg-green-600 text-white' : ''}`}
-                    >
-                      {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-6">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-semibold">Subject</h4>
-                      <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.subject)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-sm p-3 bg-muted rounded-md">{campaign.subject}</p>
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-semibold">Body</h4>
-                       <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.body)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.body}</p>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end gap-2">
-                  <Button variant="outline" size="icon" onClick={() => handleDelete(campaign.id)}>
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                  
-                  {campaign.status === 'draft' && (
-                    <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns} />
-                  )}
-
-                  {['replied', 'meeting'].includes(campaign.status) && (
-                    <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns} />
-                  )}
-
-                  {campaign.status === 'draft' ? (
-                    <Button onClick={() => handleUpdateStatus(campaign.id, 'sent')} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Outreach
-                    </Button>
-                  ) : (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" disabled={campaign.status === 'placed'}>
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Update Status</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Set Status</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={campaign.status === 'replied'}>
-                          Replied
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={campaign.status === 'meeting'}>
-                          Meeting Scheduled
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={campaign.status === 'closed'}>
-                          Closed
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'draft')}>
-                          Revert to Draft
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
-            <div className="flex flex-col items-center gap-1 text-center">
-              <Bell className="h-10 w-10 text-muted-foreground" />
-              <h3 className="text-2xl font-bold tracking-tight">
-                No Campaign Drafts Yet
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Approve an outreach from the dashboard to generate your first draft.
-              </p>
-            </div>
-          </div>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>All Campaigns</CardTitle>
+            <CardDescription>Manage your outreach campaigns and track their status.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              renderLoadingState()
+            ) : campaigns.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow key={campaign.id}>
+                      <TableCell className="font-medium">{campaign.company_name}</TableCell>
+                      <TableCell>{campaign.role}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={getStatusBadgeVariant(campaign.status)}
+                          className={`${campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'placed' ? 'bg-green-600 text-white' : ''}`}
+                        >
+                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <ViewCampaignEmailDialog campaign={campaign}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Email
+                              </DropdownMenuItem>
+                            </ViewCampaignEmailDialog>
+                            {campaign.status === 'draft' && (
+                              <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Draft
+                                </DropdownMenuItem>
+                              </EditCampaignDialog>
+                            )}
+                            {['replied', 'meeting'].includes(campaign.status) && (
+                              <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <Award className="mr-2 h-4 w-4" />
+                                  Mark as Placed
+                                </DropdownMenuItem>
+                              </CreatePlacementDialog>
+                            )}
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <CheckSquare className="mr-2 h-4 w-4" />
+                                <span>Update Status</span>
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'sent')} disabled={campaign.status !== 'draft'}>Sent</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={!['replied'].includes(campaign.status)}>Meeting</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={campaign.status === 'closed' || campaign.status === 'placed'}>Closed</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'draft')}>Revert to Draft</DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            <DropdownMenuSeparator />
+                             <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the campaign for {campaign.company_name}. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(campaign.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <Bell className="h-10 w-10 text-muted-foreground" />
+                  <h3 className="text-2xl font-bold tracking-tight">
+                    No Campaign Drafts Yet
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Approve an outreach from the dashboard to generate your first draft.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

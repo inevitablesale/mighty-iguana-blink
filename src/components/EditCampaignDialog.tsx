@@ -14,15 +14,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Edit } from "lucide-react";
 import { Campaign } from "@/types/index";
 
 interface EditCampaignDialogProps {
   campaign: Campaign;
   onCampaignUpdated: () => void;
+  children: React.ReactNode;
 }
 
-export function EditCampaignDialog({ campaign, onCampaignUpdated }: EditCampaignDialogProps) {
+export function EditCampaignDialog({ campaign, onCampaignUpdated, children }: EditCampaignDialogProps) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState(campaign.subject);
   const [body, setBody] = useState(campaign.body);
@@ -61,10 +61,7 @@ export function EditCampaignDialog({ campaign, onCampaignUpdated }: EditCampaign
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Edit className="mr-2 h-4 w-4" />
-          Edit
-        </Button>
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
