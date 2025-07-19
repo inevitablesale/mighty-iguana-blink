@@ -2,12 +2,22 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Bell, Copy, Trash2, Send, Check } from "lucide-react";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Bell, Copy, Trash2, Send, Check, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed';
 
 interface Campaign {
   id: string;
@@ -15,7 +25,7 @@ interface Campaign {
   role: string;
   subject: string;
   body: string;
-  status: 'draft' | 'sent';
+  status: CampaignStatus;
 }
 
 const Campaigns = () => {
@@ -69,18 +79,30 @@ const Campaigns = () => {
     }
   };
 
-  const handleSend = async (campaignId: string) => {
+  const handleUpdateStatus = async (campaignId: string, status: CampaignStatus) => {
     const { error } = await supabase
       .from('campaigns')
-      .update({ status: 'sent' })
+      .update({ status })
       .eq('id', campaignId);
 
     if (error) {
-      console.error("Error sending campaign:", error);
-      toast.error("Failed to send outreach.");
+      console.error(`Error updating status to ${status}:`, error);
+      toast.error(`Failed to update status.`);
     } else {
-      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: 'sent' } : c));
-      toast.success("Outreach sent!");
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status } : c));
+      toast.success(`Campaign status updated to "${status}".`);
+    }
+  };
+
+  const getStatusBadgeVariant = (status: CampaignStatus): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'sent': return 'default';
+      case 'replied': return 'secondary';
+      case 'meeting': return 'destructive'; // Using destructive for accent color
+      case 'closed': return 'outline';
+      case 'draft':
+      default:
+        return 'secondary';
     }
   };
 
@@ -117,7 +139,10 @@ const Campaigns = () => {
                       <CardTitle className="text-primary-foreground">To: {campaign.company_name}</CardTitle>
                       <CardDescription className="text-primary-foreground/80">Re: {campaign.role}</CardDescription>
                     </div>
-                    <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'} className={campaign.status === 'draft' ? 'text-secondary-foreground' : ''}>
+                    <Badge 
+                      variant={getStatusBadgeVariant(campaign.status)}
+                      className={campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''}
+                    >
                       {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                     </Badge>
                   </div>
@@ -147,19 +172,42 @@ const Campaigns = () => {
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete</span>
                   </Button>
+                  
+                  {campaign.status === 'draft' && (
+                    <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns} />
+                  )}
+
                   {campaign.status === 'draft' ? (
-                    <>
-                      <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns} />
-                      <Button onClick={() => handleSend(campaign.id)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Outreach
-                      </Button>
-                    </>
-                  ) : (
-                    <Button disabled>
-                      <Check className="mr-2 h-4 w-4" />
-                      Sent
+                    <Button onClick={() => handleUpdateStatus(campaign.id, 'sent')} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Outreach
                     </Button>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Update Status</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={campaign.status === 'replied'}>
+                          Replied
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={campaign.status === 'meeting'}>
+                          Meeting Scheduled
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={campaign.status === 'closed'}>
+                          Closed
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'draft')}>
+                          Revert to Draft
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </CardFooter>
               </Card>
