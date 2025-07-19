@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { SweaterIcon } from "../components/SweaterIcon";
@@ -32,9 +33,18 @@ const Login = () => {
           <div id="login-auth-form">
             <Auth
               supabaseClient={supabase}
-              appearance={{}}
+              appearance={{
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: 'hsl(var(--primary))',
+                      brandAccent: 'hsl(var(--primary-foreground))',
+                    },
+                  },
+                },
+              }}
               providers={[]}
-              theme="light"
             />
           </div>
         </CardContent>
