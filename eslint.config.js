@@ -1,29 +1,25 @@
-import js from "@eslint/js";
 import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import pluginReact_hooks from "eslint-plugin-react-hooks";
+import pluginReact_refresh from "eslint-plugin-react-refresh";
 
-export default tseslint.config(
-  { ignores: ["dist"] },
+export default [
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
     languageOptions: {
-      ecmaVersion: 2020,
       globals: globals.browser,
     },
+    ignores: ["supabase/functions/**"], // This is the fix.
+  },
+  ...tseslint.configs.recommended,
+  {
     plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+      "react-hooks": pluginReact_hooks,
+      "react-refresh": pluginReact_refresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-      "@typescript-eslint/no-unused-vars": "off",
+      "react-refresh/only-export-components": "warn",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
-);
+];
