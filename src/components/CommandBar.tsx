@@ -25,7 +25,7 @@ export function CommandBar({ onSendCommand, isLoading }: CommandBarProps) {
         <Input
           placeholder="e.g., Find 50 tech companies hiring developers in Texas."
           value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          onChange={(e) => setCommand((e.target as HTMLInputElement).value)}
           className="pr-16"
           disabled={isLoading}
         />

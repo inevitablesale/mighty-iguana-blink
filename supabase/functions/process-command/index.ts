@@ -40,7 +40,7 @@ serve(async (req) => {
     }
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
@@ -62,7 +62,16 @@ serve(async (req) => {
       throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${JSON.stringify(errorData)}`);
     }
 
-    const geminiResult = await geminiResponse.json();
+    // Corrected type assertion for geminiResult
+    const geminiResult = await geminiResponse.json() as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text: string;
+          }>;
+        };
+      }>;
+    };
     const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
 
     return new Response(JSON.stringify({ response: aiResponseText }), {
