@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { OpportunityCard, Opportunity } from "@/components/OpportunityCard";
 import { Target } from "lucide-react";
@@ -61,37 +60,34 @@ const Opportunities = () => {
   };
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col">
-        <Header title="Opportunities" />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-          {opportunities.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {opportunities.map((opp, index) => (
-                <OpportunityCard
-                  key={index}
-                  opportunity={opp}
-                  onApproveOutreach={handleApproveOutreach}
-                  isApproved={approvedIds.includes(opp.id)}
-                />
-              ))}
+    <div className="flex flex-col">
+      <Header title="Opportunities" />
+      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+        {opportunities.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {opportunities.map((opp, index) => (
+              <OpportunityCard
+                key={index}
+                opportunity={opp}
+                onApproveOutreach={handleApproveOutreach}
+                isApproved={approvedIds.includes(opp.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <Target className="h-10 w-10 text-muted-foreground" />
+              <h3 className="text-2xl font-bold tracking-tight">
+                No Opportunities Found Yet
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Use the dashboard to find your first opportunity.
+              </p>
             </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
-              <div className="flex flex-col items-center gap-1 text-center">
-                <Target className="h-10 w-10 text-muted-foreground" />
-                <h3 className="text-2xl font-bold tracking-tight">
-                  No Opportunities Found Yet
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Use the dashboard to find your first opportunity.
-                </p>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

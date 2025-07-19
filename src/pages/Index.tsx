@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { CommandBar } from "@/components/CommandBar";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,57 +139,54 @@ const Index = () => {
   );
 
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <div className="flex flex-col h-screen">
-        <Header title="Dashboard" />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-hidden">
-          <div className="flex-1 overflow-auto pr-2">
-            
-            {isInitialView && (
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
-                <div className="flex flex-col items-center gap-2 text-center">
-                  <Bot className="h-12 w-12 text-primary" />
-                  <h2 className="text-2xl font-bold tracking-tight">Welcome to Picture This</h2>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Your AI contract engine. Use the command bar below or{" "}
-                    <Link to="/settings" className="underline text-primary">set your profile</Link>
-                    {" "}for automated searches.
-                  </p>
-                </div>
+    <div className="flex flex-col h-screen">
+      <Header title="Dashboard" />
+      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-hidden">
+        <div className="flex-1 overflow-auto pr-2">
+          
+          {isInitialView && (
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <Bot className="h-12 w-12 text-primary" />
+                <h2 className="text-2xl font-bold tracking-tight">Welcome to Picture This</h2>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Your AI contract engine. Use the command bar below or{" "}
+                  <Link to="/settings" className="underline text-primary">set your profile</Link>
+                  {" "}for automated searches.
+                </p>
               </div>
-            )}
+            </div>
+          )}
 
-            {!isInitialView && (
-              <>
-                {searchCriteria && <SearchParameters params={searchCriteria} />}
-                
-                {isLoading ? (
-                  renderLoadingState()
-                ) : opportunities.length > 0 ? (
-                  <div className="mt-4">
-                    <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} approvedIds={approvedIds} />
+          {!isInitialView && (
+            <>
+              {searchCriteria && <SearchParameters params={searchCriteria} />}
+              
+              {isLoading ? (
+                renderLoadingState()
+              ) : opportunities.length > 0 ? (
+                <div className="mt-4">
+                  <OpportunityList opportunities={opportunities} onApproveOutreach={handleApproveOutreach} approvedIds={approvedIds} />
+                </div>
+              ) : (
+                <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full mt-4">
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <Search className="h-10 w-10 text-muted-foreground" />
+                    <h3 className="text-2xl font-bold tracking-tight">No Opportunities Found</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Try a different search command or refine your profile in Settings.
+                    </p>
                   </div>
-                ) : (
-                  <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full mt-4">
-                    <div className="flex flex-col items-center gap-1 text-center">
-                      <Search className="h-10 w-10 text-muted-foreground" />
-                      <h3 className="text-2xl font-bold tracking-tight">No Opportunities Found</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Try a different search command or refine your profile in Settings.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+                </div>
+              )}
+            </>
+          )}
 
-          </div>
-          <div className="mt-auto bg-background pt-4">
-            <CommandBar onSendCommand={handleSendCommand} isLoading={isLoading} />
-          </div>
-        </main>
-      </div>
+        </div>
+        <div className="mt-auto bg-background pt-4">
+          <CommandBar onSendCommand={handleSendCommand} isLoading={isLoading} />
+        </div>
+      </main>
     </div>
   );
 };
