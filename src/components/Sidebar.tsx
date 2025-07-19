@@ -1,6 +1,6 @@
 import { Bell, Home, Settings, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { SweaterIcon } from "./SweaterIcon";
+import { SweaterIcon } from "@/components/SweaterIcon";
 
 export function Sidebar() {
   const getLinkClassName = ({ isActive }: { isActive: boolean }) =>
