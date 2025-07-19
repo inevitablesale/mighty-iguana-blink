@@ -20,7 +20,6 @@ export function OpportunityList({ opportunities, onApproveOutreach, approvedIds 
           />
         ))}
       </div>
-      <p className="text-sm text-muted-foreground">I've queued up 47 more. Would you like to see them or approve outreach for these?</p>
     </div>
   );
 }
