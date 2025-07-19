@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Zap, Check, Users } from "lucide-react";
+import { Zap, Check } from "lucide-react";
 
 export interface Opportunity {
   id: string;
@@ -33,11 +33,10 @@ export interface Opportunity {
 interface OpportunityCardProps {
   opportunity: Opportunity;
   onApproveOutreach: (opportunity: Opportunity) => void;
-  onSourceCandidates: (opportunity: Opportunity) => void;
   isApproved: boolean;
 }
 
-export function OpportunityCard({ opportunity, onApproveOutreach, onSourceCandidates, isApproved }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     switch (value) {
       case "High":
@@ -84,24 +83,18 @@ export function OpportunityCard({ opportunity, onApproveOutreach, onSourceCandid
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between space-x-2">
-          <Button variant="secondary" onClick={() => onSourceCandidates(opportunity)}>
-            <Users className="mr-2 h-4 w-4" />
-            Source
-          </Button>
-          <div className="flex space-x-2">
-            <DialogTrigger asChild>
-              <Button variant="outline">Details</Button>
-            </DialogTrigger>
-            {isApproved ? (
-              <Button disabled>
-                <Check className="mr-2 h-4 w-4" />
-                Drafted
-              </Button>
-            ) : (
-              <Button onClick={() => onApproveOutreach(opportunity)}>Approve</Button>
-            )}
-          </div>
+        <CardFooter className="flex justify-end space-x-2">
+          <DialogTrigger asChild>
+            <Button variant="outline">Details</Button>
+          </DialogTrigger>
+          {isApproved ? (
+            <Button disabled>
+              <Check className="mr-2 h-4 w-4" />
+              Drafted
+            </Button>
+          ) : (
+            <Button onClick={() => onApproveOutreach(opportunity)}>Approve</Button>
+          )}
         </CardFooter>
       </Card>
       <DialogContent className="sm:max-w-[425px]">
