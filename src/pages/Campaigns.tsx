@@ -18,12 +18,12 @@ interface Campaign {
 }
 
 const Campaigns = () => {
-  const [latestCampaign, setLatestCampaign] = useState<Campaign | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
   useEffect(() => {
-    const storedDraft = sessionStorage.getItem('latestCampaignDraft');
-    if (storedDraft) {
-      setLatestCampaign(JSON.parse(storedDraft));
+    const storedDrafts = sessionStorage.getItem('campaignDrafts');
+    if (storedDrafts) {
+      setCampaigns(JSON.parse(storedDrafts));
     }
   }, []);
 
@@ -42,33 +42,37 @@ const Campaigns = () => {
             <h1 className="text-lg font-semibold md:text-2xl">Campaigns</h1>
           </div>
           
-          {latestCampaign ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>To: {latestCampaign.companyName}</CardTitle>
-                <CardDescription>Re: {latestCampaign.role}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-semibold">Subject</h4>
-                    <Button variant="ghost" size="icon" onClick={() => handleCopy(latestCampaign.draft.subject)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm p-3 bg-muted rounded-md">{latestCampaign.draft.subject}</p>
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-semibold">Body</h4>
-                     <Button variant="ghost" size="icon" onClick={() => handleCopy(latestCampaign.draft.body)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{latestCampaign.draft.body}</p>
-                </div>
-              </CardContent>
-            </Card>
+          {campaigns.length > 0 ? (
+            <div className="space-y-4">
+              {campaigns.map((campaign, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle>To: {campaign.companyName}</CardTitle>
+                    <CardDescription>Re: {campaign.role}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-semibold">Subject</h4>
+                        <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.draft.subject)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm p-3 bg-muted rounded-md">{campaign.draft.subject}</p>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-semibold">Body</h4>
+                         <Button variant="ghost" size="icon" onClick={() => handleCopy(campaign.draft.body)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.draft.body}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
               <div className="flex flex-col items-center gap-1 text-center">

@@ -70,13 +70,15 @@ const Index = () => {
 
       if (error) throw new Error(error.message);
 
-      sessionStorage.setItem('latestCampaignDraft', JSON.stringify(data));
+      const existingDrafts = JSON.parse(sessionStorage.getItem('campaignDrafts') || '[]');
+      existingDrafts.push(data);
+      sessionStorage.setItem('campaignDrafts', JSON.stringify(existingDrafts));
 
       toast.success(`Draft created for ${opportunity.companyName}!`, {
         id: toastId,
         description: "You can now review the draft in the Campaigns tab.",
         action: {
-          label: "View Draft",
+          label: "View Drafts",
           onClick: () => navigate('/campaigns'),
         },
       });
