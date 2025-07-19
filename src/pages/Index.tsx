@@ -8,6 +8,7 @@ import { OpportunityList } from "@/components/OpportunityList";
 import { Opportunity } from "@/components/OpportunityCard";
 import { Bot } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const initialOpportunities: Opportunity[] = [
   {
@@ -45,12 +46,15 @@ const Index = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>(initialOpportunities);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialView, setIsInitialView] = useState(true);
+  const navigate = useNavigate();
 
   const handleSendCommand = async (command: string) => {
     setIsLoading(true);
     setIsInitialView(false);
     setOpportunities([]);
     setSearchCriteria(null);
+
+    const toastId = toast.loading("Finding new opportunities...");
 
     try {
       const { data, error } = await supabase.functions.invoke('process-command', {
@@ -66,23 +70,41 @@ const Index = () => {
       if (aiResponse) {
         setSearchCriteria(aiResponse.searchCriteria);
         setOpportunities(aiResponse.opportunities || []);
+        toast.success("Here's what I found!", { id: toastId });
       }
 
     } catch (e) {
       const error = e as Error;
       console.error("Error calling Edge Function:", error);
-      toast.error("Failed to get opportunities. Please try again.");
+      toast.error("Failed to get opportunities. Please try again.", { id: toastId });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleApproveOutreach = (opportunity: Opportunity) => {
-    console.log("Approved outreach for:", opportunity.companyName);
-    toast.success(`Outreach for ${opportunity.companyName} approved!`, {
-      description: "Generating draft in the Campaigns tab...",
-    });
-    // In the future, this will trigger the AI to generate an email draft.
+  const handleApproveOutreach = async (opportunity: Opportunity) => {
+    const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-outreach', {
+        body: { opportunity },
+      });
+
+      if (error) throw new Error(error.message);
+
+      // For now, we'll store the latest draft in session storage.
+      // A full implementation would save this to a database.
+      sessionStorage.setItem('latestCampaignDraft', JSON.stringify(data));
+
+      toast.success(`Draft created for ${opportunity.companyName}!`, {
+        id: toastId,
+        description: "Click here to view it in Campaigns.",
+        onClick: () => navigate('/campaigns'),
+      });
+    } catch (e) {
+      const error = e as Error;
+      console.error("Error generating outreach:", error);
+      toast.error("Failed to create draft. Please try again.", { id: toastId });
+    }
   };
 
   return (
@@ -105,9 +127,12 @@ const Index = () => {
 
             {searchCriteria && <SearchParameters params={searchCriteria} />}
 
-            {isLoading && (
-              <div className="mt-4 text-center">
-                <p>Searching for opportunities...</p>
+            {isLoading && opportunities.length === 0 && (
+              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full">
+                <div className="flex flex-col items-center gap-1 text-center">
+                   <h3 className="text-2xl font-bold tracking-tight">Searching...</h3>
+                   <p className="text-sm text-muted-foreground">The AI is analyzing the market for new opportunities.</p>
+                </div>
               </div>
             )}
 
