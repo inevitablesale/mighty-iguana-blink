@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { command: userCommand } = await req.json();
+    const { command: userCommand, agentPrompts } = await req.json();
 
     if (!userCommand) {
       return new Response(JSON.stringify({ error: 'Command is required.' }), {
@@ -28,9 +28,17 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not set.");
     }
 
+    const recruiterSpecialtyContext = agentPrompts && agentPrompts.length > 0
+      ? `The recruiter has defined several agent specialties. Use these as a strong signal for their preferences:
+- ${agentPrompts.join('\n- ')}
+Tailor the opportunities to align with these specialties.`
+      : 'The recruiter has not specified any specialties. Use your best judgment based on the command.';
+
     const prompt = `
 You are an AI assistant for a recruiter using an app called "Coogi". Your goal is to find new clients (companies) for the recruiter.
 The user's command is: "${userCommand}".
+
+${recruiterSpecialtyContext}
 
 Your tasks:
 1. Parse the user's command to identify the search criteria for new recruiting contracts.

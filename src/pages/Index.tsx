@@ -57,17 +57,25 @@ export default function Index() {
     const toastId = toast.loading("Finding opportunities...");
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
+      const { data: agents, error: agentsError } = await supabase
+        .from('agents')
+        .select('prompt')
+        .eq('user_id', user.id);
+      
+      if (agentsError) throw agentsError;
+      const agentPrompts = agents.map(a => a.prompt);
+
       const { data, error } = await supabase.functions.invoke('process-command', {
-        body: { command },
+        body: { command, agentPrompts },
       });
 
       if (error) throw new Error(error.message);
 
       const opportunitiesWithIds = data.opportunities.map((opp: Omit<Opportunity, 'id'>) => ({ ...opp, id: uuidv4() }));
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated.");
-
       const opportunitiesToInsert = opportunitiesWithIds.map((opp: Opportunity) => ({
         id: opp.id,
         user_id: user.id,
