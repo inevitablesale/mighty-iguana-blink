@@ -23,7 +23,6 @@ serve(async (req) => {
       { global: { headers: { 'x-my-custom-header': 'Contract-Engine' } } }
     );
 
-    // Correctly parse the request body
     const requestBody = await req.json();
     const userCommand = requestBody.command;
 
@@ -39,6 +38,9 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not set in environment variables.");
     }
 
+    // Enhanced prompt for Gemini to identify opportunity searches
+    const prompt = `User command: "${userCommand}". As an AI recruiting assistant, determine if the user is asking to find or search for job opportunities. If so, respond with 'Initiating search for opportunities...' followed by a brief, helpful message about the search. Otherwise, provide a concise, helpful general response.`;
+
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -49,7 +51,7 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `User command: "${userCommand}". Provide a concise, helpful response as an AI assistant. If the command is about finding opportunities, acknowledge the search. Otherwise, respond generally.`,
+              text: prompt,
             }],
           }],
         }),
@@ -62,7 +64,6 @@ serve(async (req) => {
       throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${JSON.stringify(errorData)}`);
     }
 
-    // Corrected type assertion for geminiResult
     const geminiResult = await geminiResponse.json() as {
       candidates?: Array<{
         content?: {
