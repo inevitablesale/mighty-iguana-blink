@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import { DashboardMetrics } from "@/components/DashboardMetrics";
 
 interface ProcessedCommand {
   searchCriteria: {
@@ -135,7 +136,9 @@ export default function Index() {
   return (
     <div className="flex flex-col h-screen">
       <Header title="Dashboard" />
-      <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto">
+      <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto space-y-6">
+        <DashboardMetrics />
+        
         <div className="flex-1 flex flex-col justify-center">
           {isLoading && (
             <div className="flex flex-col items-center gap-2 text-center">
@@ -151,7 +154,7 @@ export default function Index() {
                 <Bot className="h-12 w-12 text-primary" />
                 <h2 className="text-2xl font-bold tracking-tight">Welcome to Coogi</h2>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Your AI contract engine. Use the command bar below or{" "}
+                  Your AI recruiting intelligence platform. Use the command bar below or{" "}
                   <Link to="/agents" className="underline text-primary">set up your agents</Link>
                   {" "}for automated searches.
                 </p>
