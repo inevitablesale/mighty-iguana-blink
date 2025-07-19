@@ -1,6 +1,4 @@
-/// <reference no-default-lib="true" />
-/// <reference lib="deno.ns" />
-/// <reference lib="esnext" />
+/// <reference types="https://esm.sh/v135/@supabase/functions-js@2.4.1/src/edge-runtime.d.ts" />
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
