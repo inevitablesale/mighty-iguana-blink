@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { OpportunityCard } from "@/components/OpportunityCard";
-import { Target } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Target, Check, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -112,21 +122,28 @@ const Opportunities = () => {
     }
   };
 
+  const getBadgeVariant = (value: string) => {
+    switch (value) {
+      case "High": return "destructive";
+      case "Medium": return "secondary";
+      default: return "outline";
+    }
+  };
+
   const renderLoadingState = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="p-4 border rounded-lg space-y-4 bg-card">
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-          <div className="flex space-x-2 pt-2">
-            <Skeleton className="h-6 w-24 rounded-full" />
-            <Skeleton className="h-6 w-24 rounded-full" />
-          </div>
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-1/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
-      ))}
-    </div>
+      </CardContent>
+    </Card>
   );
 
   return (
@@ -136,16 +153,54 @@ const Opportunities = () => {
         {loading ? (
           renderLoadingState()
         ) : opportunities.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {opportunities.map((opp) => (
-              <OpportunityCard
-                key={opp.id}
-                opportunity={opp}
-                onApproveOutreach={handleApproveOutreach}
-                isApproved={approvedIds.includes(opp.id)}
-              />
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>All Opportunities</CardTitle>
+              <CardDescription>Review and approve AI-generated opportunities to create outreach campaigns.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Urgency</TableHead>
+                    <TableHead>Potential</TableHead>
+                    <TableHead>Match</TableHead>
+                    <TableHead><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {opportunities.map((opp) => (
+                    <TableRow key={opp.id}>
+                      <TableCell className="font-medium">{opp.companyName}</TableCell>
+                      <TableCell>{opp.role}</TableCell>
+                      <TableCell>
+                        <Badge variant={getBadgeVariant(opp.hiringUrgency)}>{opp.hiringUrgency}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getBadgeVariant(opp.potential)}>{opp.potential}</Badge>
+                      </TableCell>
+                      <TableCell>{opp.matchScore}/10</TableCell>
+                      <TableCell className="text-right">
+                        {approvedIds.includes(opp.id) ? (
+                          <Button disabled variant="secondary">
+                            <Check className="mr-2 h-4 w-4" />
+                            Drafted
+                          </Button>
+                        ) : (
+                          <Button onClick={() => handleApproveOutreach(opp)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                            <Zap className="mr-2 h-4 w-4" />
+                            Approve
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ) : (
           <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
             <div className="flex flex-col items-center gap-1 text-center">
