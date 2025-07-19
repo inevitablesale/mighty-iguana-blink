@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Copy, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Copy, Trash2, Send, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +14,7 @@ interface Campaign {
   role: string;
   subject: string;
   body: string;
+  status: 'draft' | 'sent';
 }
 
 const Campaigns = () => {
@@ -37,7 +39,7 @@ const Campaigns = () => {
         console.error("Error fetching campaigns:", error);
         toast.error("Failed to load campaign drafts.");
       } else {
-        setCampaigns(data);
+        setCampaigns(data as Campaign[]);
       }
       setLoading(false);
     };
@@ -62,6 +64,21 @@ const Campaigns = () => {
     } else {
       setCampaigns(prev => prev.filter(c => c.id !== campaignId));
       toast.info("Draft deleted.");
+    }
+  };
+
+  const handleSend = async (campaignId: string) => {
+    const { error } = await supabase
+      .from('campaigns')
+      .update({ status: 'sent' })
+      .eq('id', campaignId);
+
+    if (error) {
+      console.error("Error sending campaign:", error);
+      toast.error("Failed to send outreach.");
+    } else {
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: 'sent' } : c));
+      toast.success("Outreach sent!");
     }
   };
 
@@ -93,8 +110,15 @@ const Campaigns = () => {
             {campaigns.map((campaign) => (
               <Card key={campaign.id}>
                 <CardHeader>
-                  <CardTitle>To: {campaign.company_name}</CardTitle>
-                  <CardDescription>Re: {campaign.role}</CardDescription>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>To: {campaign.company_name}</CardTitle>
+                      <CardDescription>Re: {campaign.role}</CardDescription>
+                    </div>
+                    <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>
+                      {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                    </Badge>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -121,7 +145,17 @@ const Campaigns = () => {
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Delete</span>
                   </Button>
-                  <Button>Send Outreach</Button>
+                  {campaign.status === 'draft' ? (
+                    <Button onClick={() => handleSend(campaign.id)}>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Outreach
+                    </Button>
+                  ) : (
+                    <Button disabled>
+                      <Check className="mr-2 h-4 w-4" />
+                      Sent
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}
