@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { opportunity } = await req.json();
+    const { opportunity, recruiterSpecialty } = await req.json();
 
     if (!opportunity) {
       return new Response(JSON.stringify({ error: 'Opportunity data is required.' }), {
@@ -29,7 +29,9 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized outreach email to a potential new client.
+You are an expert business development copywriter for a top-tier recruiter.
+The recruiter's specialties are: "${recruiterSpecialty || 'general recruiting'}".
+Your task is to write a concise, compelling, and personalized outreach email to a potential new client, subtly weaving in the recruiter's specialty.
 
 The recruiter is using an app called "Coogi".
 The target company is: ${opportunity.companyName}
@@ -41,14 +43,14 @@ Based on this information, generate a JSON object with two keys: "subject" and "
 Guidelines for the email body:
 - Keep it short and professional (under 150 words).
 - Start with a personalized hook that references the key signal.
-- Briefly introduce the value proposition (a recruiter with a strong network).
-- End with a clear, low-friction call to action (e.g., asking if they are open to exploring a partnership).
+- Briefly introduce the value proposition, referencing the recruiter's specialty (e.g., "As a specialist in [specialty], I have a network of talent...").
+- End with a clear, low-friction call to action.
 - Do NOT use placeholders like "[Your Name]". Sign off as "A Partner at Coogi".
 
 Example Output Structure:
 {
   "subject": "Your next hire at ${opportunity.companyName}",
-  "body": "Hi [Hiring Manager Name],\\n\\nI saw that ${opportunity.companyName} ${opportunity.keySignal}. Given this momentum, I imagine finding top-tier talent for the ${opportunity.role} position is a priority.\\n\\nI specialize in placing high-performing candidates in this space and have a network of passive talent that could be a great fit.\\n\\nWould you be open to a brief chat next week to discuss how I can help you scale your team?\\n\\nBest,\\nA Partner at Coogi"
+  "body": "Hi [Hiring Manager Name],\\n\\nI saw that ${opportunity.companyName} ${opportunity.keySignal}. Given this momentum, I imagine finding top-tier talent for the ${opportunity.role} position is a priority.\\n\\nAs a specialist in fintech sales, I have a network of passive talent that could be a great fit.\\n\\nWould you be open to a brief chat next week to discuss how I can help you scale your team?\\n\\nBest,\\nA Partner at Coogi"
 }
 
 Generate a new, unique email based on the provided opportunity.
@@ -83,7 +85,6 @@ Generate a new, unique email based on the provided opportunity.
 
     const parsedResponse = JSON.parse(aiResponseText);
     
-    // Combine the opportunity data with the generated draft
     const finalResponse = {
       ...opportunity,
       draft: parsedResponse,

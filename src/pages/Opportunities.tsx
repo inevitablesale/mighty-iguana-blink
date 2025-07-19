@@ -57,8 +57,17 @@ const Opportunities = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated.");
 
+      const { data: agents, error: agentsError } = await supabase
+        .from('agents')
+        .select('prompt')
+        .eq('user_id', user.id);
+      
+      if (agentsError) throw agentsError;
+
+      const recruiterSpecialty = agents.map(a => a.prompt).join(', ');
+
       const { data, error } = await supabase.functions.invoke('generate-outreach', {
-        body: { opportunity },
+        body: { opportunity, recruiterSpecialty },
       });
 
       if (error) throw new Error(error.message);
