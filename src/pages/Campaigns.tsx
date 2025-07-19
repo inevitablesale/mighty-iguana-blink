@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 import { CreatePlacementDialog } from "@/components/CreatePlacementDialog";
 import { ViewCampaignEmailDialog } from "@/components/ViewCampaignEmailDialog";
+import { GenerateProposalDialog } from "@/components/GenerateProposalDialog";
 import {
   Table,
   TableBody,
@@ -184,6 +185,14 @@ const Campaigns = () => {
                                   Edit Draft
                                 </DropdownMenuItem>
                               </EditCampaignDialog>
+                            )}
+                             {['replied', 'meeting'].includes(campaign.status) && (
+                              <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Generate Proposal
+                                </DropdownMenuItem>
+                              </GenerateProposalDialog>
                             )}
                             {['replied', 'meeting'].includes(campaign.status) && (
                               <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>

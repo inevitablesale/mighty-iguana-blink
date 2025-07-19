@@ -3,12 +3,37 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
+import { FileText, MoreHorizontal, Trash2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Proposal, ProposalStatus } from "@/types/index";
 import { format } from 'date-fns';
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ViewProposalDialog } from "@/components/ViewProposalDialog";
 
 const Proposals = () => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -40,6 +65,30 @@ const Proposals = () => {
   useEffect(() => {
     fetchProposals();
   }, [fetchProposals]);
+
+  const handleUpdateStatus = async (proposalId: string, status: ProposalStatus) => {
+    const { error } = await supabase
+      .from('proposals')
+      .update({ status })
+      .eq('id', proposalId);
+
+    if (error) {
+      toast.error('Failed to update status.');
+    } else {
+      toast.success('Proposal status updated.');
+      fetchProposals();
+    }
+  };
+
+  const handleDelete = async (proposalId: string) => {
+    const { error } = await supabase.from('proposals').delete().eq('id', proposalId);
+    if (error) {
+      toast.error('Failed to delete proposal.');
+    } else {
+      toast.success('Proposal deleted.');
+      fetchProposals();
+    }
+  };
 
   const getStatusBadgeVariant = (status: ProposalStatus) => {
     switch (status) {
@@ -97,7 +146,57 @@ const Proposals = () => {
                       </TableCell>
                       <TableCell>{format(new Date(proposal.created_at), 'PPP')}</TableCell>
                       <TableCell className="text-right">
-                        {/* Actions Dropdown will go here in the next step */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <ViewProposalDialog proposal={proposal}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Proposal
+                              </DropdownMenuItem>
+                            </ViewProposalDialog>
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <CheckSquare className="mr-2 h-4 w-4" />
+                                <span>Update Status</span>
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(proposal.id, 'sent')}>Sent</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(proposal.id, 'accepted')}>Accepted</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(proposal.id, 'rejected')}>Rejected</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(proposal.id, 'archived')}>Archived</DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(proposal.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -111,7 +210,7 @@ const Proposals = () => {
                     No Proposals Yet
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Proposals will appear here once they are generated from a campaign.
+                    Generate a proposal from the Campaigns page to get started.
                   </p>
                 </div>
               </div>
