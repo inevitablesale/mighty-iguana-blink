@@ -42,7 +42,7 @@ const Login = () => {
             <SweaterIcon className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Coogi</h1>
           </div>
-          <CardDescription>AI-powered recruiting intelligence</CardDescription>
+          <CardDescription>Weaving together the best opportunities.</CardDescription>
         </CardHeader>
         <CardContent>
           <div id="login-auth-form">

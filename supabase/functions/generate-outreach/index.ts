@@ -31,7 +31,7 @@ serve(async (req) => {
     const prompt = `
 You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized outreach email to a potential new client.
 
-The recruiter is using an app called "Picture This".
+The recruiter is using an app called "Coogi".
 The target company is: ${opportunity.companyName}
 The role they might need help with is: ${opportunity.role}
 The key signal that they might be hiring is: "${opportunity.keySignal}"
@@ -43,12 +43,12 @@ Guidelines for the email body:
 - Start with a personalized hook that references the key signal.
 - Briefly introduce the value proposition (a recruiter with a strong network).
 - End with a clear, low-friction call to action (e.g., asking if they are open to exploring a partnership).
-- Do NOT use placeholders like "[Your Name]". Sign off as "A Partner at Picture This".
+- Do NOT use placeholders like "[Your Name]". Sign off as "A Partner at Coogi".
 
 Example Output Structure:
 {
   "subject": "Your next hire at ${opportunity.companyName}",
-  "body": "Hi [Hiring Manager Name],\\n\\nI saw that ${opportunity.companyName} ${opportunity.keySignal}. Given this momentum, I imagine finding top-tier talent for the ${opportunity.role} position is a priority.\\n\\nI specialize in placing high-performing candidates in this space and have a network of passive talent that could be a great fit.\\n\\nWould you be open to a brief chat next week to discuss how I can help you scale your team?\\n\\nBest,\\nA Partner at Picture This"
+  "body": "Hi [Hiring Manager Name],\\n\\nI saw that ${opportunity.companyName} ${opportunity.keySignal}. Given this momentum, I imagine finding top-tier talent for the ${opportunity.role} position is a priority.\\n\\nI specialize in placing high-performing candidates in this space and have a network of passive talent that could be a great fit.\\n\\nWould you be open to a brief chat next week to discuss how I can help you scale your team?\\n\\nBest,\\nA Partner at Coogi"
 }
 
 Generate a new, unique email based on the provided opportunity.

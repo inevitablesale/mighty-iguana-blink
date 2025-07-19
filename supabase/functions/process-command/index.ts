@@ -29,7 +29,7 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an AI assistant for a recruiter using an app called "Picture This". Your goal is to find new clients (companies) for the recruiter.
+You are an AI assistant for a recruiter using an app called "Coogi". Your goal is to find new clients (companies) for the recruiter.
 The user's command is: "${userCommand}".
 
 Your tasks:
