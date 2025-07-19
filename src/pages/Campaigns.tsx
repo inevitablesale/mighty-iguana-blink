@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Copy } from "lucide-react";
+import { Bell, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Draft {
@@ -32,11 +32,18 @@ const Campaigns = () => {
     toast.success("Copied to clipboard!");
   };
 
+  const handleDelete = (indexToDelete: number) => {
+    const updatedCampaigns = campaigns.filter((_, index) => index !== indexToDelete);
+    setCampaigns(updatedCampaigns);
+    sessionStorage.setItem('campaignDrafts', JSON.stringify(updatedCampaigns));
+    toast.info("Draft deleted.");
+  };
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <Sidebar />
       <div className="flex flex-col">
-        <Header />
+        <Header title="Campaigns" />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
           <div className="flex items-center">
             <h1 className="text-lg font-semibold md:text-2xl">Campaigns</h1>
@@ -70,6 +77,13 @@ const Campaigns = () => {
                       <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.draft.body}</p>
                     </div>
                   </CardContent>
+                  <CardFooter className="flex justify-end gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handleDelete(index)}>
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                    <Button>Send Outreach</Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
