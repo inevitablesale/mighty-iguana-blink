@@ -48,13 +48,15 @@ export interface PredictiveLead {
   predictedRoles: string[];
 }
 
+export type PlacementStatus = 'active' | 'completed' | 'cancelled';
+
 export interface Placement {
   id:string;
   campaign_id: string;
   candidate_name: string;
   start_date: string | null;
   fee_amount: number | null;
-  status: string;
+  status: PlacementStatus;
   campaigns?: {
     company_name: string;
     role: string;

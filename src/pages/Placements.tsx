@@ -15,6 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -28,11 +33,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Award, DollarSign, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Award, DollarSign, MoreHorizontal, Edit, Trash2, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Placement } from "@/types/index";
+import { Placement, PlacementStatus } from "@/types/index";
 import { format } from 'date-fns';
 import { EditPlacementDialog } from "@/components/EditPlacementDialog";
 
@@ -82,6 +88,29 @@ const Placements = () => {
     }
   };
 
+  const handleUpdateStatus = async (placementId: string, status: PlacementStatus) => {
+    const { error } = await supabase
+      .from('placements')
+      .update({ status })
+      .eq('id', placementId);
+
+    if (error) {
+      toast.error('Failed to update status.');
+    } else {
+      toast.success('Placement status updated.');
+      fetchPlacements();
+    }
+  };
+
+  const getStatusBadgeVariant = (status: PlacementStatus) => {
+    switch (status) {
+      case 'completed': return 'default';
+      case 'active': return 'secondary';
+      case 'cancelled': return 'destructive';
+      default: return 'outline';
+    }
+  };
+
   return (
     <div className="flex flex-col">
       <Header title="Placements" />
@@ -127,7 +156,7 @@ const Placements = () => {
                   <TableRow>
                     <TableHead>Candidate</TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead className="text-right">Fee</TableHead>
                     <TableHead><span className="sr-only">Actions</span></TableHead>
@@ -138,10 +167,14 @@ const Placements = () => {
                     <TableRow key={placement.id}>
                       <TableCell className="font-medium">{placement.candidate_name}</TableCell>
                       <TableCell>{placement.campaigns?.company_name || 'N/A'}</TableCell>
-                      <TableCell>{placement.campaigns?.role || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(placement.status)} className={placement.status === 'completed' ? 'bg-green-600 text-white' : ''}>
+                          {placement.status.charAt(0).toUpperCase() + placement.status.slice(1)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{placement.start_date ? format(new Date(placement.start_date), 'PPP') : 'N/A'}</TableCell>
                       <TableCell className="text-right">${placement.fee_amount?.toLocaleString() || 'N/A'}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -157,6 +190,20 @@ const Placements = () => {
                                 Edit
                               </DropdownMenuItem>
                             </EditPlacementDialog>
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <CheckSquare className="mr-2 h-4 w-4" />
+                                <span>Update Status</span>
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(placement.id, 'active')}>Active</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(placement.id, 'completed')}>Completed</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(placement.id, 'cancelled')}>Cancelled</DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            <DropdownMenuSeparator />
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
