@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardMetrics } from "@/components/DashboardMetrics";
-import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
+import { usePredictiveLeads, PredictiveLead } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 
@@ -32,6 +32,8 @@ export default function Index() {
   const navigate = useNavigate();
   const { leads, loading: leadsLoading } = usePredictiveLeads();
   const { stats, loading: statsLoading, refresh: refreshStats } = useDashboardStats();
+  const [investigatingLead, setInvestigatingLead] = useState<PredictiveLead | null>(null);
+  const [investigatedLeads, setInvestigatedLeads] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -147,6 +149,55 @@ export default function Index() {
     }
   };
 
+  const handleInvestigateLead = async (lead: PredictiveLead) => {
+    setInvestigatingLead(lead);
+    const toastId = toast.loading(`Investigating ${lead.companyName}...`);
+
+    try {
+      const { data: opportunityData, error: functionError } = await supabase.functions.invoke('convert-lead-to-opportunity', {
+        body: { lead },
+      });
+
+      if (functionError) throw new Error(functionError.message);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
+      const newOpportunity = {
+        id: uuidv4(),
+        user_id: user.id,
+        company_name: opportunityData.companyName,
+        role: opportunityData.role,
+        location: opportunityData.location,
+        potential: opportunityData.potential,
+        hiring_urgency: opportunityData.hiringUrgency,
+        match_score: opportunityData.matchScore,
+        key_signal: opportunityData.keySignal,
+      };
+
+      const { error: insertError } = await supabase.from('opportunities').insert(newOpportunity);
+      if (insertError) throw new Error(insertError.message);
+
+      setInvestigatedLeads(prev => [...prev, lead.companyName]);
+      toast.success(`New opportunity created for ${opportunityData.companyName}!`, {
+        id: toastId,
+        description: "You can now find it in the Opportunities tab.",
+        action: {
+          label: "View Opportunities",
+          onClick: () => navigate('/opportunities'),
+        },
+      });
+      refreshStats();
+
+    } catch (e) {
+      const err = e as Error;
+      console.error("Error investigating lead:", err);
+      toast.error(err.message, { id: toastId });
+    } finally {
+      setInvestigatingLead(null);
+    }
+  };
+
   const isInitialView = !isLoading && !processedCommand;
 
   return (
@@ -173,7 +224,12 @@ export default function Index() {
                   <p className="text-sm text-muted-foreground">Your agents are on the lookout.</p>
                 </div>
               ) : leads.length > 0 ? (
-                <PredictiveLeads leads={leads} />
+                <PredictiveLeads 
+                  leads={leads} 
+                  onInvestigate={handleInvestigateLead}
+                  investigatingLead={investigatingLead}
+                  investigatedLeads={investigatedLeads}
+                />
               ) : (
                 <div className="flex flex-col items-center gap-2 text-center">
                   <Bot className="h-12 w-12 text-primary" />
