@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Spline } from "lucide-react";
+import { SweaterIcon } from "@/components/SweaterIcon";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 
 const Login = () => {
@@ -23,7 +23,7 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2">
-            <Spline className="h-8 w-8 text-primary" />
+            <SweaterIcon className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Coogi</h1>
           </div>
           <CardDescription>Weaving together the best opportunities.</CardDescription>

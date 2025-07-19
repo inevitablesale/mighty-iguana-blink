@@ -1,5 +1,6 @@
-import { Bell, Palette, Home, Settings, Target, Spline } from "lucide-react";
+import { Bell, Home, Settings, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { SweaterIcon } from "./SweaterIcon";
 
 export function Sidebar() {
   const getLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -12,7 +13,7 @@ export function Sidebar() {
       <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
           <a href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground">
-            <Spline className="h-6 w-6 text-primary" />
+            <SweaterIcon className="h-6 w-6 text-primary" />
             <span className="text-lg">Coogi</span>
           </a>
         </div>
