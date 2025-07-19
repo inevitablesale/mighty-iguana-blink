@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Zap } from "lucide-react";
 
 export interface Opportunity {
   companyName: string;
@@ -15,6 +17,8 @@ export interface Opportunity {
   location: string;
   potential: "High" | "Medium" | "Low";
   hiringUrgency: "High" | "Medium" | "Low";
+  matchScore: number;
+  keySignal: string;
 }
 
 interface OpportunityCardProps {
@@ -49,6 +53,21 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             <Badge variant={getBadgeVariant(opportunity.potential)}>
               Potential: {opportunity.potential}
             </Badge>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-dashed">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Key Signal</span>
+            <span className="font-semibold text-foreground flex items-center gap-1">
+              <Zap size={12} className="text-yellow-500" /> {opportunity.keySignal}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+            <span>Match Score</span>
+            <div className="w-1/2 flex items-center gap-2">
+              <Progress value={opportunity.matchScore * 10} className="h-2" />
+              <span className="font-semibold text-foreground">{opportunity.matchScore}/10</span>
+            </div>
           </div>
         </div>
       </CardContent>

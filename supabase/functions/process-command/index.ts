@@ -35,8 +35,12 @@ The user's command is: "${userCommand}".
 
 Your tasks:
 1. Parse the user's command to identify the search criteria for new recruiting contracts.
-2. Generate a list of 3 realistic, but fictional, company opportunities that match these criteria. For each opportunity, estimate the "hiringUrgency" and "potential" value of the contract (High, Medium, or Low).
-3. Return ONLY a single, valid JSON object with the following structure. Do not include any other text, explanations, or markdown.
+2. Generate a list of 3 realistic, but fictional, company opportunities that match these criteria.
+3. For each opportunity, you MUST include:
+    - "hiringUrgency" and "potential" value (High, Medium, or Low).
+    - "matchScore": A score from 1-10 indicating how strong a fit this lead is for the recruiter.
+    - "keySignal": The single most important reason this is a good lead (e.g., "Just raised $20M Series B", "Hiring velocity increased 50%", "Key exec just posted on LinkedIn").
+4. Return ONLY a single, valid JSON object with the following structure. Do not include any other text, explanations, or markdown.
 
 {
   "searchCriteria": {
@@ -52,7 +56,9 @@ Your tasks:
       "role": "The specific role they are hiring for",
       "location": "Company's location",
       "potential": "High",
-      "hiringUrgency": "Medium"
+      "hiringUrgency": "Medium",
+      "matchScore": 9,
+      "keySignal": "Just raised $20M Series B"
     }
   ]
 }
@@ -75,21 +81,27 @@ Example output:
       "role": "Senior Backend Engineer",
       "location": "Austin, TX",
       "potential": "High",
-      "hiringUrgency": "High"
+      "hiringUrgency": "High",
+      "matchScore": 9,
+      "keySignal": "Hiring velocity increased 30%"
     },
     {
       "companyName": "DataDriven Inc.",
       "role": "Senior Software Engineer (AI/ML)",
       "location": "Dallas, TX",
       "potential": "High",
-      "hiringUrgency": "Medium"
+      "hiringUrgency": "Medium",
+      "matchScore": 8,
+      "keySignal": "Recent $50M Series C funding"
     },
     {
       "companyName": "CyberSecure Corp",
       "role": "Senior Security Engineer",
       "location": "Houston, TX",
       "potential": "Medium",
-      "hiringUrgency": "Low"
+      "hiringUrgency": "Low",
+      "matchScore": 7,
+      "keySignal": "Leadership mentioned team expansion"
     }
   ]
 }
