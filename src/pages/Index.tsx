@@ -19,13 +19,54 @@ const Index = () => {
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
 
-  const handleSendCommand = useCallback(async (command: string, isProactive = false) => {
+  const handleProactiveSearch = useCallback(async (profile: string) => {
+    setIsLoading(true);
+    setIsInitialView(false);
+    const toastId = toast.loading("Proactively searching for top opportunities...");
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated.");
+
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('proactive-search', {
+        body: { profile },
+      });
+
+      if (functionError) throw new Error(functionError.message);
+
+      const aiResponse = functionData as { opportunities: Omit<Opportunity, 'id'>[] };
+      
+      if (aiResponse && aiResponse.opportunities && aiResponse.opportunities.length > 0) {
+        const opportunitiesWithIds = aiResponse.opportunities.map(opp => ({ ...opp, id: uuidv4() }));
+        
+        const { error: insertError } = await supabase.from('opportunities').insert(
+          opportunitiesWithIds.map(({id, companyName, role, location, potential, hiringUrgency, matchScore, keySignal}) => ({
+            id, user_id: user.id, company_name: companyName, role, location, potential, hiring_urgency: hiringUrgency, match_score: matchScore, key_signal: keySignal
+          }))
+        );
+
+        if (insertError) throw new Error(insertError.message);
+
+        setOpportunities(opportunitiesWithIds);
+        toast.success("Here are your top proactive opportunities!", { id: toastId });
+      } else {
+        setOpportunities([]);
+        toast.info("No new opportunities found at the moment.", { id: toastId });
+      }
+    } catch (e) {
+      const error = e as Error;
+      console.error("Error in proactive search:", error);
+      toast.error(error.message, { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleSendCommand = useCallback(async (command: string) => {
     if (!command.trim()) return;
     setIsLoading(true);
-    if (!isProactive) {
-      setOpportunities([]);
-      setSearchCriteria(null);
-    }
+    setOpportunities([]);
+    setSearchCriteria(null);
     setIsInitialView(false);
 
     const toastId = toast.loading("Finding new opportunities...");
@@ -99,6 +140,7 @@ const Index = () => {
       if (recentOpps && recentOpps.length > 0) {
         setOpportunities(recentOpps.map(o => ({...o, companyName: o.company_name, hiringUrgency: o.hiring_urgency, matchScore: o.match_score, keySignal: o.key_signal} as Opportunity)));
         setIsInitialView(false);
+        setIsLoading(false);
       } else {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -108,17 +150,18 @@ const Index = () => {
 
         if (profileError && profileError.code !== 'PGRST116') {
           console.error("Error fetching profile:", profileError);
+          setIsLoading(false);
         } else if (profile && profile.specialty) {
-          await handleSendCommand(`Find me the top 3 opportunities based on this profile: ${profile.specialty}`, true);
+          await handleProactiveSearch(profile.specialty);
         } else {
           setIsInitialView(true);
+          setIsLoading(false);
         }
       }
-      setIsLoading(false);
     };
 
     initializeDashboard();
-  }, [handleSendCommand]);
+  }, [handleProactiveSearch]);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
     const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
@@ -226,7 +269,7 @@ const Index = () => {
 
         </div>
         <div className="mt-auto bg-background pt-4">
-          <CommandBar onSendCommand={(cmd) => handleSendCommand(cmd, false)} isLoading={isLoading} />
+          <CommandBar onSendCommand={handleSendCommand} isLoading={isLoading} />
         </div>
       </main>
     </div>

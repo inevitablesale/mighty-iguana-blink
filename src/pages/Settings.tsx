@@ -72,7 +72,7 @@ const Settings = () => {
                 id="profile"
                 placeholder="e.g., 'I specialize in placing Senior Software Engineers in the fintech vertical on the East Coast.'"
                 value={profile}
-                onChange={(e) => setProfile(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProfile(e.target.value)}
                 rows={4}
                 disabled={loading}
               />

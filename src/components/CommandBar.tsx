@@ -25,7 +25,7 @@ export function CommandBar({ onSendCommand, isLoading }: CommandBarProps) {
         <Input
           placeholder="e.g., Find contracts for nurses in New York"
           value={command}
-          onChange={(e) => setCommand((e.target as HTMLInputElement).value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCommand(e.target.value)}
           className="pr-16"
           disabled={isLoading}
         />
