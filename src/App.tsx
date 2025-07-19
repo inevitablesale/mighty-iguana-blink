@@ -15,6 +15,7 @@ import Campaigns from "./pages/Campaigns";
 import Agents from "./pages/Agents";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import Placements from "./pages/Placements";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => {
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="agents" element={<Agents />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="placements" element={<Placements />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

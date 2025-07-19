@@ -3,11 +3,12 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Copy, Trash2, Send, MoreHorizontal } from "lucide-react";
+import { Bell, Copy, Trash2, Send, MoreHorizontal, Award } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditCampaignDialog } from "@/components/EditCampaignDialog";
+import { CreatePlacementDialog } from "@/components/CreatePlacementDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +88,7 @@ const Campaigns = () => {
   const getStatusBadgeVariant = (status: CampaignStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'sent': return 'default';
+      case 'placed': return 'default';
       case 'replied': return 'secondary';
       case 'meeting': return 'destructive'; // Using destructive for accent color
       case 'closed': return 'outline';
@@ -131,7 +133,7 @@ const Campaigns = () => {
                     </div>
                     <Badge 
                       variant={getStatusBadgeVariant(campaign.status)}
-                      className={campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''}
+                      className={`${campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'placed' ? 'bg-green-600 text-white' : ''}`}
                     >
                       {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                     </Badge>
@@ -167,6 +169,10 @@ const Campaigns = () => {
                     <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns} />
                   )}
 
+                  {['replied', 'meeting'].includes(campaign.status) && (
+                    <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns} />
+                  )}
+
                   {campaign.status === 'draft' ? (
                     <Button onClick={() => handleUpdateStatus(campaign.id, 'sent')} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
                       <Send className="mr-2 h-4 w-4" />
@@ -175,7 +181,7 @@ const Campaigns = () => {
                   ) : (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" disabled={campaign.status === 'placed'}>
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Update Status</span>
                         </Button>

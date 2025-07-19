@@ -24,7 +24,7 @@ export interface ProcessedCommand {
   opportunities: Opportunity[];
 }
 
-export type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed';
+export type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed' | 'placed';
 
 export interface Campaign {
   id: string;
@@ -46,4 +46,17 @@ export interface PredictiveLead {
   signalType: 'funding' | 'expansion' | 'hiring_trend';
   signalStrength: number;
   predictedRoles: string[];
+}
+
+export interface Placement {
+  id:string;
+  campaign_id: string;
+  candidate_name: string;
+  start_date: string | null;
+  fee_amount: number | null;
+  status: string;
+  campaigns?: {
+    company_name: string;
+    role: string;
+  }
 }
