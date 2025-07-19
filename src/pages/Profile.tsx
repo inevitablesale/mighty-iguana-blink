@@ -14,6 +14,7 @@ const Profile = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [calendlyUrl, setCalendlyUrl] = useState('');
+  const [phantombusterApiKey, setPhantombusterApiKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -21,6 +22,8 @@ const Profile = () => {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
       setCalendlyUrl(profile.calendly_url || '');
+      // @ts-ignore
+      setPhantombusterApiKey(profile.phantombuster_api_key || '');
     }
   }, [profile]);
 
@@ -30,7 +33,12 @@ const Profile = () => {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: firstName, last_name: lastName, calendly_url: calendlyUrl })
+      .update({ 
+        first_name: firstName, 
+        last_name: lastName, 
+        calendly_url: calendlyUrl,
+        phantombuster_api_key: phantombusterApiKey,
+      })
       .eq('id', user.id);
 
     setIsSaving(false);
@@ -57,6 +65,7 @@ const Profile = () => {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </CardContent>
             <CardFooter>
               <Skeleton className="h-10 w-24" />
@@ -73,8 +82,8 @@ const Profile = () => {
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Update your personal information and integrations.</CardDescription>
+            <CardTitle>Profile & Integrations</CardTitle>
+            <CardDescription>Update your personal information and connect your tools.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -92,6 +101,10 @@ const Profile = () => {
             <div className="space-y-2">
               <Label htmlFor="calendlyUrl">Calendly URL</Label>
               <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phantombusterApiKey">Phantombuster API Key</Label>
+              <Input id="phantombusterApiKey" type="password" value={phantombusterApiKey} onChange={(e) => setPhantombusterApiKey(e.target.value)} placeholder="Enter your Phantombuster API Key" />
             </div>
           </CardContent>
           <CardFooter>

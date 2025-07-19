@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare } from "lucide-react";
+import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,18 +75,29 @@ const Campaigns = () => {
     fetchCampaigns();
   }, [fetchCampaigns]);
 
-  const handleDelete = async (campaignId: string) => {
-    const { error } = await supabase
-      .from('campaigns')
-      .delete()
-      .eq('id', campaignId);
+  const handleLaunchPhantom = async (campaignId: string) => {
+    const toastId = toast.loading("Launching Phantombuster connection request...");
+    try {
+      const { error } = await supabase.functions.invoke('trigger-phantom', {
+        body: { campaignId },
+      });
+      if (error) throw error;
+      toast.success("Connection request sent to Phantombuster!", { id: toastId });
+      fetchCampaigns();
+    } catch (e) {
+      const err = e as Error;
+      toast.error(`Failed to launch Phantom: ${err.message}`, { id: toastId });
+    }
+  };
 
+  const handleDelete = async (campaignId: string) => {
+    const { error } = await supabase.from('campaigns').delete().eq('id', campaignId);
     if (error) {
-      console.error("Error deleting campaign:", error);
-      toast.error("Failed to delete draft.");
+      toast.error('Failed to delete campaign.');
+      console.error('Error deleting campaign:', error);
     } else {
-      setCampaigns(prev => prev.filter(c => c.id !== campaignId));
-      toast.info("Draft deleted.");
+      toast.success('Campaign deleted.');
+      fetchCampaigns();
     }
   };
 
@@ -97,7 +108,6 @@ const Campaigns = () => {
       .eq('id', campaignId);
 
     if (error) {
-      console.error(`Error updating status to ${status}:`, error);
       toast.error(`Failed to update status.`);
     } else {
       fetchCampaigns();
@@ -107,7 +117,7 @@ const Campaigns = () => {
 
   const getStatusBadgeVariant = (status: CampaignStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'sent': return 'default';
+      case 'connection_sent': return 'default';
       case 'placed': return 'default';
       case 'replied': return 'secondary';
       case 'meeting': return 'destructive';
@@ -117,14 +127,6 @@ const Campaigns = () => {
         return 'secondary';
     }
   };
-
-  const renderLoadingState = () => (
-    <div className="space-y-4">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-    </div>
-  );
 
   return (
     <div className="flex flex-col">
@@ -137,7 +139,7 @@ const Campaigns = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              renderLoadingState()
+              <div className="space-y-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
             ) : campaigns.length > 0 ? (
               <Table>
                 <TableHeader>
@@ -158,20 +160,22 @@ const Campaigns = () => {
                           variant={getStatusBadgeVariant(campaign.status)}
                           className={`${campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'placed' ? 'bg-green-600 text-white' : ''}`}
                         >
-                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                          {campaign.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
+                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                            {campaign.status === 'draft' && (
+                              <DropdownMenuItem onClick={() => handleLaunchPhantom(campaign.id)}>
+                                <Send className="mr-2 h-4 w-4" />
+                                Send Connection Request
+                              </DropdownMenuItem>
+                            )}
                             <ViewLinkedInMessageDialog campaign={campaign}>
                               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                 <FileText className="mr-2 h-4 w-4" />
@@ -186,7 +190,7 @@ const Campaigns = () => {
                                 </DropdownMenuItem>
                               </EditCampaignDialog>
                             )}
-                             {['replied', 'meeting'].includes(campaign.status) && (
+                             {['replied', 'meeting', 'connection_sent'].includes(campaign.status) && (
                               <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -194,7 +198,7 @@ const Campaigns = () => {
                                 </DropdownMenuItem>
                               </GenerateProposalDialog>
                             )}
-                            {['replied', 'meeting'].includes(campaign.status) && (
+                            {['replied', 'meeting', 'connection_sent'].includes(campaign.status) && (
                               <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <Award className="mr-2 h-4 w-4" />
@@ -209,10 +213,9 @@ const Campaigns = () => {
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'sent')} disabled={campaign.status !== 'draft'}>Sent</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={!['replied'].includes(campaign.status)}>Meeting</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={campaign.status === 'closed' || campaign.status === 'placed'}>Closed</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['connection_sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={!['replied'].includes(campaign.status)}>Meeting Booked</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={['closed', 'placed'].includes(campaign.status)}>Closed</DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'draft')}>Revert to Draft</DropdownMenuItem>
                                 </DropdownMenuSubContent>
@@ -229,15 +232,11 @@ const Campaigns = () => {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete the campaign for {campaign.company_name}. This action cannot be undone.
-                                  </AlertDialogDescription>
+                                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(campaign.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                    Delete
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => handleDelete(campaign.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
@@ -252,12 +251,8 @@ const Campaigns = () => {
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                 <div className="flex flex-col items-center gap-1 text-center">
                   <Bell className="h-10 w-10 text-muted-foreground" />
-                  <h3 className="text-2xl font-bold tracking-tight">
-                    No Campaign Drafts Yet
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Approve an outreach from the dashboard to generate your first draft.
-                  </p>
+                  <h3 className="text-2xl font-bold tracking-tight">No Campaigns Yet</h3>
+                  <p className="text-sm text-muted-foreground">Approve an opportunity to generate your first outreach campaign.</p>
                 </div>
               </div>
             )}
