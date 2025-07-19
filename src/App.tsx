@@ -16,6 +16,7 @@ import Agents from "./pages/Agents";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
+import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => {
               <Route path="agents" element={<Agents />} />
               <Route path="profile" element={<Profile />} />
               <Route path="placements" element={<Placements />} />
+              <Route path="proposals" element={<Proposals />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

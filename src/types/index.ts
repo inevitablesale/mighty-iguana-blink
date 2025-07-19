@@ -70,3 +70,18 @@ export interface CompanyBriefing {
   techStack: string;
   hiringAnalysis: string;
 }
+
+export type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'archived';
+
+export interface Proposal {
+  id: string;
+  campaign_id: string;
+  status: ProposalStatus;
+  fee_structure: string | null;
+  generated_body: string | null;
+  created_at: string;
+  campaigns?: {
+    company_name: string;
+    role: string;
+  }
+}
