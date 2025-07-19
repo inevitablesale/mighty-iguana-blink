@@ -26,7 +26,7 @@ const Agents = () => {
 
     const { data, error } = await supabase
       .from("agents")
-      .select("id, name, prompt, last_run_at")
+      .select("id, name, prompt, last_run_at, autonomy_level")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -54,7 +54,7 @@ const Agents = () => {
 
   const handleRunDiscovery = async (agentId: string) => {
     setRunningAgentId(agentId);
-    const toastId = toast.loading("Agent is running discovery & outreach playbook...");
+    const toastId = toast.loading("Agent is running its playbook...");
 
     try {
       const { data, error } = await supabase.functions.invoke('run-discovery-and-outreach-playbook', {
@@ -65,7 +65,7 @@ const Agents = () => {
 
       toast.success(data.message, {
         id: toastId,
-        description: "You can review the drafts on the Campaigns page.",
+        description: "You can review the results on the relevant pages.",
         action: {
           label: "View Campaigns",
           onClick: () => navigate('/campaigns'),
@@ -106,6 +106,7 @@ const Agents = () => {
                 agent={agent}
                 onDelete={handleDeleteAgent}
                 onRunDiscovery={handleRunDiscovery}
+                onAgentUpdated={fetchAgents}
                 isRunning={runningAgentId === agent.id}
               />
             ))}

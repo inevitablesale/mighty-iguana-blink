@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,109 +15,95 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PlusCircle } from "lucide-react";
-import { AutonomyLevel } from "@/types/index";
+import { Agent, AutonomyLevel } from "@/types/index";
 
-interface AddAgentDialogProps {
-  onAgentCreated: () => void;
+interface EditAgentDialogProps {
+  agent: Agent;
+  onAgentUpdated: () => void;
+  children: React.ReactNode;
 }
 
-export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
+export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (agent) {
+      setName(agent.name);
+      setPrompt(agent.prompt);
+      setAutonomyLevel(agent.autonomy_level);
+    }
+  }, [agent]);
+
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
-      toast.error("Please provide a name and a specialty prompt for your agent.");
+      toast.error("Name and specialty prompt cannot be empty.");
       return;
     }
     setIsSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("You must be logged in to create an agent.");
-      setIsSaving(false);
-      return;
-    }
 
-    const { error } = await supabase.from("agents").insert({
-      user_id: user.id,
-      name,
-      prompt,
-      autonomy_level: autonomyLevel,
-    });
+    const { error } = await supabase
+      .from("agents")
+      .update({
+        name,
+        prompt,
+        autonomy_level: autonomyLevel,
+      })
+      .eq("id", agent.id);
 
     setIsSaving(false);
     if (error) {
-      console.error("Error creating agent:", error);
-      toast.error("Failed to create agent.");
+      console.error("Error updating agent:", error);
+      toast.error("Failed to update agent.");
     } else {
-      toast.success(`Agent "${name}" created successfully!`);
-      onAgentCreated();
-      setName("");
-      setPrompt("");
-      setAutonomyLevel("semi-automatic");
+      toast.success("Agent updated successfully!");
+      onAgentUpdated();
       setOpen(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Agent
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Agent</DialogTitle>
+          <DialogTitle>Edit Agent: {agent.name}</DialogTitle>
           <DialogDescription>
-            Define a new agent to proactively search for and contact new leads.
+            Update the agent's properties and autonomy level.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., 'Fintech Sales Agent'"
-            />
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="prompt">Specialty</Label>
-            <Textarea
-              id="prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g., 'I specialize in placing VPs of Sales...'"
-              rows={3}
-            />
+            <Textarea id="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>
             <RadioGroup value={autonomyLevel} onValueChange={(value: AutonomyLevel) => setAutonomyLevel(value)}>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="manual" id="manual" />
-                <Label htmlFor="manual" className="font-normal">
+                <RadioGroupItem value="manual" id="edit-manual" />
+                <Label htmlFor="edit-manual" className="font-normal">
                   <span className="font-semibold">Manual</span>
                   <p className="text-sm text-muted-foreground">Agent finds opportunities. I will manually approve them to draft outreach.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="semi-automatic" id="semi-automatic" />
-                <Label htmlFor="semi-automatic" className="font-normal">
+                <RadioGroupItem value="semi-automatic" id="edit-semi-automatic" />
+                <Label htmlFor="edit-semi-automatic" className="font-normal">
                   <span className="font-semibold">Semi-Automatic</span>
                   <p className="text-sm text-muted-foreground">Agent finds opportunities and drafts outreach. I will review and send emails.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="automatic" id="automatic" />
-                <Label htmlFor="automatic" className="font-normal">
+                <RadioGroupItem value="automatic" id="edit-automatic" />
+                <Label htmlFor="edit-automatic" className="font-normal">
                   <span className="font-semibold">Automatic</span>
                   <p className="text-sm text-muted-foreground">Agent finds opportunities, drafts outreach, and sends emails automatically.</p>
                 </Label>
@@ -127,7 +113,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
         </div>
         <DialogFooter>
           <Button type="submit" onClick={handleSave} disabled={isSaving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-            {isSaving ? "Saving..." : "Save Agent"}
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

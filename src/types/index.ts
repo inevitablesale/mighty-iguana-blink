@@ -35,11 +35,14 @@ export interface Campaign {
   status: CampaignStatus;
 }
 
+export type AutonomyLevel = 'manual' | 'semi-automatic' | 'automatic';
+
 export interface Agent {
   id: string;
   name: string;
   prompt: string;
   last_run_at?: string;
+  autonomy_level: AutonomyLevel;
 }
 
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';

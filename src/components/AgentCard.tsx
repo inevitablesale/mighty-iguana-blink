@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Play, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, Play, Clock, Edit } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,19 +15,33 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Agent } from "@/types/index";
 import { formatDistanceToNow } from 'date-fns';
+import { EditAgentDialog } from "./EditAgentDialog";
 
 interface AgentCardProps {
   agent: Agent;
   onDelete: (agentId: string) => void;
   onRunDiscovery: (agentId: string) => void;
+  onAgentUpdated: () => void;
   isRunning: boolean;
 }
 
-export function AgentCard({ agent, onDelete, onRunDiscovery, isRunning }: AgentCardProps) {
+export function AgentCard({ agent, onDelete, onRunDiscovery, onAgentUpdated, isRunning }: AgentCardProps) {
+  const getAutonomyLabel = (level: string) => {
+    switch (level) {
+      case 'manual': return 'Manual';
+      case 'semi-automatic': return 'Semi-Automatic';
+      case 'automatic': return 'Automatic';
+      default: return 'Unknown';
+    }
+  };
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="coogi-gradient-bg rounded-t-lg">
-        <CardTitle className="text-primary-foreground">{agent.name}</CardTitle>
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-primary-foreground">{agent.name}</CardTitle>
+          <Badge variant="secondary" className="text-xs">{getAutonomyLabel(agent.autonomy_level)}</Badge>
+        </div>
       </CardHeader>
       <CardContent className="pt-6 flex-grow">
         <p className="text-sm text-muted-foreground">{agent.prompt}</p>
@@ -45,8 +60,14 @@ export function AgentCard({ agent, onDelete, onRunDiscovery, isRunning }: AgentC
         <div className="flex gap-2">
           <Button onClick={() => onRunDiscovery(agent.id)} disabled={isRunning} size="sm">
             <Play className="mr-2 h-4 w-4" />
-            {isRunning ? 'Running...' : 'Run Discovery'}
+            {isRunning ? 'Running...' : 'Run Playbook'}
           </Button>
+          <EditAgentDialog agent={agent} onAgentUpdated={onAgentUpdated}>
+            <Button variant="outline" size="icon">
+              <Edit className="h-4 w-4" />
+              <span className="sr-only">Edit Agent</span>
+            </Button>
+          </EditAgentDialog>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="icon">
