@@ -62,3 +62,11 @@ export interface Placement {
     role: string;
   }
 }
+
+export interface CompanyBriefing {
+  overview: string;
+  recentNews: string;
+  keyPersonnel: string;
+  techStack: string;
+  hiringAnalysis: string;
+}

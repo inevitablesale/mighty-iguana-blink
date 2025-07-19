@@ -11,12 +11,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Target, Check, Zap } from "lucide-react";
+import { Target, Check, Zap, FileSearch } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Opportunity, OpportunityPotential } from "@/types/index";
+import { CompanyBriefingDialog } from "@/components/CompanyBriefingDialog";
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -183,17 +184,25 @@ const Opportunities = () => {
                       </TableCell>
                       <TableCell>{opp.matchScore}/10</TableCell>
                       <TableCell className="text-right">
-                        {approvedIds.includes(opp.id) ? (
-                          <Button disabled variant="secondary">
-                            <Check className="mr-2 h-4 w-4" />
-                            Drafted
-                          </Button>
-                        ) : (
-                          <Button onClick={() => handleApproveOutreach(opp)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                            <Zap className="mr-2 h-4 w-4" />
-                            Approve
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          <CompanyBriefingDialog companyName={opp.companyName}>
+                            <Button variant="outline" size="sm">
+                              <FileSearch className="mr-2 h-4 w-4" />
+                              Research
+                            </Button>
+                          </CompanyBriefingDialog>
+                          {approvedIds.includes(opp.id) ? (
+                            <Button disabled variant="secondary" size="sm">
+                              <Check className="mr-2 h-4 w-4" />
+                              Drafted
+                            </Button>
+                          ) : (
+                            <Button onClick={() => handleApproveOutreach(opp)} size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                              <Zap className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
