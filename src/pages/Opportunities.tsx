@@ -11,19 +11,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Target, Check, Zap, FileSearch } from "lucide-react";
+import { Target, FileSearch } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Opportunity, OpportunityPotential } from "@/types/index";
 import { CompanyBriefingDialog } from "@/components/CompanyBriefingDialog";
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,88 +52,11 @@ const Opportunities = () => {
         }));
         setOpportunities(formattedOpps);
       }
-
-      const { data: campaignsData, error: campaignsError } = await supabase
-        .from('campaigns')
-        .select('opportunity_id')
-        .eq('user_id', user.id);
-      
-      if (campaignsError) {
-        console.error("Error fetching campaigns:", campaignsError);
-      } else {
-        setApprovedIds(campaignsData.map(c => c.opportunity_id));
-      }
-
       setLoading(false);
     };
 
     fetchData();
   }, []);
-
-  const handleApproveOutreach = async (opportunity: Opportunity) => {
-    const toastId = toast.loading(`Drafting email for ${opportunity.companyName}...`);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated.");
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name, calendly_url')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Could not fetch your profile.", profileError);
-      }
-
-      const { data: agents, error: agentsError } = await supabase
-        .from('agents')
-        .select('prompt')
-        .eq('user_id', user.id);
-      
-      if (agentsError) throw agentsError;
-
-      const recruiterSpecialty = agents.map(a => a.prompt).join(', ');
-
-      const { data, error } = await supabase.functions.invoke('generate-outreach', {
-        body: { 
-          opportunity, 
-          recruiterSpecialty, 
-          calendlyUrl: profile?.calendly_url,
-          recruiterFirstName: profile?.first_name 
-        },
-      });
-
-      if (error) throw new Error(error.message);
-
-      const { error: insertError } = await supabase.from('campaigns').insert({
-        user_id: user.id,
-        opportunity_id: opportunity.id,
-        company_name: opportunity.companyName,
-        role: opportunity.role,
-        subject: data.subject,
-        body: data.body,
-        status: 'draft',
-      });
-
-      if (insertError) throw new Error(insertError.message);
-
-      setApprovedIds(prev => [...prev, opportunity.id]);
-
-      toast.success(`Email drafted for ${opportunity.companyName}!`, {
-        id: toastId,
-        description: "You can review it in the Campaigns tab.",
-        action: {
-          label: "View Campaigns",
-          onClick: () => navigate('/campaigns'),
-        },
-      });
-    } catch (e) {
-      const error = e as Error;
-      console.error("Error generating email outreach:", error);
-      toast.error(error.message, { id: toastId });
-    }
-  };
 
   const getBadgeVariant = (value: string) => {
     switch (value) {
@@ -172,7 +92,7 @@ const Opportunities = () => {
           <Card>
             <CardHeader>
               <CardTitle>All Opportunities</CardTitle>
-              <CardDescription>Review and approve AI-generated opportunities to create outreach campaigns.</CardDescription>
+              <CardDescription>A log of all opportunities discovered by your AI agents.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -199,25 +119,12 @@ const Opportunities = () => {
                       </TableCell>
                       <TableCell>{opp.matchScore}/10</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <CompanyBriefingDialog companyName={opp.companyName}>
-                            <Button variant="outline" size="sm">
-                              <FileSearch className="mr-2 h-4 w-4" />
-                              Research
-                            </Button>
-                          </CompanyBriefingDialog>
-                          {approvedIds.includes(opp.id) ? (
-                            <Button disabled variant="secondary" size="sm">
-                              <Check className="mr-2 h-4 w-4" />
-                              Drafted
-                            </Button>
-                          ) : (
-                            <Button onClick={() => handleApproveOutreach(opp)} size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                              <Zap className="mr-2 h-4 w-4" />
-                              Approve
-                            </Button>
-                          )}
-                        </div>
+                        <CompanyBriefingDialog companyName={opp.companyName}>
+                          <Button variant="outline" size="sm">
+                            <FileSearch className="mr-2 h-4 w-4" />
+                            Research
+                          </Button>
+                        </CompanyBriefingDialog>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -233,7 +140,7 @@ const Opportunities = () => {
                 No Opportunities Found Yet
               </h3>
               <p className="text-sm text-muted-foreground">
-                Use the dashboard to find your first opportunity.
+                Run an agent from the Agents page to find your first opportunity.
               </p>
             </div>
           </div>

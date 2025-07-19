@@ -54,10 +54,10 @@ const Agents = () => {
 
   const handleRunDiscovery = async (agentId: string) => {
     setRunningAgentId(agentId);
-    const toastId = toast.loading("Agent is searching for new opportunities...");
+    const toastId = toast.loading("Agent is running discovery & outreach playbook...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('run-agent-discovery', {
+      const { data, error } = await supabase.functions.invoke('run-discovery-and-outreach-playbook', {
         body: { agentId },
       });
 
@@ -65,16 +65,16 @@ const Agents = () => {
 
       toast.success(data.message, {
         id: toastId,
-        description: "You can review them on the Opportunities page.",
+        description: "You can review the drafts on the Campaigns page.",
         action: {
-          label: "View Opportunities",
-          onClick: () => navigate('/opportunities'),
+          label: "View Campaigns",
+          onClick: () => navigate('/campaigns'),
         },
       });
       fetchAgents(); // Refresh to get new last_run_at time
     } catch (e) {
       const err = e as Error;
-      toast.error(`Discovery failed: ${err.message}`, { id: toastId });
+      toast.error(`Playbook failed: ${err.message}`, { id: toastId });
     } finally {
       setRunningAgentId(null);
     }
