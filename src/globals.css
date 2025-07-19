@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --background: 240 10% 99%; /* Almost white, very light cool gray */
-    --foreground: 240 10% 3.9%; /* Very dark blue, almost black */
+    --background: 240 10% 99%;
+    --foreground: 240 10% 3.9%;
 
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    --primary: 262.1 83.3% 57.8%; /* Vibrant purple */
+    --primary: 217 91% 60%; /* Vibrant Blue */
     --primary-foreground: 210 20% 98%;
 
     --secondary: 240 4.8% 95.9%;
@@ -22,7 +22,7 @@
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
 
-    --accent: 240 4.8% 95.9%;
+    --accent: 38 92% 50%; /* Warm Yellow/Orange */
     --accent-foreground: 240 5.9% 10%;
 
     --destructive: 0 84.2% 60.2%;
@@ -30,13 +30,14 @@
 
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.75rem; /* Slightly more rounded corners */
+    --radius: 0.75rem;
 
-    /* New Sidebar Theme */
-    --sidebar-bg-start: 260 60% 15%; /* Dark purple */
-    --sidebar-bg-end: 245 60% 25%; /* Dark indigo */
+    /* Coogi-inspired Sidebar Theme */
+    --sidebar-bg-start: 260 60% 15%; /* Dark Purple */
+    --sidebar-bg-mid: 180 50% 30%;   /* Teal */
+    --sidebar-bg-end: 210 70% 40%;   /* Bright Blue */
     --sidebar-foreground: 210 20% 98%;
     --sidebar-border: 260 60% 20%;
   }
@@ -51,7 +52,7 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 262.1 83.3% 57.8%;
+    --primary: 217 91% 60%;
     --primary-foreground: 210 20% 98%;
 
     --secondary: 240 3.7% 15.9%;
@@ -60,7 +61,7 @@
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
 
-    --accent: 240 3.7% 15.9%;
+    --accent: 38 92% 50%;
     --accent-foreground: 210 20% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -68,10 +69,11 @@
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 217 91% 60%;
     
     --sidebar-bg-start: 260 60% 15%;
-    --sidebar-bg-end: 245 60% 25%;
+    --sidebar-bg-mid: 180 50% 30%;
+    --sidebar-bg-end: 210 70% 40%;
     --sidebar-foreground: 210 20% 98%;
     --sidebar-border: 260 60% 20%;
   }
@@ -89,6 +91,6 @@
 
 @layer components {
   .sidebar-gradient {
-    background-image: linear-gradient(to bottom, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-end)));
+    background-image: linear-gradient(to bottom, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-mid)), hsl(var(--sidebar-bg-end)));
   }
 }
