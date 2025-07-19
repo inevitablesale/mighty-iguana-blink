@@ -8,10 +8,13 @@ import { AgentCard } from "@/components/AgentCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Agent } from "@/types/index";
+import { useNavigate } from "react-router-dom";
 
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -23,7 +26,7 @@ const Agents = () => {
 
     const { data, error } = await supabase
       .from("agents")
-      .select("id, name, prompt")
+      .select("id, name, prompt, last_run_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -47,7 +50,35 @@ const Agents = () => {
       toast.error("Failed to delete agent.");
     } else {
       toast.success("Agent deleted.");
-      fetchAgents(); // Refresh the list
+      fetchAgents();
+    }
+  };
+
+  const handleRunDiscovery = async (agentId: string) => {
+    setRunningAgentId(agentId);
+    const toastId = toast.loading("Agent is searching for new opportunities...");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('agent-lead-discovery', {
+        body: { agentId },
+      });
+
+      if (error) throw error;
+
+      toast.success(data.message, {
+        id: toastId,
+        description: "You can view them on the Opportunities page.",
+        action: {
+          label: "View Opportunities",
+          onClick: () => navigate('/opportunities'),
+        },
+      });
+      fetchAgents(); // Refresh to get new last_run_at time
+    } catch (e) {
+      const err = e as Error;
+      toast.error(`Discovery failed: ${err.message}`, { id: toastId });
+    } finally {
+      setRunningAgentId(null);
     }
   };
 
@@ -78,7 +109,7 @@ const Agents = () => {
           <div>
             <h2 className="text-2xl font-bold">Your Recruiting Agents</h2>
             <p className="text-muted-foreground">
-              Create and manage specialized agents to proactively find opportunities for you.
+              Deploy your specialized agents to proactively find opportunities for you.
             </p>
           </div>
           <AddAgentDialog onAgentCreated={fetchAgents} />
@@ -89,7 +120,13 @@ const Agents = () => {
         ) : agents.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onDelete={handleDeleteAgent} />
+              <AgentCard
+                key={agent.id}
+                agent={agent}
+                onDelete={handleDeleteAgent}
+                onRunDiscovery={handleRunDiscovery}
+                isRunning={runningAgentId === agent.id}
+              />
             ))}
           </div>
         ) : (

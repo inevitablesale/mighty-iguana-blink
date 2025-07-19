@@ -39,6 +39,7 @@ export interface Agent {
   id: string;
   name: string;
   prompt: string;
+  last_run_at?: string;
 }
 
 export interface PredictiveLead {
