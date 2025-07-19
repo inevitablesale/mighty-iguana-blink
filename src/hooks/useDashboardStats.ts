@@ -18,7 +18,7 @@ export function useDashboardStats() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setLoading(false);
+        setStats(null);
         return;
       }
 

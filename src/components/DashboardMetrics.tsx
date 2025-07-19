@@ -1,11 +1,14 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Briefcase, Edit, Send, Percent } from "lucide-react";
-import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { DashboardStats } from "@/hooks/useDashboardStats";
 
-export function DashboardMetrics() {
-  const { stats, loading } = useDashboardStats();
+interface DashboardMetricsProps {
+  stats: DashboardStats | null;
+  loading: boolean;
+}
 
+export function DashboardMetrics({ stats, loading }: DashboardMetricsProps) {
   if (loading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
 
 interface ProcessedCommand {
   searchCriteria: {
@@ -30,6 +31,7 @@ export default function Index() {
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const navigate = useNavigate();
   const { leads, loading: leadsLoading } = usePredictiveLeads();
+  const { stats, loading: statsLoading, refresh: refreshStats } = useDashboardStats();
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -90,6 +92,7 @@ export default function Index() {
       toast.error(err.message, { id: toastId });
     } finally {
       setIsLoading(false);
+      refreshStats();
     }
   };
 
@@ -136,6 +139,7 @@ export default function Index() {
           onClick: () => navigate('/campaigns'),
         },
       });
+      refreshStats();
     } catch (e) {
       const error = e as Error;
       console.error("Error generating outreach:", error);
@@ -149,7 +153,7 @@ export default function Index() {
     <div className="flex flex-col h-screen">
       <Header title="Dashboard" />
       <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto space-y-6">
-        <DashboardMetrics />
+        <DashboardMetrics stats={stats} loading={statsLoading} />
         
         <div className="flex-1 flex flex-col justify-center">
           {isLoading && (
