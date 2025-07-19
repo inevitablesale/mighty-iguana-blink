@@ -9,11 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
 import { DashboardMetrics } from "@/components/DashboardMetrics";
-import { usePredictiveLeads, PredictiveLead } from "@/hooks/usePredictiveLeads";
+import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { CampaignPipeline } from "@/components/CampaignPipeline";
-import { Opportunity, ProcessedCommand } from "@/types/index";
+import { Opportunity, ProcessedCommand, PredictiveLead } from "@/types/index";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);

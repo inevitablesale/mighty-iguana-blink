@@ -3,8 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { showError } from "@/utils/toast";
 import { PredictiveLead } from "@/types/index";
 
-export { PredictiveLead };
-
 export function usePredictiveLeads() {
   const [leads, setLeads] = useState<PredictiveLead[]>([]);
   const [loading, setLoading] = useState(true);
