@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { CommandBar } from "@/components/CommandBar";
@@ -8,7 +8,7 @@ import { OpportunityList } from "@/components/OpportunityList";
 import { Opportunity } from "@/components/OpportunityCard";
 import { Bot, Search } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
@@ -19,12 +19,13 @@ const Index = () => {
   const navigate = useNavigate();
 
   const handleSendCommand = async (command: string) => {
+    if (!command.trim()) return;
     setIsLoading(true);
     setIsInitialView(false);
     setOpportunities([]);
     setSearchCriteria(null);
 
-    const toastId = toast.loading("Finding new opportunities...");
+    const toastId = toast.loading("Finding new opportunities based on your profile...");
 
     try {
       const { data, error } = await supabase.functions.invoke('process-command', {
@@ -40,7 +41,7 @@ const Index = () => {
       if (aiResponse) {
         setSearchCriteria(aiResponse.searchCriteria);
         setOpportunities(aiResponse.opportunities || []);
-        toast.success("Here's what I found!", { id: toastId });
+        toast.success("Here are your tailored opportunities!", { id: toastId });
       }
 
     } catch (e) {
@@ -51,6 +52,14 @@ const Index = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem("recruiterProfile");
+    if (savedProfile) {
+      const proactiveCommand = `Find me the top 3 opportunities based on this profile: ${savedProfile}`;
+      handleSendCommand(proactiveCommand);
+    }
+  }, []);
 
   const handleApproveOutreach = async (opportunity: Opportunity) => {
     const toastId = toast.loading(`Drafting outreach for ${opportunity.companyName}...`);
@@ -111,7 +120,9 @@ const Index = () => {
                   <Bot className="h-12 w-12 text-primary" />
                   <h2 className="text-2xl font-bold tracking-tight">Welcome to Picture This</h2>
                   <p className="text-sm text-muted-foreground max-w-md">
-                    Your AI contract engine. Tell me what you're looking for, and I'll find the best opportunities. For example, "Find me 3 nursing contracts in California."
+                    Your AI contract engine. Use the command bar below or{" "}
+                    <Link to="/settings" className="underline text-primary">set your profile</Link>
+                    {" "}for automated searches.
                   </p>
                 </div>
               </div>
@@ -133,7 +144,7 @@ const Index = () => {
                       <Search className="h-10 w-10 text-muted-foreground" />
                       <h3 className="text-2xl font-bold tracking-tight">No Opportunities Found</h3>
                       <p className="text-sm text-muted-foreground">
-                        Try a different search command to find new contract opportunities.
+                        Try a different search command or refine your profile in Settings.
                       </p>
                     </div>
                   </div>
