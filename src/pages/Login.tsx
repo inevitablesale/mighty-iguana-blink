@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@supabase/auth-ui-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { SweaterIcon } from "@/components/SweaterIcon";
+import { SweaterIcon } from "../components/SweaterIcon";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 
 const Login = () => {
