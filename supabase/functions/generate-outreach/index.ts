@@ -31,20 +31,25 @@ serve(async (req) => {
     const prompt = `
 You are an expert business development copywriter for a top-tier recruiter.
 The recruiter's specialties are: "${recruiterSpecialty || 'general recruiting'}".
-Your task is to write a concise, compelling, and personalized outreach email to a potential new client, subtly weaving in the recruiter's specialty.
+Your task is to write a concise, compelling, and personalized outreach email to a potential new client.
 
 The recruiter is using an app called "Coogi".
-The target company is: ${opportunity.companyName}
-The role they might need help with is: ${opportunity.role}
-The key signal that they might be hiring is: "${opportunity.keySignal}"
+The opportunity details are:
+- Company: ${opportunity.companyName}
+- Role: ${opportunity.role}
+- Key Signal: "${opportunity.keySignal}"
+- Hiring Urgency: ${opportunity.hiringUrgency}
+- Potential Value: ${opportunity.potential}
 
 Based on this information, generate a JSON object with two keys: "subject" and "body".
 
-Guidelines for the email body:
-- Keep it short and professional (under 150 words).
-- Start with a personalized hook that references the key signal.
-- Briefly introduce the value proposition, referencing the recruiter's specialty (e.g., "As a specialist in [specialty], I have a network of talent...").
-- End with a clear, low-friction call to action.
+Guidelines for the email:
+- The tone should reflect the Hiring Urgency. If urgency is High, be direct and action-oriented. If Low, be more exploratory.
+- The subject line should be compelling and relevant.
+- The body must be short and professional (under 150 words).
+- Start with a personalized hook that references the Key Signal.
+- Briefly introduce the value proposition, subtly weaving in the recruiter's specialty (e.g., "As a specialist in [specialty], I have a network of talent...").
+- End with a clear, low-friction call to action that matches the tone.
 - Do NOT use placeholders like "[Your Name]". Sign off as "A Partner at Coogi".
 
 Example Output Structure:
