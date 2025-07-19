@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Bell, Copy, Trash2, Send, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EditCampaignDialog } from "@/components/EditCampaignDialog";
 
 interface Campaign {
   id: string;
@@ -21,31 +22,32 @@ const Campaigns = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCampaigns = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching campaigns:", error);
-        toast.error("Failed to load campaign drafts.");
-      } else {
-        setCampaigns(data as Campaign[]);
-      }
+  const fetchCampaigns = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
-    };
+      return;
+    }
 
-    fetchCampaigns();
+    const { data, error } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching campaigns:", error);
+      toast.error("Failed to load campaign drafts.");
+    } else {
+      setCampaigns(data as Campaign[]);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -146,10 +148,13 @@ const Campaigns = () => {
                     <span className="sr-only">Delete</span>
                   </Button>
                   {campaign.status === 'draft' ? (
-                    <Button onClick={() => handleSend(campaign.id)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Outreach
-                    </Button>
+                    <>
+                      <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns} />
+                      <Button onClick={() => handleSend(campaign.id)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                        <Send className="mr-2 h-4 w-4" />
+                        Send Outreach
+                      </Button>
+                    </>
                   ) : (
                     <Button disabled>
                       <Check className="mr-2 h-4 w-4" />
