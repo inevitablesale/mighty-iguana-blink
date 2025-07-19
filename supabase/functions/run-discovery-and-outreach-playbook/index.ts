@@ -69,9 +69,20 @@ serve(async (req) => {
 
     // --- Step 1: Discover Opportunities ---
     const discoveryPrompt = `
-      You are an AI assistant for a recruiter. Your task is to generate a list of 3 realistic, but fictional, company opportunities based on the recruiter's agent specialty.
-      The agent's specialty is: "${agent.prompt}".
-      Return ONLY a single, valid JSON object with a key "opportunities" containing an array of 3 opportunities with keys: "companyName", "role", "location", "potential", "hiringUrgency", "matchScore", "keySignal".
+      You are a mock API that simulates a real-time job scraping service. Your task is to generate a list of 3 highly plausible, realistic job opportunities from fictional companies that appear to be actively hiring.
+      The opportunities should be tailored to the recruiter's agent specialty: "${agent.prompt}".
+      The data you return should look as if it were sourced from real-world job boards or company career pages.
+
+      For each opportunity, you MUST include all of the following keys:
+      - "companyName": A realistic, fictional company name.
+      - "role": The specific, realistic job title they are hiring for.
+      - "location": A plausible city and state for the company.
+      - "potential": A value (High, Medium, or Low) indicating the potential value of this placement.
+      - "hiringUrgency": A value (High, Medium, or Low) indicating how quickly they likely need to fill the role.
+      - "matchScore": A score from 1-10 indicating how strong a fit this lead is for the agent's specialty.
+      - "keySignal": The single most important *hypothetical* piece of data that suggests this is a strong lead (e.g., "Posted 2 days ago on LinkedIn", "Company just announced a new product line", "Mentioned in a tech article about growth").
+
+      Return ONLY a single, valid JSON object with a key "opportunities" containing an array of these 3 opportunities. Do not include any other text, explanations, or markdown.
     `;
     
     const discoveryResult = await callGemini(discoveryPrompt, GEMINI_API_KEY);
@@ -136,6 +147,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Edge Function error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
   }
 });
