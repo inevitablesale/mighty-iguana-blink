@@ -23,7 +23,7 @@ export function CommandBar({ onSendCommand, isLoading }: CommandBarProps) {
     <div className="relative">
       <form onSubmit={handleSubmit} className="relative">
         <Input
-          placeholder="e.g., Find 50 tech companies hiring developers in Texas."
+          placeholder="e.g., Find contracts for nurses in New York"
           value={command}
           onChange={(e) => setCommand((e.target as HTMLInputElement).value)}
           className="pr-16"

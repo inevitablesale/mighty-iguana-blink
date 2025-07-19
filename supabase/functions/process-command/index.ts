@@ -30,25 +30,68 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an AI recruiting assistant. Your task is to parse a user's command and extract key information for a candidate search. The user's command is: "${userCommand}".
+You are an AI assistant for a recruiter using a "Contract Engine". Your goal is to find new clients (companies) for the recruiter.
+The user's command is: "${userCommand}".
 
-Analyze the command and return ONLY a valid JSON object with the following structure. Do not include any other text, explanations, or markdown formatting.
-- "role": The job title or role the user is looking for.
-- "location": The city, state, or region for the search.
-- "quantity": The number of candidates or companies requested.
-- "vertical": The specific industry or vertical (e.g., 'tech', 'healthcare', 'veterinary').
-- "keywords": An array of other important keywords, skills, or qualifications mentioned.
+Your tasks:
+1. Parse the user's command to identify the search criteria for new recruiting contracts.
+2. Generate a list of 3 realistic, but fictional, company opportunities that match these criteria. For each opportunity, estimate the "hiringUrgency" and "potential" value of the contract (High, Medium, or Low).
+3. Return ONLY a single, valid JSON object with the following structure. Do not include any other text, explanations, or markdown.
 
-If a field is not mentioned in the command, set its value to null.
+{
+  "searchCriteria": {
+    "role": "The job title or role to search for",
+    "location": "The city, state, or region",
+    "quantity": "The number of opportunities requested",
+    "vertical": "The industry or vertical",
+    "keywords": ["An array of other keywords"]
+  },
+  "opportunities": [
+    {
+      "companyName": "Fictional Company Name",
+      "role": "The specific role they are hiring for",
+      "location": "Company's location",
+      "potential": "High",
+      "hiringUrgency": "Medium"
+    }
+  ]
+}
 
-Example command: "Find me 50 senior software engineers in Texas with React experience"
+If a field in "searchCriteria" is not mentioned, set it to null.
+
+Example command: "Find me contracts for senior software engineers in Texas"
 Example output:
 {
-  "role": "senior software engineer",
-  "location": "Texas",
-  "quantity": 50,
-  "vertical": "tech",
-  "keywords": ["React"]
+  "searchCriteria": {
+    "role": "senior software engineer",
+    "location": "Texas",
+    "quantity": null,
+    "vertical": "tech",
+    "keywords": []
+  },
+  "opportunities": [
+    {
+      "companyName": "Innovatech Solutions",
+      "role": "Senior Backend Engineer",
+      "location": "Austin, TX",
+      "potential": "High",
+      "hiringUrgency": "High"
+    },
+    {
+      "companyName": "DataDriven Inc.",
+      "role": "Senior Software Engineer (AI/ML)",
+      "location": "Dallas, TX",
+      "potential": "High",
+      "hiringUrgency": "Medium"
+    },
+    {
+      "companyName": "CyberSecure Corp",
+      "role": "Senior Security Engineer",
+      "location": "Houston, TX",
+      "potential": "Medium",
+      "hiringUrgency": "Low"
+    }
+  ]
 }
 `;
 

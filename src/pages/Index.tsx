@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchParameters } from "@/components/SearchParameters";
+import { OpportunityList } from "@/components/OpportunityList";
+import { Opportunity } from "@/components/OpportunityCard";
 
 interface Message {
   id: number;
@@ -20,11 +22,11 @@ const Index = () => {
       sender: "ai",
       content: (
         <div>
-          <h2 className="text-xl font-semibold mb-2">Welcome to your AI Recruiting Assistant.</h2>
+          <h2 className="text-xl font-semibold mb-2">Welcome to your Contract Engine.</h2>
           <p className="text-muted-foreground">
-            You can start by telling me what kind of opportunities you're looking for. For example:
+            Tell me what kind of recruiting contracts you're looking for. For example:
             <br />
-            <em className="text-foreground">"Find 50 tech companies hiring developers in Texas."</em>
+            <em className="text-foreground">"Find me new contracts for veterinary technicians in California."</em>
           </p>
         </div>
       ),
@@ -59,21 +61,21 @@ const Index = () => {
         throw new Error(error.message);
       }
 
-      const aiResponse = data;
+      const aiResponse = data as { searchCriteria: any; opportunities: Opportunity[] };
       let aiContent: React.ReactNode;
 
-      if (aiResponse && (aiResponse.role || aiResponse.location || aiResponse.vertical || (aiResponse.keywords && aiResponse.keywords.length > 0))) {
+      if (aiResponse && aiResponse.opportunities && aiResponse.opportunities.length > 0) {
         aiContent = (
           <div>
-            <p className="mb-2">Great! I've parsed your request. Here are the search criteria I'll use:</p>
-            <SearchParameters params={aiResponse} />
-            <p className="mt-4 text-sm text-muted-foreground">
-              This is the first step towards full automation. Soon, I'll be able to use this to find and contact candidates for you.
-            </p>
+            <p className="mb-2">Okay, I've found some potential contracts based on your request.</p>
+            <SearchParameters params={aiResponse.searchCriteria} />
+            <div className="mt-4">
+              <OpportunityList opportunities={aiResponse.opportunities} />
+            </div>
           </div>
         );
       } else {
-        aiContent = <p>I'm sorry, I couldn't understand that as a search command. Please try again with more specific details about the role, location, or keywords.</p>;
+        aiContent = <p>I'm sorry, I couldn't find any opportunities based on that command. Please try again with different criteria.</p>;
       }
 
       const aiMessage: Message = {
