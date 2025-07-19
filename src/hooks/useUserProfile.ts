@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -13,28 +13,28 @@ export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
 
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+    if (user) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
-          console.error('Error fetching profile:', error);
-        } else {
-          setProfile(data);
-        }
+      if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
+        console.error('Error fetching profile:', error);
+      } else {
+        setProfile(data);
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  }, []);
 
+  useEffect(() => {
     fetchProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -51,7 +51,7 @@ export function useUserProfile() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
-  return { user, profile, loading };
+  return { user, profile, loading, refresh: fetchProfile };
 }
