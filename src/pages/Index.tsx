@@ -13,6 +13,7 @@ import { usePredictiveLeads } from "@/hooks/usePredictiveLeads";
 import { PredictiveLeads } from "@/components/PredictiveLeads";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { CampaignPipeline } from "@/components/CampaignPipeline";
+import { RevenueMetrics } from "@/components/RevenueMetrics";
 import { Opportunity, ProcessedCommand, PredictiveLead } from "@/types/index";
 
 export default function Index() {
@@ -195,7 +196,10 @@ export default function Index() {
       <Header title="Dashboard" />
       <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-y-auto space-y-6">
         <DashboardMetrics stats={stats} loading={statsLoading} />
-        <CampaignPipeline stats={stats} loading={statsLoading} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CampaignPipeline stats={stats} loading={statsLoading} />
+          <RevenueMetrics stats={stats} loading={statsLoading} />
+        </div>
         
         <div className="flex-1 flex flex-col justify-center">
           {isLoading && (
