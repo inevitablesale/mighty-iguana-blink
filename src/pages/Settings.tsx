@@ -59,13 +59,13 @@ const Settings = () => {
       <Header title="Settings" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Your Recruiter Profile</CardTitle>
-            <CardDescription>
+          <CardHeader className="coogi-gradient-bg rounded-t-lg">
+            <CardTitle className="text-primary-foreground">Your Recruiter Profile</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
               Describe your specialty to help the AI find the most relevant opportunities for you. This will be used to automatically search for leads when you visit the dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="grid w-full gap-1.5">
               <Label htmlFor="profile">Your Specialty</Label>
               <Textarea
@@ -77,7 +77,7 @@ const Settings = () => {
                 disabled={loading}
               />
             </div>
-            <Button onClick={handleSave} disabled={loading}>Save Profile</Button>
+            <Button onClick={handleSave} disabled={loading} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">Save Profile</Button>
           </CardContent>
         </Card>
       </main>

@@ -51,18 +51,18 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
   return (
     <Dialog>
       <Card>
-        <CardHeader>
-          <CardTitle>{opportunity.companyName}</CardTitle>
-          <CardDescription>{opportunity.role}</CardDescription>
+        <CardHeader className="coogi-gradient-bg rounded-t-lg">
+          <CardTitle className="text-primary-foreground">{opportunity.companyName}</CardTitle>
+          <CardDescription className="text-primary-foreground/80">{opportunity.role}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col space-y-2">
             <p className="text-sm text-muted-foreground">{opportunity.location}</p>
             <div className="flex space-x-2">
-              <Badge variant={getBadgeVariant(opportunity.hiringUrgency)}>
+              <Badge variant={getBadgeVariant(opportunity.hiringUrgency)} className={opportunity.hiringUrgency === 'Medium' ? 'text-secondary-foreground' : ''}>
                 Urgency: {opportunity.hiringUrgency}
               </Badge>
-              <Badge variant={getBadgeVariant(opportunity.potential)}>
+              <Badge variant={getBadgeVariant(opportunity.potential)} className={opportunity.potential === 'Medium' ? 'text-secondary-foreground' : ''}>
                 Potential: {opportunity.potential}
               </Badge>
             </div>
@@ -93,7 +93,7 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
               Drafted
             </Button>
           ) : (
-            <Button onClick={() => onApproveOutreach(opportunity)}>Approve</Button>
+            <Button onClick={() => onApproveOutreach(opportunity)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">Approve</Button>
           )}
         </CardFooter>
       </Card>
@@ -105,11 +105,11 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
         <div className="grid gap-4 py-4">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Potential</span>
-            <Badge variant={getBadgeVariant(opportunity.potential)}>{opportunity.potential}</Badge>
+            <Badge variant={getBadgeVariant(opportunity.potential)} className={opportunity.potential === 'Medium' ? 'text-secondary-foreground' : ''}>{opportunity.potential}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Hiring Urgency</span>
-            <Badge variant={getBadgeVariant(opportunity.hiringUrgency)}>{opportunity.hiringUrgency}</Badge>
+            <Badge variant={getBadgeVariant(opportunity.hiringUrgency)} className={opportunity.hiringUrgency === 'Medium' ? 'text-secondary-foreground' : ''}>{opportunity.hiringUrgency}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Match Score</span>

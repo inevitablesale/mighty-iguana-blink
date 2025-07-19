@@ -16,8 +16,8 @@
     --primary: 217 91% 60%; /* Vibrant Blue */
     --primary-foreground: 210 20% 98%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: 180 50% 40%;   /* Teal */
+    --secondary-foreground: 210 20% 98%;
 
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
@@ -25,7 +25,7 @@
     --accent: 38 92% 50%; /* Warm Yellow/Orange */
     --accent-foreground: 240 5.9% 10%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 260 60% 55%; /* Vibrant Purple */
     --destructive-foreground: 210 20% 98%;
 
     --border: 240 5.9% 90%;
@@ -55,7 +55,7 @@
     --primary: 217 91% 60%;
     --primary-foreground: 210 20% 98%;
 
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 180 50% 40%;
     --secondary-foreground: 210 20% 98%;
 
     --muted: 240 3.7% 15.9%;
@@ -64,7 +64,7 @@
     --accent: 38 92% 50%;
     --accent-foreground: 210 20% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 260 60% 55%;
     --destructive-foreground: 210 20% 98%;
 
     --border: 240 3.7% 15.9%;
@@ -92,5 +92,8 @@
 @layer components {
   .sidebar-gradient {
     background-image: linear-gradient(to bottom, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-mid)), hsl(var(--sidebar-bg-end)));
+  }
+  .coogi-gradient-bg {
+    background-image: linear-gradient(to right, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-mid)), hsl(var(--sidebar-bg-end)));
   }
 }

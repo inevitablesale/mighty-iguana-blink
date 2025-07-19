@@ -109,18 +109,18 @@ const Campaigns = () => {
           <div className="space-y-4">
             {campaigns.map((campaign) => (
               <Card key={campaign.id}>
-                <CardHeader>
+                <CardHeader className="coogi-gradient-bg rounded-t-lg">
                   <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle>To: {campaign.company_name}</CardTitle>
-                      <CardDescription>Re: {campaign.role}</CardDescription>
+                      <CardTitle className="text-primary-foreground">To: {campaign.company_name}</CardTitle>
+                      <CardDescription className="text-primary-foreground/80">Re: {campaign.role}</CardDescription>
                     </div>
-                    <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'}>
+                    <Badge variant={campaign.status === 'sent' ? 'default' : 'secondary'} className={campaign.status === 'draft' ? 'text-secondary-foreground' : ''}>
                       {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-semibold">Subject</h4>
@@ -146,7 +146,7 @@ const Campaigns = () => {
                     <span className="sr-only">Delete</span>
                   </Button>
                   {campaign.status === 'draft' ? (
-                    <Button onClick={() => handleSend(campaign.id)}>
+                    <Button onClick={() => handleSend(campaign.id)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
                       <Send className="mr-2 h-4 w-4" />
                       Send Outreach
                     </Button>
