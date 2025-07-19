@@ -11,9 +11,9 @@ export function OpportunityList({ opportunities, onApproveOutreach, approvedIds 
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Here are the top {opportunities.length} opportunities I found:</h3>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {opportunities.map((opp, index) => (
+        {opportunities.map((opp) => (
           <OpportunityCard
-            key={index}
+            key={opp.id}
             opportunity={opp}
             onApproveOutreach={onApproveOutreach}
             isApproved={approvedIds.includes(opp.id)}

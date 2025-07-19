@@ -12,7 +12,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Opportunities from "./pages/Opportunities";
 import Campaigns from "./pages/Campaigns";
-import Settings from "./pages/Settings";
+import Agents from "./pages/Agents";
 import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
@@ -56,7 +56,7 @@ const App = () => {
               <Route index element={<Index />} />
               <Route path="opportunities" element={<Opportunities />} />
               <Route path="campaigns" element={<Campaigns />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="agents" element={<Agents />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
