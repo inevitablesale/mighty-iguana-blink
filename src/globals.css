@@ -96,4 +96,19 @@
   .coogi-gradient-bg {
     background-image: linear-gradient(to right, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-mid)), hsl(var(--sidebar-bg-end)));
   }
+
+  /* Supabase Auth UI Overrides */
+  #login-auth-form .supabase-auth-ui_ui-button {
+    @apply coogi-gradient-bg text-primary-foreground border-none rounded-md hover:opacity-90;
+  }
+  #login-auth-form .supabase-auth-ui_ui-input {
+    @apply bg-background rounded-md;
+  }
+  #login-auth-form .supabase-auth-ui_ui-label,
+  #login-auth-form .supabase-auth-ui_ui-anchor {
+    @apply text-muted-foreground;
+  }
+  #login-auth-form .supabase-auth-ui_ui-anchor:hover {
+    @apply text-foreground;
+  }
 }
