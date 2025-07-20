@@ -63,7 +63,7 @@ serve(async (req) => {
     // --- Step 1: Generate a search query, location, and sites from the agent's prompt ---
     console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
-      Based on the following recruiter specialty description, extract a search query, a location, and a comma-separated list of the most relevant job sites to search.
+      Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location. **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
 
       Available sites are: linkedin, indeed, ziprecruiter, glassdoor, google, bayt, naukri.
@@ -71,6 +71,7 @@ serve(async (req) => {
       If no specific location is mentioned, default the location to "Remote".
 
       Return ONLY a single, valid JSON object with three keys: "search_query", "location", and "sites".
+      Example for "nurses in Georgia": { "search_query": "nurse", "location": "Georgia", "sites": "linkedin,indeed,ziprecruiter,glassdoor,google" }
     `;
     
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
