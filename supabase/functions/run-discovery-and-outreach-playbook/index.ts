@@ -84,7 +84,10 @@ serve(async (req) => {
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${agent.search_lookback_hours}&results=${agent.max_results}`;
+    const lookbackHours = parseInt(agent.search_lookback_hours, 10) || 720;
+    const maxResults = parseInt(agent.max_results, 10) || 20;
+
+    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${lookbackHours}&results=${maxResults}`;
     console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);
     
     const scrapingResponse = await fetch(scrapingUrl, {
