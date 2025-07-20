@@ -56,8 +56,10 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Playbook function invoked.");
     const { agentId } = await req.json();
     if (!agentId) throw new Error("Agent ID is required.");
+    console.log(`Starting playbook for agentId: ${agentId}`);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -68,13 +70,16 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
+    console.log("Fetching agent details...");
     const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote, country').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
+    console.log(`Agent "${agent.prompt}" fetched.`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
     // --- Step 1: Generate search query ---
+    console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
       Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location (city/state/province). **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
@@ -86,29 +91,22 @@ serve(async (req) => {
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
+    console.log(`Search query generated: query='${searchQuery}', location='${location}'`);
 
     // --- Step 2: Scrape Jobs ---
-    const lookbackHours = parseInt(agent.search_lookback_hours, 10) || 720;
-    const maxResults = parseInt(agent.max_results, 10) || 20;
-    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${maxResults}`;
-    const usesIndeedOrGlassdoor = sites.includes('indeed') || sites.includes('glassdoor');
-    if (usesIndeedOrGlassdoor && agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
-    if (usesIndeedOrGlassdoor) {
-      if (agent.job_type || agent.is_remote) {
-        if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
-        if (agent.is_remote) scrapingUrl += `&is_remote=true`;
-      } else {
-        scrapingUrl += `&hours_old=${lookbackHours}`;
-      }
-    } else {
-      scrapingUrl += `&hours_old=${lookbackHours}`;
-      if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
-      if (agent.is_remote) scrapingUrl += `&is_remote=true`;
-    }
+    console.log("Step 2: Scraping jobs from external API...");
+    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}`;
+    if (agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
+    if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
+    if (agent.is_remote) scrapingUrl += `&is_remote=true`;
+    if (agent.search_lookback_hours) scrapingUrl += `&hours_old=${agent.search_lookback_hours}`;
+    
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
+    console.log(`Scraping complete. Found ${rawJobResults?.length || 0} raw job results.`);
+
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
       return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -145,10 +143,11 @@ serve(async (req) => {
     const enrichedOpportunities = settledEnrichments
       .filter(r => r.status === 'fulfilled' && r.value)
       .map(r => r.value);
-
+    console.log(`Enrichment complete. ${enrichedOpportunities.length} opportunities were successfully analyzed.`);
     if (enrichedOpportunities.length === 0) throw new Error("AI analysis failed to enrich any opportunities.");
 
     // --- Step 4: Validate and Save Enriched Opportunities ---
+    console.log("Step 4: Validating and saving opportunities to database...");
     const validatedOpportunities = enrichedOpportunities
       .map(opp => {
         const matchScore = parseInt(opp.match_score || opp.matchScore || '0', 10);
@@ -167,7 +166,7 @@ serve(async (req) => {
           key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
         };
       })
-      .filter(opp => opp.company_name && opp.role); // Ensure required fields are present
+      .filter(opp => opp.company_name && opp.role);
 
     if (validatedOpportunities.length === 0) {
        throw new Error("No valid opportunities to save after validation.");
@@ -175,10 +174,12 @@ serve(async (req) => {
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(validatedOpportunities).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+    console.log(`${savedOpportunities.length} opportunities saved successfully.`);
 
     // --- Step 5: Conditional Outreach Generation ---
     let outreachMessage = '';
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
+        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities (autonomy: ${agent.autonomy_level})...`);
         const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
         const campaignPromises = savedOpportunities.map(async (opp) => {
             try {
@@ -204,15 +205,18 @@ serve(async (req) => {
             await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
         }
         outreachMessage = agent.autonomy_level === 'automatic' ? `and automatically sent ${campaignsToInsert.length} emails.` : `and created ${campaignsToInsert.length} drafts.`;
+        console.log(`Outreach generation complete. ${campaignsToInsert.length} campaigns created.`);
     }
 
     // --- Step 6: Finalize ---
+    console.log("Step 6: Finalizing run, updating agent's last_run_at timestamp.");
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
     const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities ${outreachMessage}`;
+    console.log("Playbook finished successfully.");
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error("Edge Function error:", error.message);
+    console.error("!!! Playbook failed with error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
