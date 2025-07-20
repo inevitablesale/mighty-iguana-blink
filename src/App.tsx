@@ -1,3 +1,5 @@
+/// <reference types="chrome" />
+
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -33,7 +35,7 @@ const App = () => {
       return;
     }
 
-    if (chrome.runtime && session) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && session) {
       chrome.runtime.sendMessage(
         extensionId,
         {
