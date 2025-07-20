@@ -61,32 +61,34 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // --- Step 1: Generate a search query from the agent's prompt ---
+    // --- Step 1: Generate a search query AND location from the agent's prompt ---
     const searchQueryPrompt = `
-      Based on the following recruiter specialty description, extract a concise and effective search query for a job board API.
-      The query should be simple keywords. For example, if the description is "I place senior software engineers with experience in Python and cloud tech", a good query would be "senior software engineer python aws".
+      Based on the following recruiter specialty description, extract a search query and a location for a job board API.
+      The query should be simple keywords. For example, if the description is "I place senior software engineers with experience in Python and cloud tech in San Francisco", a good query would be "senior software engineer python aws" and location would be "San Francisco".
+      If no specific location is mentioned, default the location to "Remote".
       
       Recruiter Specialty: "${agent.prompt}"
 
-      Return ONLY a single, valid JSON object with a key "search_query" containing the string.
+      Return ONLY a single, valid JSON object with two keys: "search_query" and "location".
     `;
     
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
-    const searchQuery = queryExtractionResult.search_query;
+    const { search_query: searchQuery, location } = queryExtractionResult;
 
-    if (!searchQuery) {
-      throw new Error("AI failed to extract a search query from the agent's prompt.");
+    if (!searchQuery || !location) {
+      throw new Error("AI failed to extract a search query and location from the agent's prompt.");
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
-    const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=24&results=20`;
+    const sites = "linkedin,indeed,ziprecruiter";
+    const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=24&results=20`;
     
     const scrapingResponse = await axios.get(scrapingUrl, { timeout: 20000 });
     const rawJobResults = scrapingResponse.data?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent ran using query "${searchQuery}" but found no new job opportunities this time.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: `Agent ran using query "${searchQuery}" in "${location}" but found no new job opportunities this time.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // --- Step 3: Enrich scraped data with AI analysis ---
@@ -190,7 +192,7 @@ serve(async (req) => {
     // --- Step 6: Finalize ---
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
 
-    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities ${outreachMessage}`;
+    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities for "${searchQuery}" in "${location}" ${outreachMessage}`;
 
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
