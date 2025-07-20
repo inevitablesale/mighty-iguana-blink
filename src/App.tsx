@@ -20,17 +20,16 @@ import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
-const EXTENSION_ID = "ciipcogdfckdandnbekcngfigogpmomo";
-
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   const sendTokenToExtension = (session: Session | null) => {
-    if (chrome.runtime && EXTENSION_ID) {
+    const extensionId = localStorage.getItem('coogiExtensionId');
+    if (chrome.runtime && extensionId) {
       if (session) {
         chrome.runtime.sendMessage(
-          EXTENSION_ID,
+          extensionId,
           {
             type: "SET_TOKEN",
             token: session.access_token,

@@ -14,6 +14,7 @@ const Profile = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [calendlyUrl, setCalendlyUrl] = useState('');
+  const [extensionId, setExtensionId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -22,11 +23,17 @@ const Profile = () => {
       setLastName(profile.last_name || '');
       setCalendlyUrl(profile.calendly_url || '');
     }
+    const storedExtensionId = localStorage.getItem('coogiExtensionId');
+    if (storedExtensionId) {
+      setExtensionId(storedExtensionId);
+    }
   }, [profile]);
 
   const handleSave = async () => {
     if (!user) return;
     setIsSaving(true);
+
+    localStorage.setItem('coogiExtensionId', extensionId);
 
     const { error } = await supabase
       .from('profiles')
@@ -42,7 +49,7 @@ const Profile = () => {
       toast.error('Failed to update profile.');
       console.error('Error updating profile:', error);
     } else {
-      toast.success('Profile updated successfully!');
+      toast.success('Profile and Extension ID saved!');
       refresh();
     }
   };
@@ -58,6 +65,7 @@ const Profile = () => {
               <Skeleton className="h-4 w-1/2" />
             </CardHeader>
             <CardContent className="space-y-4">
+              <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
@@ -96,6 +104,13 @@ const Profile = () => {
             <div className="space-y-2">
               <Label htmlFor="calendlyUrl">Calendly URL</Label>
               <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="extensionId">Chrome Extension ID</Label>
+              <Input id="extensionId" value={extensionId} onChange={(e) => setExtensionId(e.target.value)} placeholder="Paste your extension ID here" />
+              <p className="text-sm text-muted-foreground">
+                Find this on the <code>chrome://extensions</code> page. Make sure Developer Mode is on.
+              </p>
             </div>
           </CardContent>
           <CardFooter>
