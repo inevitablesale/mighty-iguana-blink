@@ -1,14 +1,15 @@
-export type OpportunityPotential = "High" | "Medium" | "Low";
-
 export interface Opportunity {
   id: string;
   companyName: string;
   role: string;
   location: string;
-  potential: OpportunityPotential;
-  hiringUrgency: OpportunityPotential;
   matchScore: number;
-  keySignal: string;
+  company_overview: string;
+  contract_value_assessment: string;
+  hiring_urgency: string;
+  pain_points: string;
+  recruiter_angle: string;
+  key_signal_for_outreach: string;
 }
 
 export interface SearchCriteria {

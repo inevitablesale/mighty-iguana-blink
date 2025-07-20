@@ -43,14 +43,31 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const outreachPrompt = `
-      You are an expert business development copywriter for a top-tier recruiter.
-      Your task is to write a concise, compelling, and personalized cold email.
-      Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
-      Recruiter's specialties: "${opportunity.agents.prompt}".
-      Opportunity: Company: ${opportunity.company_name}, Role: ${opportunity.role}, Key Signal: "${opportunity.key_signal}".
-      Calendly link: ${profile?.calendly_url || '(not provided)'}.
-      Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
-      Return a JSON object with two keys: "subject" and "body".
+      You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized cold email based on detailed analysis.
+
+      **Recruiter Profile:**
+      - Name: ${profile?.first_name || 'your partner at Coogi'}
+      - Specialties: "${opportunity.agents.prompt}"
+      - Recommended Angle: "${opportunity.recruiter_angle}"
+
+      **Client Opportunity:**
+      - Company: ${opportunity.company_name}
+      - Role: ${opportunity.role}
+      - Key Signal for Outreach: "${opportunity.key_signal_for_outreach}"
+      - Client's Likely Pain Points: "${opportunity.pain_points}"
+
+      **Contact Info:**
+      - Calendly Link: ${profile?.calendly_url || '(not provided)'}
+
+      **Instructions:**
+      1.  Write a professional, concise email (2-3 short paragraphs).
+      2.  Use the "Key Signal for Outreach" as your opening hook.
+      3.  Subtly address the "Client's Likely Pain Points" in the body of the email.
+      4.  Incorporate the "Recommended Recruiter Angle" to position the recruiter as the perfect solution.
+      5.  Include a clear call to action to book a meeting using the Calendly link.
+      6.  Do NOT use placeholders like "[Your Name]".
+
+      Return a JSON object with two keys: "subject" and "body". The subject line should be compelling and reference the role.
     `;
 
     const geminiResponse = await fetch(

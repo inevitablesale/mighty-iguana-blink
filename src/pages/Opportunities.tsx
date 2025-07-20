@@ -10,13 +10,13 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Target, FileSearch, Check } from "lucide-react";
+import { Target, FileSearch, Check, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Opportunity, OpportunityPotential } from "@/types/index";
+import { Opportunity } from "@/types/index";
 import { CompanyBriefingDialog } from "@/components/CompanyBriefingDialog";
+import { OpportunityAnalysisDialog } from "@/components/OpportunityAnalysisDialog";
 import { useNavigate } from "react-router-dom";
 
 const Opportunities = () => {
@@ -43,9 +43,17 @@ const Opportunities = () => {
       toast.error("Failed to load opportunities.");
     } else {
       const formattedOpps = oppsRes.data.map((o: any) => ({
-        id: o.id, companyName: o.company_name, role: o.role, location: o.location || 'N/A',
-        potential: (o.potential as OpportunityPotential) || 'Low', hiringUrgency: (o.hiring_urgency as OpportunityPotential) || 'Low',
-        matchScore: o.match_score || 0, keySignal: o.key_signal || 'N/A',
+        id: o.id,
+        companyName: o.company_name,
+        role: o.role,
+        location: o.location || 'N/A',
+        matchScore: o.match_score || 0,
+        company_overview: o.company_overview || 'N/A',
+        contract_value_assessment: o.contract_value_assessment || 'N/A',
+        hiring_urgency: o.hiring_urgency || 'N/A',
+        pain_points: o.pain_points || 'N/A',
+        recruiter_angle: o.recruiter_angle || 'N/A',
+        key_signal_for_outreach: o.key_signal_for_outreach || 'N/A',
       }));
       setOpportunities(formattedOpps);
     }
@@ -82,14 +90,6 @@ const Opportunities = () => {
     }
   };
 
-  const getBadgeVariant = (value: string) => {
-    switch (value) {
-      case "High": return "destructive";
-      case "Medium": return "secondary";
-      default: return "outline";
-    }
-  };
-
   return (
     <div className="flex flex-col">
       <Header title="Opportunities" />
@@ -119,6 +119,9 @@ const Opportunities = () => {
                       <TableCell>{opp.role}</TableCell>
                       <TableCell>{opp.matchScore}/10</TableCell>
                       <TableCell className="text-right space-x-2">
+                        <OpportunityAnalysisDialog opportunity={opp}>
+                           <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
+                        </OpportunityAnalysisDialog>
                         <CompanyBriefingDialog companyName={opp.companyName}>
                           <Button variant="outline" size="sm"><FileSearch className="mr-2 h-4 w-4" />Research</Button>
                         </CompanyBriefingDialog>

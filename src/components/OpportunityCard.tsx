@@ -28,15 +28,17 @@ interface OpportunityCardProps {
 
 export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
-    switch (value) {
-      case "High":
-        return "destructive";
-      case "Medium":
-        return "secondary";
-      default:
-        return "outline";
-    }
+    if (!value) return "outline";
+    const lowerValue = value.toLowerCase();
+    if (lowerValue.startsWith("high")) return "destructive";
+    if (lowerValue.startsWith("medium")) return "secondary";
+    return "outline";
   };
+
+  const getPotentialValue = (assessment: string) => {
+    if (!assessment) return 'N/A';
+    return assessment.split(' - ')[0];
+  }
 
   return (
     <Dialog>
@@ -49,11 +51,11 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
           <div className="flex flex-col space-y-2">
             <p className="text-sm text-muted-foreground">{opportunity.location}</p>
             <div className="flex space-x-2">
-              <Badge variant={getBadgeVariant(opportunity.hiringUrgency)} className={opportunity.hiringUrgency === 'Medium' ? 'text-secondary-foreground' : ''}>
-                Urgency: {opportunity.hiringUrgency}
+              <Badge variant={getBadgeVariant(opportunity.hiring_urgency)} className={opportunity.hiring_urgency === 'Medium' ? 'text-secondary-foreground' : ''}>
+                Urgency: {opportunity.hiring_urgency}
               </Badge>
-              <Badge variant={getBadgeVariant(opportunity.potential)} className={opportunity.potential === 'Medium' ? 'text-secondary-foreground' : ''}>
-                Potential: {opportunity.potential}
+              <Badge variant={getBadgeVariant(opportunity.contract_value_assessment)} className={getPotentialValue(opportunity.contract_value_assessment) === 'Medium' ? 'text-secondary-foreground' : ''}>
+                Potential: {getPotentialValue(opportunity.contract_value_assessment)}
               </Badge>
             </div>
           </div>
@@ -61,7 +63,7 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Key Signal</span>
               <span className="font-semibold text-foreground flex items-center gap-1">
-                <Zap size={12} className="text-yellow-500" /> {opportunity.keySignal}
+                <Zap size={12} className="text-yellow-500" /> {opportunity.key_signal_for_outreach}
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
@@ -95,11 +97,11 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
         <div className="grid gap-4 py-4">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Potential</span>
-            <Badge variant={getBadgeVariant(opportunity.potential)} className={opportunity.potential === 'Medium' ? 'text-secondary-foreground' : ''}>{opportunity.potential}</Badge>
+            <Badge variant={getBadgeVariant(opportunity.contract_value_assessment)} className={getPotentialValue(opportunity.contract_value_assessment) === 'Medium' ? 'text-secondary-foreground' : ''}>{getPotentialValue(opportunity.contract_value_assessment)}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Hiring Urgency</span>
-            <Badge variant={getBadgeVariant(opportunity.hiringUrgency)} className={opportunity.hiringUrgency === 'Medium' ? 'text-secondary-foreground' : ''}>{opportunity.hiringUrgency}</Badge>
+            <Badge variant={getBadgeVariant(opportunity.hiring_urgency)} className={opportunity.hiring_urgency === 'Medium' ? 'text-secondary-foreground' : ''}>{opportunity.hiring_urgency}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Match Score</span>
@@ -107,7 +109,7 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved }: 
           </div>
            <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Key Signal</span>
-            <span className="font-semibold text-right">{opportunity.keySignal}</span>
+            <span className="font-semibold text-right">{opportunity.key_signal_for_outreach}</span>
           </div>
         </div>
       </DialogContent>

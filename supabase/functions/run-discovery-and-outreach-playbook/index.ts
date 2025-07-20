@@ -93,21 +93,25 @@ serve(async (req) => {
 
     // --- Step 3: Enrich scraped data with AI analysis ---
     const enrichmentPrompt = `
-      You are an expert business development analyst for a recruiting agency. Your task is to analyze a list of raw job postings and qualify them as potential clients for a recruiter.
+      You are a world-class recruiting strategist and business development analyst. Your task is to perform a deep analysis of raw job postings and transform them into actionable intelligence for a recruiter looking for new clients.
+
       The recruiter's specialty is: "${agent.prompt}".
       Here is the list of raw job listings:
       ${JSON.stringify(rawJobResults)}
 
-      For each job, analyze it as a sales lead for the recruiter. Provide a JSON object with the following keys:
+      For each job, conduct a thorough analysis and return a JSON object with the following keys:
       - "companyName": The original company name.
       - "role": The original job title.
       - "location": The original location.
-      - "potential": Your assessment of the potential contract value (e.g., "High - Exec search, likely $50k+ fee", "Medium - Senior role, likely $25k fee", "Low - Standard role, likely $15k fee"). Be specific about why.
-      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low), based on signals in the job description if available.
-      - "matchScore": A score from 1-10 on how well this specific role aligns with the recruiter's stated specialty. A perfect match is 10.
-      - "keySignal": A concise, single sentence that the recruiter can use as a personalized opening line in an outreach email. This should be based on the job description or company. For example, "Saw you're looking to scale your engineering team by hiring a new Staff Engineer..."
+      - "company_overview": A single, concise sentence describing what the company does.
+      - "match_score": A score from 1-10 on how well this specific role aligns with the recruiter's stated specialty.
+      - "contract_value_assessment": A detailed text assessment of the potential contract value (e.g., "High - Executive search for a critical leadership role, likely a retained search with a fee of $75k+"). Be specific about why.
+      - "hiring_urgency": Your assessment of the company's hiring urgency (High, Medium, or Low), with a brief justification based on signals in the job description.
+      - "pain_points": A bulleted list (as a single string with '\\n- ' separators) of 2-3 specific pain points this role is likely intended to solve for the company.
+      - "recruiter_angle": A short, strategic recommendation for how the recruiter should position themselves in their outreach (e.g., "Position yourself as a specialist in scaling Series B fintech engineering teams.").
+      - "key_signal_for_outreach": A concise, single sentence that the recruiter can use as a personalized opening line in an outreach email. This should be based on the job description or company.
 
-      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
+      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects. Ensure all fields are populated with insightful, non-generic information.
     `;
 
     const enrichmentResult = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
@@ -124,10 +128,13 @@ serve(async (req) => {
       company_name: opp.companyName,
       role: opp.role,
       location: opp.location,
-      potential: opp.potential,
-      hiring_urgency: opp.hiringUrgency,
-      match_score: opp.matchScore,
-      key_signal: opp.keySignal,
+      company_overview: opp.company_overview,
+      match_score: opp.match_score,
+      contract_value_assessment: opp.contract_value_assessment,
+      hiring_urgency: opp.hiring_urgency,
+      pain_points: opp.pain_points,
+      recruiter_angle: opp.recruiter_angle,
+      key_signal_for_outreach: opp.key_signal_for_outreach,
     }));
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
@@ -146,7 +153,7 @@ serve(async (req) => {
                   Your task is to write a concise, compelling, and personalized cold email, and suggest a contact.
                   Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
                   Recruiter's specialties: "${agent.prompt}".
-                  Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal}".
+                  Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal_for_outreach}".
                   Calendly link: ${profile?.calendly_url || '(not provided)'}.
                   Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
                   Return a JSON object with four keys: "subject", "body", "contact_name" (a plausible job title for the hiring manager, e.g., "Head of Talent Acquisition"), and "contact_email" (a best-guess email address, e.g., "careers@${opp.company_name.toLowerCase().replace(/ /g, '').replace(/\./g, '')}.com").
