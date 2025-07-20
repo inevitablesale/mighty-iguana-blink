@@ -93,7 +93,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
             Update the agent's properties and autonomy level.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-4">
+        <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />

@@ -96,7 +96,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
             Define a new agent to proactively search for and contact new leads.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-4">
+        <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
