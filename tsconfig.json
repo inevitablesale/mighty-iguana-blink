@@ -15,11 +15,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    },
-    "types": ["vite/client", "chrome"]
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src", "supabase/functions"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

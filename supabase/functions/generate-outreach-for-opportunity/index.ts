@@ -43,8 +43,7 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const outreachPrompt = `
-      You are an expert business development copywriter and researcher for a top-tier recruiter.
-      Your task is to write a concise, compelling, cold email and identify the likely recipient.
+      You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized cold email based on detailed analysis.
 
       **Recruiter Profile:**
       - Name: ${profile?.first_name || 'your partner at Coogi'}
@@ -61,16 +60,14 @@ serve(async (req) => {
       - Calendly Link: ${profile?.calendly_url || '(not provided)'}
 
       **Instructions:**
-      1.  **Identify Contact:** Based on the role, determine the most plausible job title for the decision-maker (e.g., "Head of Talent", "VP of Engineering").
-      2.  **Guess Email:** Generate a best-guess email address for this contact. Use common patterns like "firstname.lastname@company.com" or "firstinitial.lastname@company.com". Infer the domain from the company name.
-      3.  **Write Email:** Write a professional, concise email (2-3 short paragraphs).
-      4.  **Hook:** Use the "Key Signal for Outreach" as your opening hook.
-      5.  **Address Pain:** Subtly address the "Client's Likely Pain Points".
-      6.  **Positioning:** Incorporate the "Recommended Recruiter Angle".
-      7.  **CTA:** Include a clear call to action to book a meeting using the Calendly link.
-      8.  **No Placeholders:** Do NOT use placeholders like "[Your Name]".
+      1.  Write a professional, concise email (2-3 short paragraphs).
+      2.  Use the "Key Signal for Outreach" as your opening hook.
+      3.  Subtly address the "Client's Likely Pain Points" in the body of the email.
+      4.  Incorporate the "Recommended Recruiter Angle" to position the recruiter as the perfect solution.
+      5.  Include a clear call to action to book a meeting using the Calendly link.
+      6.  Do NOT use placeholders like "[Your Name]".
 
-      Return a JSON object with four keys: "subject", "body", "contact_name" (the plausible job title), and "contact_email" (the best-guess email).
+      Return a JSON object with two keys: "subject" and "body". The subject line should be compelling and reference the role.
       **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
     `;
 
@@ -98,8 +95,6 @@ serve(async (req) => {
       subject: outreachResult.subject,
       body: outreachResult.body,
       status: 'draft',
-      contact_name: outreachResult.contact_name,
-      contact_email: outreachResult.contact_email,
     });
 
     if (insertError) throw new Error(`Failed to save campaign draft: ${insertError.message}`);
