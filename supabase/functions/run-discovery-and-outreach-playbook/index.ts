@@ -67,7 +67,7 @@ serve(async (req) => {
       Recruiter Specialty: "${agent.prompt}"
 
       Available sites are: linkedin, indeed, ziprecruiter, glassdoor, google, bayt, naukri.
-      Choose the best 2-3 sites. For most professional roles in the US/EU, 'linkedin,indeed,ziprecruiter' is a good default. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
+      For most professional roles in the US or Europe, use 'linkedin,indeed,ziprecruiter,glassdoor,google'. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
       If no specific location is mentioned, default the location to "Remote".
 
       Return ONLY a single, valid JSON object with three keys: "search_query", "location", and "sites".
