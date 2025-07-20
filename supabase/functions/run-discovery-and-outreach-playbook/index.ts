@@ -65,17 +65,14 @@ serve(async (req) => {
     const profile = profileRes.data;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    const SCRAPING_API_KEY = Deno.env.get("SCRAPING_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
-    if (!SCRAPING_API_KEY) throw new Error("SCRAPING_API_KEY secret is not set. Please add it in your Supabase project settings.");
 
-    // --- Step 1: Scrape Google Jobs using a third-party service ---
-    // NOTE: This uses the SerpApi format (serpapi.com). Other services may have different URL structures.
+    // --- Step 1: Scrape Jobs using the custom JobSpyMy API ---
     const searchQuery = agent.prompt;
-    const scrapingUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&api_key=${SCRAPING_API_KEY}`;
+    const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=72&results=10`;
     
     const scrapingResponse = await axios.get(scrapingUrl);
-    const rawJobResults = scrapingResponse.data?.jobs_results;
+    const rawJobResults = scrapingResponse.data?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
@@ -84,19 +81,19 @@ serve(async (req) => {
 
     // --- Step 2: Enrich scraped data with AI analysis ---
     const enrichmentPrompt = `
-      You are an expert recruiting analyst. Your task is to analyze a list of raw job data and enrich it with your expert assessment.
+      You are an expert recruiting analyst. Your task is to analyze a list of raw job data from the JobSpyMy API and enrich it with your expert assessment.
       The recruiter's specialty is: "${agent.prompt}".
-      Here is the list of raw job listings scraped from Google:
-      ${JSON.stringify(rawJobResults.slice(0, 5))}
+      Here is the list of raw job listings:
+      ${JSON.stringify(rawJobResults)}
 
       For each job, provide a JSON object with the following keys:
       - "companyName": The original company name.
       - "role": The original job title.
       - "location": The original location.
-      - "potential": Your assessment of the placement's potential value (High, Medium, or Low).
-      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low).
+      - "potential": Your assessment of the placement's potential value (High, Medium, or Low), considering the salary and company details.
+      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low), considering the job description and posting date.
       - "matchScore": A score from 1-10 on how well this job matches the recruiter's specialty.
-      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity (e.g., "Recent funding round suggests aggressive growth.").
+      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity (e.g., "The description mentions a direct email, indicating a strong intent to hire.").
 
       Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
     `;
