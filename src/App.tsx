@@ -20,15 +20,14 @@ import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
-// IMPORTANT: Replace this with your actual extension ID after loading it
-const EXTENSION_ID = "YOUR_CHROME_EXTENSION_ID_HERE";
+const EXTENSION_ID = "gjmldbkcjgmjhfcdlodcnmmpinknddng";
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   const sendTokenToExtension = (session: Session | null) => {
-    if (chrome.runtime && EXTENSION_ID !== "YOUR_CHROME_EXTENSION_ID_HERE") {
+    if (chrome.runtime && EXTENSION_ID) {
       if (session) {
         chrome.runtime.sendMessage(
           EXTENSION_ID,
@@ -51,8 +50,6 @@ const App = () => {
           }
         );
       }
-    } else if (EXTENSION_ID === "YOUR_CHROME_EXTENSION_ID_HERE") {
-        console.log("Skipping extension communication: Extension ID not set in App.tsx");
     }
   };
 
