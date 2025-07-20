@@ -33,6 +33,8 @@ export interface Campaign {
   subject: string;
   body: string;
   status: CampaignStatus;
+  contact_name: string | null;
+  contact_email: string | null;
 }
 
 export type AutonomyLevel = 'manual' | 'semi-automatic' | 'automatic';

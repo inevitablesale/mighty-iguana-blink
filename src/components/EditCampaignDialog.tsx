@@ -24,14 +24,18 @@ interface EditCampaignDialogProps {
 
 export function EditCampaignDialog({ campaign, onCampaignUpdated, children }: EditCampaignDialogProps) {
   const [open, setOpen] = useState(false);
-  const [subject, setSubject] = useState(campaign.subject);
-  const [body, setBody] = useState(campaign.body);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setSubject(campaign.subject);
-      setBody(campaign.body);
+      setSubject(campaign.subject || "");
+      setBody(campaign.body || "");
+      setContactName(campaign.contact_name || "");
+      setContactEmail(campaign.contact_email || "");
     }
   }, [open, campaign]);
 
@@ -44,7 +48,12 @@ export function EditCampaignDialog({ campaign, onCampaignUpdated, children }: Ed
 
     const { error } = await supabase
       .from("campaigns")
-      .update({ subject, body })
+      .update({ 
+        subject, 
+        body,
+        contact_name: contactName,
+        contact_email: contactEmail,
+      })
       .eq("id", campaign.id);
 
     setIsSaving(false);
@@ -71,6 +80,31 @@ export function EditCampaignDialog({ campaign, onCampaignUpdated, children }: Ed
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contactName" className="text-right">
+              Contact Name
+            </Label>
+            <Input
+              id="contactName"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className="col-span-3"
+              placeholder="e.g., Head of Talent"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="contactEmail" className="text-right">
+              Contact Email
+            </Label>
+            <Input
+              id="contactEmail"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="col-span-3"
+              placeholder="e.g., hiring@company.com"
+            />
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="subject" className="text-right">
               Subject

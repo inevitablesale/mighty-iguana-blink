@@ -131,6 +131,7 @@ const Campaigns = () => {
                   <TableRow>
                     <TableHead>Company</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Contact</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Actions</span></TableHead>
                   </TableRow>
@@ -140,6 +141,10 @@ const Campaigns = () => {
                     <TableRow key={campaign.id}>
                       <TableCell className="font-medium">{campaign.company_name}</TableCell>
                       <TableCell>{campaign.role}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{campaign.contact_name || "N/A"}</div>
+                        <div className="text-sm text-muted-foreground">{campaign.contact_email || "N/A"}</div>
+                      </TableCell>
                       <TableCell>
                         <Badge 
                           variant={getStatusBadgeVariant(campaign.status)}

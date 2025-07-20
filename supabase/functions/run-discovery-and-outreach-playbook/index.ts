@@ -141,13 +141,13 @@ serve(async (req) => {
             try {
                 const outreachPrompt = `
                   You are an expert business development copywriter for a top-tier recruiter.
-                  Your task is to write a concise, compelling, and personalized cold email.
+                  Your task is to write a concise, compelling, and personalized cold email, and suggest a contact.
                   Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
                   Recruiter's specialties: "${agent.prompt}".
                   Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal}".
                   Calendly link: ${profile?.calendly_url || '(not provided)'}.
                   Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
-                  Return a JSON object with two keys: "subject" and "body".
+                  Return a JSON object with four keys: "subject", "body", "contact_name" (a plausible job title for the hiring manager, e.g., "Head of Talent Acquisition"), and "contact_email" (a best-guess email address, e.g., "careers@${opp.company_name.toLowerCase().replace(/ /g, '').replace(/\./g, '')}.com").
                 `;
 
                 const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
@@ -161,6 +161,8 @@ serve(async (req) => {
                     subject: outreachResult.subject,
                     body: outreachResult.body,
                     status: campaignStatus,
+                    contact_name: outreachResult.contact_name,
+                    contact_email: outreachResult.contact_email,
                 };
             } catch (e) {
                 console.error(`Failed to generate outreach for ${opp.company_name}: ${e.message}`);
