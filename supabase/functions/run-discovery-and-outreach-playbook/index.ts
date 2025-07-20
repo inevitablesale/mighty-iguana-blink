@@ -131,10 +131,61 @@ serve(async (req) => {
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
-    // --- Step 5: Finalize ---
+    let outreachMessage = '';
+
+    // --- Step 5: Conditional Outreach Generation based on Autonomy Level ---
+    if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
+        const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
+        let draftsCreated = 0;
+
+        for (const opp of savedOpportunities) {
+            try {
+                const outreachPrompt = `
+                  You are an expert business development copywriter for a top-tier recruiter.
+                  Your task is to write a concise, compelling, and personalized cold email.
+                  Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
+                  Recruiter's specialties: "${agent.prompt}".
+                  Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal}".
+                  Calendly link: ${profile?.calendly_url || '(not provided)'}.
+                  Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
+                  Return a JSON object with two keys: "subject" and "body".
+                `;
+
+                const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
+
+                const campaignStatus = agent.autonomy_level === 'automatic' ? 'sent' : 'draft';
+
+                const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert({
+                    user_id: user.id,
+                    opportunity_id: opp.id,
+                    company_name: opp.company_name,
+                    role: opp.role,
+                    subject: outreachResult.subject,
+                    body: outreachResult.body,
+                    status: campaignStatus,
+                });
+
+                if (insertCampaignError) {
+                    console.error(`Failed to save campaign for ${opp.company_name}: ${insertCampaignError.message}`);
+                } else {
+                    draftsCreated++;
+                }
+            } catch (e) {
+                console.error(`Failed to generate outreach for ${opp.company_name}: ${e.message}`);
+            }
+        }
+        
+        if (agent.autonomy_level === 'automatic') {
+            outreachMessage = `and automatically sent ${draftsCreated} outreach emails.`;
+        } else {
+            outreachMessage = `and created ${draftsCreated} outreach drafts for your review.`;
+        }
+    }
+
+    // --- Step 6: Finalize ---
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
 
-    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities. Please review them on the Opportunities page.`;
+    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities ${outreachMessage}`;
 
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
