@@ -66,12 +66,12 @@ serve(async (req) => {
       Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location. **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
 
-      Available sites are: linkedin, indeed, ziprecruiter, glassdoor, google, bayt, naukri.
-      For most professional roles in the US or Europe, use 'linkedin,indeed,ziprecruiter,glassdoor,google'. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
+      Available sites are: linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri.
+      For most professional roles in the US or Europe, use 'linkedin,indeed,zip_recruiter,glassdoor,google'. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
       If no specific location is mentioned, default the location to "Remote".
 
       Return ONLY a single, valid JSON object with three keys: "search_query", "location", and "sites".
-      Example for "nurses in Georgia": { "search_query": "nurse", "location": "Georgia", "sites": "linkedin,indeed,ziprecruiter,glassdoor,google" }
+      Example for "nurses in Georgia": { "search_query": "nurse", "location": "Georgia", "sites": "linkedin,indeed,zip_recruiter,glassdoor,google" }
     `;
     
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
