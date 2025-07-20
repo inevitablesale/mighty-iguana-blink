@@ -3,6 +3,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import axios from 'https://esm.sh/axios@1.7.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,7 +55,6 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    // Fetch agent and user profile in parallel
     const [agentRes, profileRes] = await Promise.all([
       supabaseAdmin.from('agents').select('prompt, autonomy_level').eq('id', agentId).eq('user_id', user.id).single(),
       supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single()
@@ -65,43 +65,66 @@ serve(async (req) => {
     const profile = profileRes.data;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
+    const SCRAPING_API_KEY = Deno.env.get("SCRAPING_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
+    if (!SCRAPING_API_KEY) throw new Error("SCRAPING_API_KEY secret is not set. Please add it in your Supabase project settings.");
 
-    // --- Step 1: Discover Opportunities ---
-    const discoveryPrompt = `
-      You are a mock API that simulates a real-time job scraping service. Your task is to generate a list of 3 highly plausible, realistic job opportunities from fictional companies that appear to be actively hiring.
-      The opportunities should be tailored to the recruiter's agent specialty: "${agent.prompt}".
-      The data you return should look as if it were sourced from real-world job boards or company career pages.
-
-      For each opportunity, you MUST include all of the following keys:
-      - "companyName": A realistic, fictional company name.
-      - "role": The specific, realistic job title they are hiring for.
-      - "location": A plausible city and state for the company.
-      - "potential": A value (High, Medium, or Low) indicating the potential value of this placement.
-      - "hiringUrgency": A value (High, Medium, or Low) indicating how quickly they likely need to fill the role.
-      - "matchScore": A score from 1-10 indicating how strong a fit this lead is for the agent's specialty.
-      - "keySignal": The single most important *hypothetical* piece of data that suggests this is a strong lead (e.g., "Posted 2 days ago on LinkedIn", "Company just announced a new product line", "Mentioned in a tech article about growth").
-
-      Return ONLY a single, valid JSON object with a key "opportunities" containing an array of these 3 opportunities. Do not include any other text, explanations, or markdown.
-    `;
+    // --- Step 1: Scrape Google Jobs using a third-party service ---
+    // NOTE: This uses the SerpApi format (serpapi.com). Other services may have different URL structures.
+    const searchQuery = agent.prompt;
+    const scrapingUrl = `https://serpapi.com/search.json?engine=google_jobs&q=${encodeURIComponent(searchQuery)}&api_key=${SCRAPING_API_KEY}`;
     
-    const discoveryResult = await callGemini(discoveryPrompt, GEMINI_API_KEY);
-    const discoveredOpportunities = discoveryResult.opportunities;
+    const scrapingResponse = await axios.get(scrapingUrl);
+    const rawJobResults = scrapingResponse.data?.jobs_results;
 
-    if (!discoveredOpportunities || discoveredOpportunities.length === 0) {
-      return new Response(JSON.stringify({ message: "Agent ran but found no new opportunities this time." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!rawJobResults || rawJobResults.length === 0) {
+      await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
+      return new Response(JSON.stringify({ message: "Agent ran but found no new job opportunities this time." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- Step 2: Save Opportunities ---
-    const opportunitiesToInsert = discoveredOpportunities.map(opp => ({
-      user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
-      potential: opp.potential, hiring_urgency: opp.hiringUrgency, match_score: opp.matchScore, key_signal: opp.keySignal,
+    // --- Step 2: Enrich scraped data with AI analysis ---
+    const enrichmentPrompt = `
+      You are an expert recruiting analyst. Your task is to analyze a list of raw job data and enrich it with your expert assessment.
+      The recruiter's specialty is: "${agent.prompt}".
+      Here is the list of raw job listings scraped from Google:
+      ${JSON.stringify(rawJobResults.slice(0, 5))}
+
+      For each job, provide a JSON object with the following keys:
+      - "companyName": The original company name.
+      - "role": The original job title.
+      - "location": The original location.
+      - "potential": Your assessment of the placement's potential value (High, Medium, or Low).
+      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low).
+      - "matchScore": A score from 1-10 on how well this job matches the recruiter's specialty.
+      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity (e.g., "Recent funding round suggests aggressive growth.").
+
+      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
+    `;
+
+    const enrichmentResult = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
+    const enrichedOpportunities = enrichmentResult.enriched_opportunities;
+
+    if (!enrichedOpportunities || enrichedOpportunities.length === 0) {
+      throw new Error("AI analysis failed to return enriched opportunities.");
+    }
+
+    // --- Step 3: Save Enriched Opportunities ---
+    const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
+      user_id: user.id,
+      agent_id: agentId,
+      company_name: opp.companyName,
+      role: opp.role,
+      location: opp.location,
+      potential: opp.potential,
+      hiring_urgency: opp.hiringUrgency,
+      match_score: opp.matchScore,
+      key_signal: opp.keySignal,
     }));
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
-    // --- Step 3: Conditional Outreach based on Autonomy Level ---
+    // --- Step 4: Conditional Outreach based on Autonomy Level ---
     if (agent.autonomy_level === 'manual') {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
       return new Response(JSON.stringify({ message: `Agent created ${savedOpportunities.length} opportunities. Please review and approve them.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -124,8 +147,12 @@ serve(async (req) => {
       const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
       
       campaignsToInsert.push({
-        user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, role: opp.role,
-        subject: outreachResult.subject, body: outreachResult.body,
+        user_id: user.id,
+        opportunity_id: opp.id,
+        company_name: opp.company_name,
+        role: opp.role,
+        subject: outreachResult.subject,
+        body: outreachResult.body,
         status: agent.autonomy_level === 'automatic' ? 'sent' : 'draft',
       });
     }
@@ -133,14 +160,14 @@ serve(async (req) => {
     const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
     if (insertCampaignError) throw new Error(`Failed to save campaign drafts: ${insertCampaignError.message}`);
 
-    // --- Step 4: Finalize ---
+    // --- Step 5: Finalize ---
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
 
     let message = '';
     if (agent.autonomy_level === 'semi-automatic') {
-      message = `Agent created ${savedOpportunities.length} opportunities and drafted outreach campaigns.`;
+      message = `Agent found and drafted outreach for ${savedOpportunities.length} new opportunities.`;
     } else { // automatic
-      message = `Agent created ${savedOpportunities.length} opportunities and automatically sent outreach.`;
+      message = `Agent found and automatically sent outreach for ${savedOpportunities.length} new opportunities.`;
     }
 
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
