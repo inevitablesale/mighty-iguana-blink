@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Agent, AutonomyLevel } from "@/types/index";
@@ -28,6 +29,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
+  const [searchLookbackHours, setSearchLookbackHours] = useState("720");
+  const [maxResults, setMaxResults] = useState("20");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -35,6 +38,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
       setName(agent.name);
       setPrompt(agent.prompt);
       setAutonomyLevel(agent.autonomy_level);
+      setSearchLookbackHours(agent.search_lookback_hours.toString());
+      setMaxResults(agent.max_results.toString());
     }
   }, [agent]);
 
@@ -51,6 +56,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
         name,
         prompt,
         autonomy_level: autonomyLevel,
+        search_lookback_hours: parseInt(searchLookbackHours, 10),
+        max_results: parseInt(maxResults, 10),
       })
       .eq("id", agent.id);
 
@@ -83,6 +90,31 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
           <div className="space-y-2">
             <Label htmlFor="prompt">Specialty</Label>
             <Textarea id="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-lookback">Search Lookback</Label>
+              <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
+                <SelectTrigger id="edit-lookback">
+                  <SelectValue placeholder="Select lookback period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">Last 24 hours</SelectItem>
+                  <SelectItem value="168">Last 7 days</SelectItem>
+                  <SelectItem value="720">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-max-results">Max Results</Label>
+              <Input
+                id="edit-max-results"
+                type="number"
+                value={maxResults}
+                onChange={(e) => setMaxResults(e.target.value)}
+                placeholder="e.g., 20"
+              />
+            </div>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>

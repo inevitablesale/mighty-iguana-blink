@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
@@ -27,6 +28,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
+  const [searchLookbackHours, setSearchLookbackHours] = useState("720");
+  const [maxResults, setMaxResults] = useState("20");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -47,6 +50,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       name,
       prompt,
       autonomy_level: autonomyLevel,
+      search_lookback_hours: parseInt(searchLookbackHours, 10),
+      max_results: parseInt(maxResults, 10),
     });
 
     setIsSaving(false);
@@ -59,6 +64,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       setName("");
       setPrompt("");
       setAutonomyLevel("semi-automatic");
+      setSearchLookbackHours("720");
+      setMaxResults("20");
       setOpen(false);
     }
   };
@@ -97,6 +104,31 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
               placeholder="e.g., 'I specialize in placing VPs of Sales...'"
               rows={3}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="lookback">Search Lookback</Label>
+              <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
+                <SelectTrigger id="lookback">
+                  <SelectValue placeholder="Select lookback period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24">Last 24 hours</SelectItem>
+                  <SelectItem value="168">Last 7 days</SelectItem>
+                  <SelectItem value="720">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="max-results">Max Results</Label>
+              <Input
+                id="max-results"
+                type="number"
+                value={maxResults}
+                onChange={(e) => setMaxResults(e.target.value)}
+                placeholder="e.g., 20"
+              />
+            </div>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>

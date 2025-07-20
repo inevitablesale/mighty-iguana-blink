@@ -46,6 +46,8 @@ export interface Agent {
   prompt: string;
   last_run_at?: string;
   autonomy_level: AutonomyLevel;
+  search_lookback_hours: number;
+  max_results: number;
 }
 
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';

@@ -54,7 +54,7 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level').eq('id', agentId).eq('user_id', user.id).single();
+    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -80,7 +80,7 @@ serve(async (req) => {
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=720&results=20`;
+    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${agent.search_lookback_hours}&results=${agent.max_results}`;
     
     const scrapingResponse = await fetch(scrapingUrl, {
       signal: AbortSignal.timeout(30000) // Using native fetch with a 30-second timeout
