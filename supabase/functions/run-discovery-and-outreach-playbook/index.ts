@@ -3,11 +3,20 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createHash } from "https://deno.land/std@0.190.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper to create a consistent hash for a job object
+function createJobHash(job) {
+  const hash = createHash("sha-256");
+  const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
+  hash.update(jobString);
+  return hash.toString();
+}
 
 // Helper function to call Gemini API
 async function callGemini(prompt, apiKey) {
@@ -66,7 +75,6 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
     // --- Step 1: Generate search query ---
-    console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
       Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location (city/state/province). **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
@@ -74,11 +82,9 @@ serve(async (req) => {
       For most professional roles in the US or Europe, use 'linkedin,indeed,zip_recruiter,glassdoor,google'. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
       If no specific location is mentioned, default the location to "Remote".
       Return ONLY a single, valid JSON object with three keys: "search_query", "location", and "sites".
-      Example for "nurses in Georgia": { "search_query": "nurse", "location": "Georgia", "sites": "linkedin,indeed,zip_recruiter,glassdoor,google" }
     `;
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
-    console.log(`Extracted search parameters: Query='${searchQuery}', Location='${location}', Sites='${sites}'`);
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
 
     // --- Step 2: Scrape Jobs ---
@@ -99,148 +105,89 @@ serve(async (req) => {
       if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
       if (agent.is_remote) scrapingUrl += `&is_remote=true`;
     }
-    console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
-    if (!scrapingResponse.ok) {
-      const errorBody = await scrapingResponse.text();
-      throw new Error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
-    }
+    if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
-    console.log(`Scraping returned ${rawJobResults?.length || 0} raw job results.`);
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent ran using query "${searchQuery}" in "${location}" on sites [${sites}] but found no new job opportunities this time.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- Step 3: Enrich scraped data with AI analysis (one by one) ---
-    console.log(`Step 3: Enriching ${rawJobResults.length} jobs with AI analysis (one by one)...`);
-    
-    const enrichmentPromises = rawJobResults.map(job => {
+    // --- Step 3: Enrich data with AI analysis, using caching ---
+    console.log(`Step 3: Enriching ${rawJobResults.length} jobs, checking cache first...`);
+    const enrichmentPromises = rawJobResults.map(async (job) => {
+      const jobHash = createJobHash(job);
+      const { data: cached, error: cacheError } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
+      
+      if (cached && !cacheError) {
+        console.log(`Cache hit for job: ${job.title}`);
+        return cached.analysis_data;
+      }
+
+      console.log(`Cache miss for job: ${job.title}. Calling AI...`);
       const singleEnrichmentPrompt = `
         You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's specialty.
         Recruiter's specialty: "${agent.prompt}"
         Job Posting: ${JSON.stringify(job)}
-
-        Return a single, valid JSON object with the following keys:
-        - "companyName": The original company name.
-        - "role": The original job title.
-        - "location": The original location.
-        - "company_overview": A concise sentence about what the company does.
-        - "match_score": A score from 1-10 on how well this role aligns with the recruiter's specialty.
-        - "contract_value_assessment": A detailed assessment of the potential contract value (e.g., "High - Executive search...").
-        - "hiring_urgency": Your assessment of hiring urgency (High, Medium, or Low) with justification.
-        - "pain_points": A bulleted list (as a single string with '\\n- ' separators) of 2-3 pain points this role solves.
-        - "recruiter_angle": A strategic recommendation for the recruiter's outreach angle.
-        - "key_signal_for_outreach": A concise, single sentence for a personalized email opening line.
-
+        Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
         **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
       `;
-      return callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+      const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+      
+      const { error: insertCacheError } = await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+      if (insertCacheError) console.error(`Failed to cache analysis for ${job.title}:`, insertCacheError.message);
+      
+      return analysisData;
     });
 
     const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-    
-    const enrichedOpportunities = [];
-    settledEnrichments.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        enrichedOpportunities.push(result.value);
-      } else {
-        console.error(`Failed to enrich job #${index} (${rawJobResults[index].title}):`, result.reason.message);
-      }
-    });
-
-    if (enrichedOpportunities.length === 0) {
-      throw new Error("AI analysis failed to enrich any opportunities.");
-    }
-    console.log(`Successfully enriched ${enrichedOpportunities.length} opportunities.`);
+    const enrichedOpportunities = settledEnrichments.filter(r => r.status === 'fulfilled').map(r => r.value);
+    if (enrichedOpportunities.length === 0) throw new Error("AI analysis failed to enrich any opportunities.");
 
     // --- Step 4: Save Enriched Opportunities ---
-    console.log("Step 4: Saving enriched opportunities to the database...");
     const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
-      user_id: user.id,
-      agent_id: agentId,
-      company_name: opp.companyName,
-      role: opp.role,
-      location: opp.location,
-      company_overview: opp.company_overview,
-      match_score: opp.match_score,
-      contract_value_assessment: opp.contract_value_assessment,
-      hiring_urgency: opp.hiring_urgency,
-      pain_points: opp.pain_points,
-      recruiter_angle: opp.recruiter_angle,
+      user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
+      company_overview: opp.company_overview, match_score: opp.match_score, contract_value_assessment: opp.contract_value_assessment,
+      hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
       key_signal_for_outreach: opp.key_signal_for_outreach,
     }));
-
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
-    console.log(`Saved ${savedOpportunities.length} opportunities.`);
-
-    let outreachMessage = '';
 
     // --- Step 5: Conditional Outreach Generation ---
+    let outreachMessage = '';
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
-        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities...`);
         const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
-        
         const campaignPromises = savedOpportunities.map(async (opp) => {
             try {
                 const outreachPrompt = `
-                  You are an expert business development copywriter for a top-tier recruiter.
-                  Your task is to write a concise, compelling, and personalized cold email, and suggest a contact.
+                  You are an expert copywriter for a recruiter. Write a concise, personalized cold email.
                   Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
                   Recruiter's specialties: "${agent.prompt}".
                   Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal_for_outreach}".
-                  Calendly link: ${profile?.calendly_url || '(not provided)'}.
-                  Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
-                  Return a JSON object with four keys: "subject", "body", "contact_name" (a plausible job title for the hiring manager, e.g., "Head of Talent Acquisition"), and "contact_email" (a best-guess email address, e.g., "careers@${opp.company_name.toLowerCase().replace(/ /g, '').replace(/\./g, '')}.com").
+                  Calendly: ${profile?.calendly_url || '(not provided)'}.
+                  Return a JSON object with keys: "subject", "body", "contact_name" (plausible job title), and "contact_email" (best-guess email).
                   **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
                 `;
-
                 const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
-                const campaignStatus = agent.autonomy_level === 'automatic' ? 'sent' : 'draft';
-
                 return {
-                    user_id: user.id,
-                    opportunity_id: opp.id,
-                    company_name: opp.company_name,
-                    role: opp.role,
-                    subject: outreachResult.subject,
-                    body: outreachResult.body,
-                    status: campaignStatus,
-                    contact_name: outreachResult.contact_name,
-                    contact_email: outreachResult.contact_email,
+                    user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, role: opp.role,
+                    subject: outreachResult.subject, body: outreachResult.body, status: agent.autonomy_level === 'automatic' ? 'sent' : 'draft',
+                    contact_name: outreachResult.contact_name, contact_email: outreachResult.contact_email,
                 };
-            } catch (e) {
-                console.error(`Failed to generate outreach for ${opp.company_name}: ${e.message}`);
-                return null;
-            }
+            } catch (e) { return null; }
         });
-
         const campaignsToInsert = (await Promise.all(campaignPromises)).filter(c => c !== null);
-
         if (campaignsToInsert.length > 0) {
-            const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
-            if (insertCampaignError) {
-                console.error(`Failed to save campaigns in bulk: ${insertCampaignError.message}`);
-            }
+            await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
         }
-        
-        const outreachCount = campaignsToInsert.length;
-        if (agent.autonomy_level === 'automatic') {
-            outreachMessage = `and automatically sent ${outreachCount} outreach emails.`;
-        } else {
-            outreachMessage = `and created ${outreachCount} outreach drafts for your review.`;
-        }
-        console.log(`Outreach generation complete. ${outreachMessage}`);
+        outreachMessage = agent.autonomy_level === 'automatic' ? `and automatically sent ${campaignsToInsert.length} emails.` : `and created ${campaignsToInsert.length} drafts.`;
     }
 
     // --- Step 6: Finalize ---
-    console.log("Step 6: Finalizing run and updating agent's last_run_at timestamp.");
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-
-    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities for "${searchQuery}" in "${location}" on sites [${sites}] ${outreachMessage}`;
-
+    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities ${outreachMessage}`;
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
