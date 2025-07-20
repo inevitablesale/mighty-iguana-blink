@@ -20,7 +20,7 @@ import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
-const EXTENSION_ID = "gjmldbkcjgmjhfcdlodcnmmpinknddng";
+const EXTENSION_ID = "ciipcogdfckdandnbekcngfigogpmomo";
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
