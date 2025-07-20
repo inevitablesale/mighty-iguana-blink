@@ -20,19 +20,53 @@ import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
+// IMPORTANT: Replace this with your actual extension ID after loading it
+const EXTENSION_ID = "YOUR_CHROME_EXTENSION_ID_HERE";
+
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const sendTokenToExtension = (session: Session | null) => {
+    if (chrome.runtime && EXTENSION_ID !== "YOUR_CHROME_EXTENSION_ID_HERE") {
+      if (session) {
+        chrome.runtime.sendMessage(
+          EXTENSION_ID,
+          {
+            type: "SET_TOKEN",
+            token: session.access_token,
+            userId: session.user.id,
+          },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn(
+                "Could not connect to the extension. Is it installed and enabled?",
+                chrome.runtime.lastError.message
+              );
+            } else if (response?.success) {
+              console.log("Successfully connected to the Coogi extension.");
+            } else {
+              console.warn("Extension responded with an error:", response?.message);
+            }
+          }
+        );
+      }
+    } else if (EXTENSION_ID === "YOUR_CHROME_EXTENSION_ID_HERE") {
+        console.log("Skipping extension communication: Extension ID not set in App.tsx");
+    }
+  };
 
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      sendTokenToExtension(session);
       setLoading(false);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      sendTokenToExtension(session);
     });
 
     getSession();

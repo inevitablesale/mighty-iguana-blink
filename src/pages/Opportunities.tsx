@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Target, FileSearch, Check, Eye } from "lucide-react";
+import { Target, FileSearch, Check, Eye, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,6 +90,27 @@ const Opportunities = () => {
     }
   };
 
+  const handleFindContacts = async (opportunity: Opportunity) => {
+    const toastId = toast.loading(`Queueing contact search for ${opportunity.companyName}...`);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("You must be logged in.", { id: toastId });
+      return;
+    }
+
+    const { error } = await supabase.from('contact_enrichment_tasks').insert({
+      opportunity_id: opportunity.id,
+      company_name: opportunity.companyName,
+      user_id: user.id,
+    });
+
+    if (error) {
+      toast.error(`Failed to start search: ${error.message}`, { id: toastId });
+    } else {
+      toast.success(`Contact search for ${opportunity.companyName} has started!`, { id: toastId });
+    }
+  };
+
   return (
     <div className="flex flex-col">
       <Header title="Opportunities" />
@@ -119,6 +140,7 @@ const Opportunities = () => {
                       <TableCell>{opp.role}</TableCell>
                       <TableCell>{opp.matchScore}/10</TableCell>
                       <TableCell className="text-right space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleFindContacts(opp)}><Users className="mr-2 h-4 w-4" />Find Contacts</Button>
                         <OpportunityAnalysisDialog opportunity={opp}>
                            <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
                         </OpportunityAnalysisDialog>

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Coogi Contact Finder",
+  "version": "1.0",
+  "description": "Finds contacts on LinkedIn for Coogi opportunities.",
+  "permissions": ["storage", "tabs", "scripting"],
+  "host_permissions": ["*://*.linkedin.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:5173/*",
+      "https://coogi.netlify.app/*"
+    ]
+  }
+}
