@@ -39,11 +39,14 @@ const App = () => {
           (response) => {
             if (chrome.runtime.lastError) {
               console.warn(
-                "Could not connect to the extension. Is it installed and enabled?",
+                "Could not connect to the extension. Ensure it's installed, enabled, and the app's URL is in manifest.json.",
                 chrome.runtime.lastError.message
               );
             } else if (response?.success) {
-              console.log("Successfully connected to the Coogi extension.");
+              console.log(
+                "%c✅ Successfully connected to the Coogi Chrome Extension!",
+                "color: #22c55e; font-size: 14px; font-weight: bold;"
+              );
             } else {
               console.warn("Extension responded with an error:", response?.message);
             }
