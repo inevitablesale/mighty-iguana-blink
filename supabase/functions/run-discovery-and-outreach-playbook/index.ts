@@ -61,6 +61,7 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
     // --- Step 1: Generate a search query, location, and sites from the agent's prompt ---
+    console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
       Based on the following recruiter specialty description, extract a search query, a location, and a comma-separated list of the most relevant job sites to search.
       Recruiter Specialty: "${agent.prompt}"
@@ -75,12 +76,15 @@ serve(async (req) => {
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
 
+    console.log(`Extracted search parameters: Query='${searchQuery}', Location='${location}', Sites='${sites}'`);
+
     if (!searchQuery || !location || !sites) {
       throw new Error("AI failed to extract a search query, location, and sites from the agent's prompt.");
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
     const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${agent.search_lookback_hours}&results=${agent.max_results}`;
+    console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);
     
     const scrapingResponse = await fetch(scrapingUrl, {
       signal: AbortSignal.timeout(30000) // Using native fetch with a 30-second timeout
@@ -88,11 +92,17 @@ serve(async (req) => {
 
     if (!scrapingResponse.ok) {
       const errorBody = await scrapingResponse.text();
+      console.error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
       throw new Error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
     }
 
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
+
+    console.log(`Scraping returned ${rawJobResults?.length || 0} raw job results.`);
+    if (rawJobResults && rawJobResults.length > 0) {
+      console.log("Raw job results:", JSON.stringify(rawJobResults, null, 2));
+    }
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
@@ -100,6 +110,7 @@ serve(async (req) => {
     }
 
     // --- Step 3: Enrich scraped data with AI analysis ---
+    console.log("Step 3: Enriching scraped data with AI analysis...");
     const enrichmentPrompt = `
       You are a world-class recruiting strategist and business development analyst. Your task is to perform a deep analysis of raw job postings and transform them into actionable intelligence for a recruiter looking for new clients.
 
@@ -128,8 +139,10 @@ serve(async (req) => {
     if (!enrichedOpportunities || enrichedOpportunities.length === 0) {
       throw new Error("AI analysis failed to return enriched opportunities.");
     }
+    console.log(`Enriched ${enrichedOpportunities.length} opportunities.`);
 
     // --- Step 4: Save Enriched Opportunities ---
+    console.log("Step 4: Saving enriched opportunities to the database...");
     const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
       user_id: user.id,
       agent_id: agentId,
@@ -147,11 +160,13 @@ serve(async (req) => {
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+    console.log(`Saved ${savedOpportunities.length} opportunities.`);
 
     let outreachMessage = '';
 
     // --- Step 5: Conditional Outreach Generation (in parallel) ---
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
+        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities based on autonomy level '${agent.autonomy_level}'...`);
         const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
         
         const campaignPromises = savedOpportunities.map(async (opp) => {
@@ -202,9 +217,11 @@ serve(async (req) => {
         } else {
             outreachMessage = `and created ${outreachCount} outreach drafts for your review.`;
         }
+        console.log(`Outreach generation complete. ${outreachMessage}`);
     }
 
     // --- Step 6: Finalize ---
+    console.log("Step 6: Finalizing run and updating agent's last_run_at timestamp.");
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
 
     const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities for "${searchQuery}" in "${location}" on sites [${sites}] ${outreachMessage}`;
