@@ -28,12 +28,12 @@ const App = () => {
     const extensionId = localStorage.getItem('coogiExtensionId');
 
     if (!extensionId) {
-      console.warn("Coogi Chrome Extension ID not found. Please set it on the Profile page.");
+      // This is now expected until the handshake completes.
+      // console.warn("Coogi Chrome Extension ID not yet detected.");
       return;
     }
 
     if (chrome.runtime && session) {
-      console.log(`Attempting to connect to Chrome Extension with ID: ${extensionId}`);
       chrome.runtime.sendMessage(
         extensionId,
         {
@@ -46,15 +46,11 @@ const App = () => {
             console.error(
               `%c❌ Failed to connect to the Chrome Extension.`,
               "color: #ef4444; font-size: 14px; font-weight: bold;",
-              `\nError: ${chrome.runtime.lastError.message}`,
-              `\n\nTroubleshooting:`,
-              `\n1. Verify the Extension ID on your Profile page is correct.`,
-              `\n2. Ensure your extension's manifest.json allows connection from this app's URL.`,
-              `\n3. Reload the extension from chrome://extensions after any changes.`
+              `\nError: ${chrome.runtime.lastError.message}`
             );
           } else {
             console.log(
-              "%c✅ Successfully connected to the Coogi Chrome Extension!",
+              "%c✅ Successfully sent token to the Coogi Chrome Extension!",
               "color: #22c55e; font-size: 14px; font-weight: bold;"
             );
             if (response) {
@@ -67,6 +63,24 @@ const App = () => {
   };
 
   useEffect(() => {
+    // Listen for the extension to announce itself
+    const handleExtensionReady = (event: CustomEvent<{ extensionId: string }>) => {
+      const receivedId = event.detail.extensionId;
+      if (receivedId) {
+        console.log(`%c👋 Coogi Extension handshake successful. ID stored: ${receivedId}`, 'color: #8b5cf6; font-weight: bold;');
+        localStorage.setItem('coogiExtensionId', receivedId);
+        // After storing the ID, immediately try to send the current session token
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            sendTokenToExtension(session);
+          }
+        });
+      }
+    };
+
+    window.addEventListener('coogi-extension-ready', handleExtensionReady as EventListener);
+    console.log('App is listening for a handshake from the Coogi Chrome Extension.');
+
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -81,7 +95,10 @@ const App = () => {
 
     getSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('coogi-extension-ready', handleExtensionReady as EventListener);
+    };
   }, []);
 
   if (loading) {
