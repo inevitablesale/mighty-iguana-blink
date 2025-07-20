@@ -93,19 +93,19 @@ serve(async (req) => {
 
     // --- Step 3: Enrich scraped data with AI analysis ---
     const enrichmentPrompt = `
-      You are an expert recruiting analyst. Your task is to analyze a list of raw job data and enrich it with your expert assessment.
+      You are an expert business development analyst for a recruiting agency. Your task is to analyze a list of raw job postings and qualify them as potential clients for a recruiter.
       The recruiter's specialty is: "${agent.prompt}".
       Here is the list of raw job listings:
       ${JSON.stringify(rawJobResults)}
 
-      For each job, provide a JSON object with the following keys:
+      For each job, analyze it as a sales lead for the recruiter. Provide a JSON object with the following keys:
       - "companyName": The original company name.
       - "role": The original job title.
       - "location": The original location.
-      - "potential": Your assessment of the placement's potential value (High, Medium, or Low).
-      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low).
-      - "matchScore": A score from 1-10 on how well this job matches the recruiter's specialty.
-      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity.
+      - "potential": Your assessment of the potential contract value (e.g., "High - Exec search, likely $50k+ fee", "Medium - Senior role, likely $25k fee", "Low - Standard role, likely $15k fee"). Be specific about why.
+      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low), based on signals in the job description if available.
+      - "matchScore": A score from 1-10 on how well this specific role aligns with the recruiter's stated specialty. A perfect match is 10.
+      - "keySignal": A concise, single sentence that the recruiter can use as a personalized opening line in an outreach email. This should be based on the job description or company. For example, "Saw you're looking to scale your engineering team by hiring a new Staff Engineer..."
 
       Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
     `;
