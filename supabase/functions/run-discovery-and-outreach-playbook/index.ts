@@ -3,19 +3,21 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.190.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to create a consistent hash for a job object
-function createJobHash(job) {
-  const hash = createHash("sha-256");
+// Helper to create a consistent hash for a job object using the Web Crypto API
+async function createJobHash(job) {
   const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
-  hash.update(jobString);
-  return hash.toString();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(jobString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 }
 
 // Helper function to call Gemini API
@@ -117,7 +119,7 @@ serve(async (req) => {
     // --- Step 3: Enrich data with AI analysis, using caching ---
     console.log(`Step 3: Enriching ${rawJobResults.length} jobs, checking cache first...`);
     const enrichmentPromises = rawJobResults.map(async (job) => {
-      const jobHash = createJobHash(job);
+      const jobHash = await createJobHash(job);
       const { data: cached, error: cacheError } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
       
       if (cached && !cacheError) {
