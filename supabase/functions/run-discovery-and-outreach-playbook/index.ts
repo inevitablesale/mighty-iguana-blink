@@ -80,7 +80,7 @@ serve(async (req) => {
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=24&results=20`;
+    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=720&results=20`;
     
     const scrapingResponse = await fetch(scrapingUrl, {
       signal: AbortSignal.timeout(30000) // Using native fetch with a 30-second timeout
