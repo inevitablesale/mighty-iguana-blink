@@ -55,20 +55,30 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    const [agentRes, profileRes] = await Promise.all([
-      supabaseAdmin.from('agents').select('prompt, autonomy_level').eq('id', agentId).eq('user_id', user.id).single(),
-      supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single()
-    ]);
-
-    if (agentRes.error) throw new Error(`Failed to fetch agent: ${agentRes.error.message}`);
-    const agent = agentRes.data;
-    const profile = profileRes.data;
+    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level').eq('id', agentId).eq('user_id', user.id).single();
+    if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // --- Step 1: Scrape Jobs using the custom JobSpyMy API ---
-    const searchQuery = agent.prompt;
+    // --- Step 1: Generate a search query from the agent's prompt ---
+    const searchQueryPrompt = `
+      Based on the following recruiter specialty description, extract a concise and effective search query for a job board API.
+      The query should be simple keywords. For example, if the description is "I place senior software engineers with experience in Python and cloud tech", a good query would be "senior software engineer python aws".
+      
+      Recruiter Specialty: "${agent.prompt}"
+
+      Return ONLY a single, valid JSON object with a key "search_query" containing the string.
+    `;
+    
+    const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
+    const searchQuery = queryExtractionResult.search_query;
+
+    if (!searchQuery) {
+      throw new Error("AI failed to extract a search query from the agent's prompt.");
+    }
+
+    // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
     const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=72&results=10`;
     
     const scrapingResponse = await axios.get(scrapingUrl);
@@ -76,12 +86,12 @@ serve(async (req) => {
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: "Agent ran but found no new job opportunities this time." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: `Agent ran using query "${searchQuery}" but found no new job opportunities this time.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- Step 2: Enrich scraped data with AI analysis ---
+    // --- Step 3: Enrich scraped data with AI analysis ---
     const enrichmentPrompt = `
-      You are an expert recruiting analyst. Your task is to analyze a list of raw job data from the JobSpyMy API and enrich it with your expert assessment.
+      You are an expert recruiting analyst. Your task is to analyze a list of raw job data and enrich it with your expert assessment.
       The recruiter's specialty is: "${agent.prompt}".
       Here is the list of raw job listings:
       ${JSON.stringify(rawJobResults)}
@@ -90,10 +100,10 @@ serve(async (req) => {
       - "companyName": The original company name.
       - "role": The original job title.
       - "location": The original location.
-      - "potential": Your assessment of the placement's potential value (High, Medium, or Low), considering the salary and company details.
-      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low), considering the job description and posting date.
+      - "potential": Your assessment of the placement's potential value (High, Medium, or Low).
+      - "hiringUrgency": Your assessment of the company's hiring urgency (High, Medium, or Low).
       - "matchScore": A score from 1-10 on how well this job matches the recruiter's specialty.
-      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity (e.g., "The description mentions a direct email, indicating a strong intent to hire.").
+      - "keySignal": A short, single sentence explaining the most important reason this is a good opportunity.
 
       Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
     `;
@@ -105,7 +115,7 @@ serve(async (req) => {
       throw new Error("AI analysis failed to return enriched opportunities.");
     }
 
-    // --- Step 3: Save Enriched Opportunities ---
+    // --- Step 4: Save Enriched Opportunities ---
     const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
       user_id: user.id,
       agent_id: agentId,
@@ -121,51 +131,10 @@ serve(async (req) => {
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
-    // --- Step 4: Conditional Outreach based on Autonomy Level ---
-    if (agent.autonomy_level === 'manual') {
-      await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent created ${savedOpportunities.length} opportunities. Please review and approve them.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // For semi-automatic and automatic, we generate outreach
-    const campaignsToInsert = [];
-    for (const opp of savedOpportunities) {
-      const outreachPrompt = `
-        You are an expert business development copywriter for a top-tier recruiter.
-        Your task is to write a concise, compelling, and personalized cold email.
-        Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
-        Recruiter's specialties: "${agent.prompt}".
-        Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal}".
-        Calendly link: ${profile?.calendly_url || '(not provided)'}.
-        Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
-        Return a JSON object with two keys: "subject" and "body".
-      `;
-      
-      const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
-      
-      campaignsToInsert.push({
-        user_id: user.id,
-        opportunity_id: opp.id,
-        company_name: opp.company_name,
-        role: opp.role,
-        subject: outreachResult.subject,
-        body: outreachResult.body,
-        status: agent.autonomy_level === 'automatic' ? 'sent' : 'draft',
-      });
-    }
-
-    const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
-    if (insertCampaignError) throw new Error(`Failed to save campaign drafts: ${insertCampaignError.message}`);
-
     // --- Step 5: Finalize ---
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
 
-    let message = '';
-    if (agent.autonomy_level === 'semi-automatic') {
-      message = `Agent found and drafted outreach for ${savedOpportunities.length} new opportunities.`;
-    } else { // automatic
-      message = `Agent found and automatically sent outreach for ${savedOpportunities.length} new opportunities.`;
-    }
+    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities. Please review them on the Opportunities page.`;
 
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
