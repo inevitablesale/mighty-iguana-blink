@@ -51,7 +51,7 @@ export function CompanyBriefingDialog({ companyName, children }: CompanyBriefing
   const renderBulletedList = (text: string) => {
     return (
       <ul className="list-disc pl-5 space-y-1">
-        {text.split('\n- ').map((item, index) => item.trim() && <li key={index}>{item.replace(/^- /, '')}</li>)}
+        {text.split('\\n- ').map((item, index) => item.trim() && <li key={index}>{item.replace(/^- /, '')}</li>)}
       </ul>
     );
   };

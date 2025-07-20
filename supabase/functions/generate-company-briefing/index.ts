@@ -29,24 +29,19 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an AI research analyst. Your task is to generate a concise, factual briefing for a fictional company called "${companyName}".
-The briefing should be structured for a recruiter to quickly understand the company and its potential hiring needs.
+You are an AI research analyst with access to a vast knowledge base of public information about real-world companies.
+Your task is to generate a concise, factual briefing for the company: "${companyName}".
 
-Generate a JSON object with the following keys. Do not include any other text, explanations, or markdown.
-- "overview": A one-paragraph summary of what the company does.
-- "recentNews": A bulleted list (as a single string with '\\n- ' separators) of 2-3 recent, significant (but fictional) news items or milestones (e.g., funding, product launch, key hire).
-- "keyPersonnel": A bulleted list (as a single string with '\\n- ' separators) of 2-3 key executives (fictional names and titles, e.g., 'Jane Doe - CEO & Founder').
-- "techStack": A comma-separated string of plausible technologies the company might use.
-- "hiringAnalysis": A brief, one-paragraph analysis of their likely hiring needs based on the information provided.
+**Crucially, do not invent, embellish, or fictionalize any information.** Your primary goal is accuracy and reliability. If you cannot find specific details for a section (e.g., recent news or key personnel), you must explicitly state that the information is not readily available, rather than creating something.
 
-Example Output:
-{
-  "overview": "Innovatech Solutions is a B2B SaaS company that provides AI-powered logistics and supply chain management software. They help businesses optimize their delivery routes, manage inventory, and reduce transportation costs.",
-  "recentNews": "- Just closed a $40M Series B funding round led by Venture Partners.\\n- Launched a new predictive analytics module for demand forecasting.\\n- Announced expansion into the European market, opening a new office in Berlin.",
-  "keyPersonnel": "- Alex Chen - CEO & Co-Founder\\n- Brenda Matthews - CTO\\n- Carlos Rodriguez - VP of Sales",
-  "techStack": "React, Node.js, Python, PostgreSQL, AWS, Docker, Kubernetes",
-  "hiringAnalysis": "Given their recent Series B funding and European expansion, Innovatech is likely to be hiring aggressively for sales and marketing roles in the EU. The new analytics module suggests a need for more Data Scientists and ML Engineers. They will also likely need to scale their core engineering and DevOps teams to support this growth."
-}
+Generate a JSON object with the following keys:
+- "overview": A factual summary of what the company does.
+- "recentNews": A bulleted list (as a single string with '\\n- ' separators) of recent, significant news items or milestones. If none are found, state "No recent significant news found."
+- "keyPersonnel": A bulleted list (as a single string with '\\n- ' separators) of key executives. If not found, state "Key personnel information not readily available."
+- "techStack": A comma-separated string of technologies the company is known to use, based on public data like job postings or tech blogs. If unknown, state "Tech stack not publicly specified."
+- "hiringAnalysis": A brief analysis of their likely hiring needs based *only* on the factual information you have gathered.
+
+The entire output must be a single valid JSON object.
 `;
 
     const geminiResponse = await fetch(
