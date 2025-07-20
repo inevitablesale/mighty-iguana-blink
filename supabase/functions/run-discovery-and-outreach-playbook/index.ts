@@ -79,7 +79,7 @@ serve(async (req) => {
     }
 
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
-    const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=72&results=10`;
+    const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=24&results=20`;
     
     const scrapingResponse = await axios.get(scrapingUrl, { timeout: 20000 });
     const rawJobResults = scrapingResponse.data?.jobs;
