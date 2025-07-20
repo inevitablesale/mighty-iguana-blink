@@ -81,7 +81,7 @@ serve(async (req) => {
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
     const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=Remote&hours_old=72&results=10`;
     
-    const scrapingResponse = await axios.get(scrapingUrl);
+    const scrapingResponse = await axios.get(scrapingUrl, { timeout: 20000 });
     const rawJobResults = scrapingResponse.data?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
@@ -133,12 +133,11 @@ serve(async (req) => {
 
     let outreachMessage = '';
 
-    // --- Step 5: Conditional Outreach Generation based on Autonomy Level ---
+    // --- Step 5: Conditional Outreach Generation (in parallel) ---
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
         const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
-        let draftsCreated = 0;
-
-        for (const opp of savedOpportunities) {
+        
+        const campaignPromises = savedOpportunities.map(async (opp) => {
             try {
                 const outreachPrompt = `
                   You are an expert business development copywriter for a top-tier recruiter.
@@ -152,10 +151,9 @@ serve(async (req) => {
                 `;
 
                 const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
-
                 const campaignStatus = agent.autonomy_level === 'automatic' ? 'sent' : 'draft';
 
-                const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert({
+                return {
                     user_id: user.id,
                     opportunity_id: opp.id,
                     company_name: opp.company_name,
@@ -163,22 +161,27 @@ serve(async (req) => {
                     subject: outreachResult.subject,
                     body: outreachResult.body,
                     status: campaignStatus,
-                });
-
-                if (insertCampaignError) {
-                    console.error(`Failed to save campaign for ${opp.company_name}: ${insertCampaignError.message}`);
-                } else {
-                    draftsCreated++;
-                }
+                };
             } catch (e) {
                 console.error(`Failed to generate outreach for ${opp.company_name}: ${e.message}`);
+                return null;
+            }
+        });
+
+        const campaignsToInsert = (await Promise.all(campaignPromises)).filter(c => c !== null);
+
+        if (campaignsToInsert.length > 0) {
+            const { error: insertCampaignError } = await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
+            if (insertCampaignError) {
+                console.error(`Failed to save campaigns in bulk: ${insertCampaignError.message}`);
             }
         }
         
+        const outreachCount = campaignsToInsert.length;
         if (agent.autonomy_level === 'automatic') {
-            outreachMessage = `and automatically sent ${draftsCreated} outreach emails.`;
+            outreachMessage = `and automatically sent ${outreachCount} outreach emails.`;
         } else {
-            outreachMessage = `and created ${draftsCreated} outreach drafts for your review.`;
+            outreachMessage = `and created ${outreachCount} outreach drafts for your review.`;
         }
     }
 
