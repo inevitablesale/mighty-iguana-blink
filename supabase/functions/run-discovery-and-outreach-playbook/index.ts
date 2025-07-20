@@ -142,17 +142,38 @@ serve(async (req) => {
     });
 
     const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-    const enrichedOpportunities = settledEnrichments.filter(r => r.status === 'fulfilled').map(r => r.value);
+    const enrichedOpportunities = settledEnrichments
+      .filter(r => r.status === 'fulfilled' && r.value)
+      .map(r => r.value);
+
     if (enrichedOpportunities.length === 0) throw new Error("AI analysis failed to enrich any opportunities.");
 
-    // --- Step 4: Save Enriched Opportunities ---
-    const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
-      user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
-      company_overview: opp.company_overview, match_score: opp.match_score, contract_value_assessment: opp.contract_value_assessment,
-      hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
-      key_signal_for_outreach: opp.key_signal_for_outreach,
-    }));
-    const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
+    // --- Step 4: Validate and Save Enriched Opportunities ---
+    const validatedOpportunities = enrichedOpportunities
+      .map(opp => {
+        const matchScore = parseInt(opp.match_score || opp.matchScore || '0', 10);
+        return {
+          user_id: user.id,
+          agent_id: agentId,
+          company_name: opp.companyName || opp.company_name,
+          role: opp.role,
+          location: opp.location || 'N/A',
+          company_overview: opp.company_overview || 'N/A',
+          match_score: isNaN(matchScore) ? 0 : matchScore,
+          contract_value_assessment: opp.contract_value_assessment || 'N/A',
+          hiring_urgency: opp.hiring_urgency || 'N/A',
+          pain_points: opp.pain_points || 'N/A',
+          recruiter_angle: opp.recruiter_angle || 'N/A',
+          key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
+        };
+      })
+      .filter(opp => opp.company_name && opp.role); // Ensure required fields are present
+
+    if (validatedOpportunities.length === 0) {
+       throw new Error("No valid opportunities to save after validation.");
+    }
+
+    const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(validatedOpportunities).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
     // --- Step 5: Conditional Outreach Generation ---
