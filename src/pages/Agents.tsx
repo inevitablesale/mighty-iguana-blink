@@ -26,7 +26,7 @@ const Agents = () => {
 
     const { data, error } = await supabase
       .from("agents")
-      .select("id, name, prompt, last_run_at, autonomy_level, search_lookback_hours, max_results")
+      .select("id, name, prompt, last_run_at, autonomy_level, search_lookback_hours, max_results, job_type, is_remote")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 

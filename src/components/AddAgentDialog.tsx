@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
@@ -30,6 +31,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
   const [searchLookbackHours, setSearchLookbackHours] = useState("720");
   const [maxResults, setMaxResults] = useState("20");
+  const [jobType, setJobType] = useState("");
+  const [isRemote, setIsRemote] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -52,6 +55,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       autonomy_level: autonomyLevel,
       search_lookback_hours: parseInt(searchLookbackHours, 10),
       max_results: parseInt(maxResults, 10),
+      job_type: jobType || null,
+      is_remote: isRemote,
     });
 
     setIsSaving(false);
@@ -66,6 +71,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       setAutonomyLevel("semi-automatic");
       setSearchLookbackHours("720");
       setMaxResults("20");
+      setJobType("");
+      setIsRemote(false);
       setOpen(false);
     }
   };
@@ -106,7 +113,21 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+             <div className="space-y-2">
+              <Label htmlFor="job-type">Job Type</Label>
+              <Select value={jobType} onValueChange={setJobType}>
+                <SelectTrigger id="job-type">
+                  <SelectValue placeholder="Any" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fulltime">Full-time</SelectItem>
+                  <SelectItem value="parttime">Part-time</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="internship">Internship</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="space-y-2">
               <Label htmlFor="lookback">Search Lookback</Label>
               <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
                 <SelectTrigger id="lookback">
@@ -119,7 +140,9 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+          </div>
+           <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-2">
               <Label htmlFor="max-results">Max Results</Label>
               <Input
                 id="max-results"
@@ -128,6 +151,12 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 onChange={(e) => setMaxResults(e.target.value)}
                 placeholder="e.g., 20"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="is-remote">Remote Only</Label>
+              <div className="flex items-center h-full">
+                <Switch id="is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
+              </div>
             </div>
           </div>
           <div className="space-y-3">

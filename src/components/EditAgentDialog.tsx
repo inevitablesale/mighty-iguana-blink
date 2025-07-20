@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Agent, AutonomyLevel } from "@/types/index";
@@ -31,6 +32,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
   const [searchLookbackHours, setSearchLookbackHours] = useState("720");
   const [maxResults, setMaxResults] = useState("20");
+  const [jobType, setJobType] = useState("");
+  const [isRemote, setIsRemote] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -40,6 +43,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
       setAutonomyLevel(agent.autonomy_level);
       setSearchLookbackHours(agent.search_lookback_hours.toString());
       setMaxResults(agent.max_results.toString());
+      setJobType(agent.job_type || "");
+      setIsRemote(agent.is_remote || false);
     }
   }, [agent]);
 
@@ -58,6 +63,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
         autonomy_level: autonomyLevel,
         search_lookback_hours: parseInt(searchLookbackHours, 10),
         max_results: parseInt(maxResults, 10),
+        job_type: jobType || null,
+        is_remote: isRemote,
       })
       .eq("id", agent.id);
 
@@ -93,6 +100,20 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="edit-job-type">Job Type</Label>
+              <Select value={jobType} onValueChange={setJobType}>
+                <SelectTrigger id="edit-job-type">
+                  <SelectValue placeholder="Any" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fulltime">Full-time</SelectItem>
+                  <SelectItem value="parttime">Part-time</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="internship">Internship</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="edit-lookback">Search Lookback</Label>
               <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
                 <SelectTrigger id="edit-lookback">
@@ -105,6 +126,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-max-results">Max Results</Label>
               <Input
@@ -114,6 +137,12 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
                 onChange={(e) => setMaxResults(e.target.value)}
                 placeholder="e.g., 20"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-is-remote">Remote Only</Label>
+              <div className="flex items-center h-full">
+                <Switch id="edit-is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
+              </div>
             </div>
           </div>
           <div className="space-y-3">

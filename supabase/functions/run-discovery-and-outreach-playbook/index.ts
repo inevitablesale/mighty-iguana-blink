@@ -54,7 +54,7 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results').eq('id', agentId).eq('user_id', user.id).single();
+    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -87,7 +87,15 @@ serve(async (req) => {
     const lookbackHours = parseInt(agent.search_lookback_hours, 10) || 720;
     const maxResults = parseInt(agent.max_results, 10) || 20;
 
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${lookbackHours}&results=${maxResults}`;
+    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${lookbackHours}&results=${maxResults}`;
+    
+    if (agent.job_type) {
+      scrapingUrl += `&job_type=${agent.job_type}`;
+    }
+    if (agent.is_remote) {
+      scrapingUrl += `&is_remote=true`;
+    }
+
     console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);
     
     const scrapingResponse = await fetch(scrapingUrl, {
