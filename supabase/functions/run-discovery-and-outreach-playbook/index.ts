@@ -32,7 +32,12 @@ async function callGemini(prompt, apiKey) {
   const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
   
-  return JSON.parse(aiResponseText);
+  try {
+    return JSON.parse(aiResponseText);
+  } catch (e) {
+    console.error("Failed to parse Gemini JSON response:", aiResponseText);
+    throw new Error(`JSON parsing error: ${e.message}`);
+  }
 }
 
 
@@ -60,121 +65,95 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // --- Step 1: Generate a search query, location, and sites from the agent's prompt ---
+    // --- Step 1: Generate search query ---
     console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
       Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location (city/state/province). **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
-
       Available sites are: linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri.
       For most professional roles in the US or Europe, use 'linkedin,indeed,zip_recruiter,glassdoor,google'. If the specialty mentions India, include 'naukri'. If it mentions the Middle East, include 'bayt'.
       If no specific location is mentioned, default the location to "Remote".
-
       Return ONLY a single, valid JSON object with three keys: "search_query", "location", and "sites".
       Example for "nurses in Georgia": { "search_query": "nurse", "location": "Georgia", "sites": "linkedin,indeed,zip_recruiter,glassdoor,google" }
     `;
-    
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
-
     console.log(`Extracted search parameters: Query='${searchQuery}', Location='${location}', Sites='${sites}'`);
+    if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
 
-    if (!searchQuery || !location || !sites) {
-      throw new Error("AI failed to extract a search query, location, and sites from the agent's prompt.");
-    }
-
-    // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
+    // --- Step 2: Scrape Jobs ---
     const lookbackHours = parseInt(agent.search_lookback_hours, 10) || 720;
     const maxResults = parseInt(agent.max_results, 10) || 20;
-
     let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${maxResults}`;
-    
     const usesIndeedOrGlassdoor = sites.includes('indeed') || sites.includes('glassdoor');
-
-    if (usesIndeedOrGlassdoor && agent.country) {
-      scrapingUrl += `&country_indeed=${agent.country}`;
-    }
-
-    // Handle Indeed/LinkedIn limitations: only one of hours_old OR (job_type & is_remote)
+    if (usesIndeedOrGlassdoor && agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
     if (usesIndeedOrGlassdoor) {
       if (agent.job_type || agent.is_remote) {
-        if (agent.job_type) {
-          scrapingUrl += `&job_type=${agent.job_type}`;
-        }
-        if (agent.is_remote) {
-          scrapingUrl += `&is_remote=true`;
-        }
+        if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
+        if (agent.is_remote) scrapingUrl += `&is_remote=true`;
       } else {
         scrapingUrl += `&hours_old=${lookbackHours}`;
       }
     } else {
-      // For other sites, we can add all params
       scrapingUrl += `&hours_old=${lookbackHours}`;
-      if (agent.job_type) {
-        scrapingUrl += `&job_type=${agent.job_type}`;
-      }
-      if (agent.is_remote) {
-        scrapingUrl += `&is_remote=true`;
-      }
+      if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
+      if (agent.is_remote) scrapingUrl += `&is_remote=true`;
     }
-
     console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);
-    
-    const scrapingResponse = await fetch(scrapingUrl, {
-      signal: AbortSignal.timeout(30000) // Using native fetch with a 30-second timeout
-    });
-
+    const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
     if (!scrapingResponse.ok) {
       const errorBody = await scrapingResponse.text();
-      console.error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
       throw new Error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
     }
-
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
-
     console.log(`Scraping returned ${rawJobResults?.length || 0} raw job results.`);
-    if (rawJobResults && rawJobResults.length > 0) {
-      console.log("Raw job results:", JSON.stringify(rawJobResults, null, 2));
-    }
-
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
       return new Response(JSON.stringify({ message: `Agent ran using query "${searchQuery}" in "${location}" on sites [${sites}] but found no new job opportunities this time.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- Step 3: Enrich scraped data with AI analysis ---
-    console.log("Step 3: Enriching scraped data with AI analysis...");
-    const enrichmentPrompt = `
-      You are a world-class recruiting strategist and business development analyst. Your task is to perform a deep analysis of raw job postings and transform them into actionable intelligence for a recruiter looking for new clients.
+    // --- Step 3: Enrich scraped data with AI analysis (one by one) ---
+    console.log(`Step 3: Enriching ${rawJobResults.length} jobs with AI analysis (one by one)...`);
+    
+    const enrichmentPromises = rawJobResults.map(job => {
+      const singleEnrichmentPrompt = `
+        You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's specialty.
+        Recruiter's specialty: "${agent.prompt}"
+        Job Posting: ${JSON.stringify(job)}
 
-      The recruiter's specialty is: "${agent.prompt}".
-      Here is the list of raw job listings:
-      ${JSON.stringify(rawJobResults)}
+        Return a single, valid JSON object with the following keys:
+        - "companyName": The original company name.
+        - "role": The original job title.
+        - "location": The original location.
+        - "company_overview": A concise sentence about what the company does.
+        - "match_score": A score from 1-10 on how well this role aligns with the recruiter's specialty.
+        - "contract_value_assessment": A detailed assessment of the potential contract value (e.g., "High - Executive search...").
+        - "hiring_urgency": Your assessment of hiring urgency (High, Medium, or Low) with justification.
+        - "pain_points": A bulleted list (as a single string with '\\n- ' separators) of 2-3 pain points this role solves.
+        - "recruiter_angle": A strategic recommendation for the recruiter's outreach angle.
+        - "key_signal_for_outreach": A concise, single sentence for a personalized email opening line.
 
-      For each job, conduct a thorough analysis and return a JSON object with the following keys:
-      - "companyName": The original company name.
-      - "role": The original job title.
-      - "location": The original location.
-      - "company_overview": A single, concise sentence describing what the company does.
-      - "match_score": A score from 1-10 on how well this specific role aligns with the recruiter's stated specialty.
-      - "contract_value_assessment": A detailed text assessment of the potential contract value (e.g., "High - Executive search for a critical leadership role, likely a retained search with a fee of $75k+"). Be specific about why.
-      - "hiring_urgency": Your assessment of the company's hiring urgency (High, Medium, or Low), with a brief justification based on signals in the job description.
-      - "pain_points": A bulleted list (as a single string with '\\n- ' separators) of 2-3 specific pain points this role is likely intended to solve for the company.
-      - "recruiter_angle": A short, strategic recommendation for how the recruiter should position themselves in their outreach (e.g., "Position yourself as a specialist in scaling Series B fintech engineering teams.").
-      - "key_signal_for_outreach": A concise, single sentence that the recruiter can use as a personalized opening line in an outreach email. This should be based on the job description or company.
+        **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
+      `;
+      return callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+    });
 
-      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
-      **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text"). This is vital for creating a valid JSON object.**
-    `;
+    const settledEnrichments = await Promise.allSettled(enrichmentPromises);
+    
+    const enrichedOpportunities = [];
+    settledEnrichments.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        enrichedOpportunities.push(result.value);
+      } else {
+        console.error(`Failed to enrich job #${index} (${rawJobResults[index].title}):`, result.reason.message);
+      }
+    });
 
-    const enrichmentResult = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
-    const enrichedOpportunities = enrichmentResult.enriched_opportunities;
-
-    if (!enrichedOpportunities || enrichedOpportunities.length === 0) {
-      throw new Error("AI analysis failed to return enriched opportunities.");
+    if (enrichedOpportunities.length === 0) {
+      throw new Error("AI analysis failed to enrich any opportunities.");
     }
-    console.log(`Enriched ${enrichedOpportunities.length} opportunities.`);
+    console.log(`Successfully enriched ${enrichedOpportunities.length} opportunities.`);
 
     // --- Step 4: Save Enriched Opportunities ---
     console.log("Step 4: Saving enriched opportunities to the database...");
@@ -199,9 +178,9 @@ serve(async (req) => {
 
     let outreachMessage = '';
 
-    // --- Step 5: Conditional Outreach Generation (in parallel) ---
+    // --- Step 5: Conditional Outreach Generation ---
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
-        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities based on autonomy level '${agent.autonomy_level}'...`);
+        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities...`);
         const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
         
         const campaignPromises = savedOpportunities.map(async (opp) => {
