@@ -26,32 +26,43 @@ const App = () => {
 
   const sendTokenToExtension = (session: Session | null) => {
     const extensionId = localStorage.getItem('coogiExtensionId');
-    if (chrome.runtime && extensionId) {
-      if (session) {
-        chrome.runtime.sendMessage(
-          extensionId,
-          {
-            type: "SET_TOKEN",
-            token: session.access_token,
-            userId: session.user.id,
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              console.warn(
-                "Could not connect to the extension. Ensure it's installed, enabled, and the app's URL is in manifest.json.",
-                chrome.runtime.lastError.message
-              );
-            } else if (response?.success) {
-              console.log(
-                "%c✅ Successfully connected to the Coogi Chrome Extension!",
-                "color: #22c55e; font-size: 14px; font-weight: bold;"
-              );
-            } else {
-              console.warn("Extension responded with an error:", response?.message);
+
+    if (!extensionId) {
+      console.warn("Coogi Chrome Extension ID not found. Please set it on the Profile page.");
+      return;
+    }
+
+    if (chrome.runtime && session) {
+      console.log(`Attempting to connect to Chrome Extension with ID: ${extensionId}`);
+      chrome.runtime.sendMessage(
+        extensionId,
+        {
+          type: "SET_TOKEN",
+          token: session.access_token,
+          userId: session.user.id,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              `%c❌ Failed to connect to the Chrome Extension.`,
+              "color: #ef4444; font-size: 14px; font-weight: bold;",
+              `\nError: ${chrome.runtime.lastError.message}`,
+              `\n\nTroubleshooting:`,
+              `\n1. Verify the Extension ID on your Profile page is correct.`,
+              `\n2. Ensure your extension's manifest.json allows connection from this app's URL.`,
+              `\n3. Reload the extension from chrome://extensions after any changes.`
+            );
+          } else {
+            console.log(
+              "%c✅ Successfully connected to the Coogi Chrome Extension!",
+              "color: #22c55e; font-size: 14px; font-weight: bold;"
+            );
+            if (response) {
+              console.log("Received response from extension:", response);
             }
           }
-        );
-      }
+        }
+      );
     }
   };
 
