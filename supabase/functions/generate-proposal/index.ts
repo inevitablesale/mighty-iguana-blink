@@ -50,6 +50,7 @@ The proposal should include the following sections:
 
 Make the language professional, clear, and legally sound, but avoid overly complex jargon.
 The entire output must be a single valid JSON object.
+**Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
 `;
 
     const geminiResponse = await fetch(

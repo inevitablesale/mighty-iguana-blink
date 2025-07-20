@@ -42,6 +42,7 @@ Generate a JSON object with the following keys:
 - "hiringAnalysis": A brief analysis of their likely hiring needs based *only* on the factual information you have gathered.
 
 The entire output must be a single valid JSON object.
+**Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
 `;
 
     const geminiResponse = await fetch(

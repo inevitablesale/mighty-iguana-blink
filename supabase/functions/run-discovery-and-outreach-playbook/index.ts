@@ -164,7 +164,8 @@ serve(async (req) => {
       - "recruiter_angle": A short, strategic recommendation for how the recruiter should position themselves in their outreach (e.g., "Position yourself as a specialist in scaling Series B fintech engineering teams.").
       - "key_signal_for_outreach": A concise, single sentence that the recruiter can use as a personalized opening line in an outreach email. This should be based on the job description or company.
 
-      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects. Ensure all fields are populated with insightful, non-generic information.
+      Return ONLY a single, valid JSON object with a key "enriched_opportunities" containing an array of these analysis objects.
+      **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text"). This is vital for creating a valid JSON object.**
     `;
 
     const enrichmentResult = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
@@ -214,6 +215,7 @@ serve(async (req) => {
                   Calendly link: ${profile?.calendly_url || '(not provided)'}.
                   Guidelines: Professional, concise (2-3 short paragraphs), personalized hook, clear call to action. Do NOT use placeholders.
                   Return a JSON object with four keys: "subject", "body", "contact_name" (a plausible job title for the hiring manager, e.g., "Head of Talent Acquisition"), and "contact_email" (a best-guess email address, e.g., "careers@${opp.company_name.toLowerCase().replace(/ /g, '').replace(/\./g, '')}.com").
+                  **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
                 `;
 
                 const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);

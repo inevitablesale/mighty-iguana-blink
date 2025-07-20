@@ -68,6 +68,7 @@ serve(async (req) => {
       6.  Do NOT use placeholders like "[Your Name]".
 
       Return a JSON object with two keys: "subject" and "body". The subject line should be compelling and reference the role.
+      **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
     `;
 
     const geminiResponse = await fetch(
