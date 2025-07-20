@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
 import { AutonomyLevel } from "@/types/index";
+import { supportedCountries } from "@/lib/countries";
 
 interface AddAgentDialogProps {
   onAgentCreated: () => void;
@@ -33,6 +34,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [maxResults, setMaxResults] = useState("20");
   const [jobType, setJobType] = useState("");
   const [isRemote, setIsRemote] = useState(false);
+  const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -57,6 +59,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       max_results: parseInt(maxResults, 10),
       job_type: jobType || null,
       is_remote: isRemote,
+      country: country || null,
     });
 
     setIsSaving(false);
@@ -73,6 +76,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
       setMaxResults("20");
       setJobType("");
       setIsRemote(false);
+      setCountry("");
       setOpen(false);
     }
   };
@@ -103,16 +107,28 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prompt">Specialty</Label>
+            <Label htmlFor="prompt">Specialty & Location</Label>
             <Textarea
               id="prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g., 'I specialize in placing VPs of Sales...'"
+              placeholder="e.g., 'I specialize in placing VPs of Sales in the New York City area...'"
               rows={3}
             />
+             <p className="text-xs text-muted-foreground">The AI will extract the job title and city/state from this prompt.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger id="country">
+                  <SelectValue placeholder="Select Country (for Indeed/Glassdoor)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {supportedCountries.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
              <div className="space-y-2">
               <Label htmlFor="job-type">Job Type</Label>
               <Select value={jobType} onValueChange={setJobType}>
@@ -127,6 +143,8 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-2">
               <Label htmlFor="lookback">Search Lookback</Label>
               <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
@@ -140,9 +158,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="max-results">Max Results</Label>
               <Input
                 id="max-results"
@@ -152,12 +168,10 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 placeholder="e.g., 20"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="is-remote">Remote Only</Label>
-              <div className="flex items-center h-full">
-                <Switch id="is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
-              </div>
-            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch id="is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
+            <Label htmlFor="is-remote">Remote Only</Label>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>

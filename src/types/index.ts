@@ -50,6 +50,7 @@ export interface Agent {
   max_results: number;
   job_type?: string | null;
   is_remote?: boolean;
+  country?: string | null;
 }
 
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';

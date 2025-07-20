@@ -54,7 +54,7 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote').eq('id', agentId).eq('user_id', user.id).single();
+    const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote, country').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -63,7 +63,7 @@ serve(async (req) => {
     // --- Step 1: Generate a search query, location, and sites from the agent's prompt ---
     console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
-      Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location. **The search query should NOT contain the location name.**
+      Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location (city/state/province). **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
 
       Available sites are: linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri.
@@ -87,13 +87,35 @@ serve(async (req) => {
     const lookbackHours = parseInt(agent.search_lookback_hours, 10) || 720;
     const maxResults = parseInt(agent.max_results, 10) || 20;
 
-    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=${lookbackHours}&results=${maxResults}`;
+    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${maxResults}`;
     
-    if (agent.job_type) {
-      scrapingUrl += `&job_type=${agent.job_type}`;
+    const usesIndeedOrGlassdoor = sites.includes('indeed') || sites.includes('glassdoor');
+
+    if (usesIndeedOrGlassdoor && agent.country) {
+      scrapingUrl += `&country_indeed=${agent.country}`;
     }
-    if (agent.is_remote) {
-      scrapingUrl += `&is_remote=true`;
+
+    // Handle Indeed/LinkedIn limitations: only one of hours_old OR (job_type & is_remote)
+    if (usesIndeedOrGlassdoor) {
+      if (agent.job_type || agent.is_remote) {
+        if (agent.job_type) {
+          scrapingUrl += `&job_type=${agent.job_type}`;
+        }
+        if (agent.is_remote) {
+          scrapingUrl += `&is_remote=true`;
+        }
+      } else {
+        scrapingUrl += `&hours_old=${lookbackHours}`;
+      }
+    } else {
+      // For other sites, we can add all params
+      scrapingUrl += `&hours_old=${lookbackHours}`;
+      if (agent.job_type) {
+        scrapingUrl += `&job_type=${agent.job_type}`;
+      }
+      if (agent.is_remote) {
+        scrapingUrl += `&is_remote=true`;
+      }
     }
 
     console.log(`Step 2: Scraping jobs from URL: ${scrapingUrl}`);

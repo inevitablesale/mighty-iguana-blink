@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Agent, AutonomyLevel } from "@/types/index";
+import { supportedCountries } from "@/lib/countries";
 
 interface EditAgentDialogProps {
   agent: Agent;
@@ -34,6 +35,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
   const [maxResults, setMaxResults] = useState("20");
   const [jobType, setJobType] = useState("");
   const [isRemote, setIsRemote] = useState(false);
+  const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
       setMaxResults(agent.max_results.toString());
       setJobType(agent.job_type || "");
       setIsRemote(agent.is_remote || false);
+      setCountry(agent.country || "");
     }
   }, [agent]);
 
@@ -65,6 +68,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
         max_results: parseInt(maxResults, 10),
         job_type: jobType || null,
         is_remote: isRemote,
+        country: country || null,
       })
       .eq("id", agent.id);
 
@@ -95,10 +99,22 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="prompt">Specialty</Label>
+            <Label htmlFor="prompt">Specialty & Location</Label>
             <Textarea id="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+            <p className="text-xs text-muted-foreground">The AI will extract the job title and city/state from this prompt.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-country">Country</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger id="edit-country">
+                  <SelectValue placeholder="Select Country (for Indeed/Glassdoor)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {supportedCountries.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="edit-job-type">Job Type</Label>
               <Select value={jobType} onValueChange={setJobType}>
@@ -113,6 +129,8 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-lookback">Search Lookback</Label>
               <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
@@ -126,8 +144,6 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-max-results">Max Results</Label>
               <Input
@@ -138,12 +154,10 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
                 placeholder="e.g., 20"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-is-remote">Remote Only</Label>
-              <div className="flex items-center h-full">
-                <Switch id="edit-is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
-              </div>
-            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch id="edit-is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
+            <Label htmlFor="edit-is-remote">Remote Only</Label>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>
@@ -164,7 +178,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
                 <RadioGroupItem value="automatic" id="edit-automatic" />
-                <Label htmlFor="edit-automatic" className="font-normal">
+                <Label htmlFor="automatic" className="font-normal">
                   <span className="font-semibold">Automatic</span>
                   <p className="text-sm text-muted-foreground">Agent finds opportunities, drafts outreach, and sends emails automatically.</p>
                 </Label>
