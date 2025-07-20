@@ -3,7 +3,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import axios from 'https://esm.sh/axios@1.7.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,8 +82,17 @@ serve(async (req) => {
     // --- Step 2: Scrape Jobs using the custom JobSpyMy API ---
     const scrapingUrl = `https://jobspymy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&hours_old=24&results=20`;
     
-    const scrapingResponse = await axios.get(scrapingUrl, { timeout: 20000 });
-    const rawJobResults = scrapingResponse.data?.jobs;
+    const scrapingResponse = await fetch(scrapingUrl, {
+      signal: AbortSignal.timeout(30000) // Using native fetch with a 30-second timeout
+    });
+
+    if (!scrapingResponse.ok) {
+      const errorBody = await scrapingResponse.text();
+      throw new Error(`Job scraping API failed with status ${scrapingResponse.status}: ${errorBody}`);
+    }
+
+    const scrapingData = await scrapingResponse.json();
+    const rawJobResults = scrapingData?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
