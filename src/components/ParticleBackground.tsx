@@ -1,22 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import Particles from "react-tsparticles";
-import { initParticlesEngine } from "tsparticles-engine";
+import type { Engine, ISourceOptions } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
 import { useTheme } from "next-themes";
 
 export const ParticleBackground = () => {
-  const [init, setInit] = useState(false);
   const { theme } = useTheme();
 
-  useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-    }).then(() => {
-      setInit(true);
-    });
+  const particlesInit = useCallback(async (engine: Engine) => {
+    await loadSlim(engine);
   }, []);
 
-  const particlesOptions = useMemo(
+  const particlesOptions: ISourceOptions = useMemo(
     () => ({
       background: {
         color: {
@@ -82,10 +77,5 @@ export const ParticleBackground = () => {
     [theme],
   );
 
-  if (init) {
-    // @ts-ignore
-    return <Particles id="tsparticles" options={particlesOptions} className="absolute inset-0 -z-10" />;
-  }
-
-  return null;
+  return <Particles id="tsparticles" init={particlesInit} options={particlesOptions} className="absolute inset-0 -z-10" />;
 };
