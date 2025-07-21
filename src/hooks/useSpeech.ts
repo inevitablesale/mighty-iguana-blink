@@ -1,37 +1,44 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import { pipeline, env } from '@xenova/transformers';
 
-// Define a minimal interface for the SpeechRecognition instance to provide the type.
-interface SpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: (event: any) => void;
-  onend: () => void;
-  onerror: (event: any) => void;
-  start: () => void;
-  stop: () => void;
-}
+// Since we're running in the browser, we need to disable local model checking
+env.allowLocalModels = false;
 
-// Define the type for the constructor.
-type SpeechRecognitionConstructor = new () => SpeechRecognition;
-
-// Extend the window object with the correct constructor type.
-interface IWindow extends Window {
-  SpeechRecognition: SpeechRecognitionConstructor;
-  webkitSpeechRecognition: SpeechRecognitionConstructor;
-}
-
-const SpeechRecognition = (window as unknown as IWindow).SpeechRecognition || (window as unknown as IWindow).webkitSpeechRecognition;
+// Define the type for our transcription pipeline
+type Transcriber = (audio: Float32Array) => Promise<{ text: string }>;
 
 export function useSpeech() {
+  const [isModelLoading, setIsModelLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // --- Speech Synthesis (Text-to-Speech) ---
+  const transcriberRef = useRef<Transcriber | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // --- Model Initialization ---
+  useEffect(() => {
+    const loadModel = async () => {
+      if (transcriberRef.current) return;
+      setIsModelLoading(true);
+      const toastId = toast.loading("Loading speech model for the first time. This may take a moment...");
+      try {
+        transcriberRef.current = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+        toast.success("Speech model loaded successfully.", { id: toastId });
+      } catch (error) {
+        console.error("Failed to load speech model:", error);
+        toast.error("Could not load the speech recognition model.", { id: toastId });
+      } finally {
+        setIsModelLoading(false);
+      }
+    };
+    loadModel();
+  }, []);
+
+  // --- Speech Synthesis (Text-to-Speech) - Unchanged ---
   const cancelSpeech = useCallback(() => {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -39,123 +46,95 @@ export function useSpeech() {
     }
   }, []);
 
-  // --- Speech Recognition (Speech-to-Text) ---
-  useEffect(() => {
-    if (!SpeechRecognition) {
-      console.warn("Speech recognition is not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event) => {
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-      }
-
-      let interimTranscript = '';
-      let currentFinalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          currentFinalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      
-      let full_transcript_for_display = "";
-      for (const res of event.results) {
-          full_transcript_for_display += res[0].transcript;
-      }
-      setTranscript(full_transcript_for_display);
-
-      if (currentFinalTranscript.trim()) {
-        setFinalTranscript(currentFinalTranscript.trim());
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-    
-    recognition.onerror = (event) => {
-      if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'not-allowed') {
-        console.warn(`Speech recognition error (ignoring): ${event.error}`);
-        setIsListening(false);
-        return;
-      }
-      console.error('Speech recognition error', event.error);
-      toast.error(`Speech recognition error: ${event.error}`);
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-  }, []);
-
-  const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        setTranscript('');
-        setFinalTranscript('');
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'InvalidStateError') {
-          console.warn('Speech recognition already started. Ignoring redundant call.');
-        } else {
-          console.error('Failed to start speech recognition:', error);
-          toast.error('Could not start microphone.');
-          setIsListening(false);
-        }
-      }
-    }
-  }, [isListening]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-      // Let the `onend` event handle setting `isListening` to false to avoid race conditions.
-    }
-  }, [isListening]);
-
   const speak = useCallback((text: string) => {
-    if (!window.speechSynthesis) {
-      console.warn("Speech synthesis is not supported in this browser.");
-      return;
-    }
+    if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    utterance.rate = 1;
-    utterance.pitch = 1;
-
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (event) => {
-      if (event.error === 'interrupted') {
-        console.log('Speech synthesis was interrupted.');
-      } else {
-        console.error('Speech synthesis error', event.error);
-        toast.error(`Speech synthesis error: ${event.error}`);
-      }
-      setIsSpeaking(false);
-    };
-
+    utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
   }, []);
 
+  // --- Speech Recognition (Speech-to-Text) - New Implementation ---
+  const transcribeAudio = async () => {
+    if (audioChunksRef.current.length === 0 || !transcriberRef.current) return;
+
+    const toastId = toast.loading("Transcribing audio...");
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const decodedAudio = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Resample to 16kHz, which is what Whisper expects
+      const targetSampleRate = 16000;
+      const offlineContext = new OfflineAudioContext(decodedAudio.numberOfChannels, decodedAudio.duration * targetSampleRate, targetSampleRate);
+      const bufferSource = offlineContext.createBufferSource();
+      bufferSource.buffer = decodedAudio;
+      bufferSource.connect(offlineContext.destination);
+      bufferSource.start();
+      const resampledAudio = await offlineContext.startRendering();
+      
+      const audioData = resampledAudio.getChannelData(0);
+      
+      const result = await transcriberRef.current(audioData);
+      
+      if (result && typeof result.text === 'string') {
+        const newTranscript = result.text.trim();
+        setTranscript(newTranscript);
+        setFinalTranscript(newTranscript);
+        toast.success("Transcription complete.", { id: toastId });
+      } else {
+        throw new Error("Invalid transcription result.");
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      toast.error("Failed to transcribe audio.", { id: toastId });
+    } finally {
+      audioChunksRef.current = [];
+    }
+  };
+
+  const startListening = useCallback(async () => {
+    if (isListening || isModelLoading) return;
+
+    setTranscript('');
+    setFinalTranscript('');
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorderRef.current.onstop = transcribeAudio;
+      
+      mediaRecorderRef.current.start();
+      setIsListening(true);
+    } catch (error) {
+      console.error("Failed to start listening:", error);
+      toast.error("Microphone access denied or failed.");
+    }
+  }, [isListening, isModelLoading]);
+
+  const stopListening = useCallback(() => {
+    if (!isListening || !mediaRecorderRef.current) return;
+    
+    mediaRecorderRef.current.stop(); // This will trigger the 'onstop' event
+    mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+    setIsListening(false);
+  }, [isListening]);
+
+  // Cleanup
   useEffect(() => {
     return () => {
-      if (recognitionRef.current) {
-        // Clean up handlers to prevent memory leaks
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.stop();
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       }
       cancelSpeech();
     };
@@ -172,6 +151,7 @@ export function useSpeech() {
     isSpeaking,
     speak,
     cancelSpeech,
-    isSupported: !!SpeechRecognition && !!window.speechSynthesis,
+    isSupported: !!(navigator.mediaDevices && (window.AudioContext || window.webkitAudioContext)),
+    isModelLoading,
   };
 }

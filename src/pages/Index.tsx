@@ -22,6 +22,7 @@ export default function Index() {
     cancelSpeech,
     finalTranscript,
     clearFinalTranscript,
+    isModelLoading,
   } = useSpeech();
 
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
@@ -56,13 +57,13 @@ export default function Index() {
 
   // Manage the continuous listening loop for Conversation Mode
   useEffect(() => {
-    if (isConversationModeActive && !isListening && !isAiSpeaking) {
+    if (isConversationModeActive && !isListening && !isAiSpeaking && !isModelLoading) {
       startListening();
     } else if (!isConversationModeActive && isListening) {
       stopListening();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConversationModeActive, isListening, isAiSpeaking]);
+  }, [isConversationModeActive, isListening, isAiSpeaking, isModelLoading]);
 
   // Listen for directives from the AI to open dialogs
   useEffect(() => {
@@ -104,12 +105,13 @@ export default function Index() {
           {isSupported ? (
             <VoiceCommandInput
               onSubmit={handleCommandSubmit}
-              disabled={isListening}
+              disabled={isListening || isModelLoading}
               isListening={isListening}
               startListening={startListening}
               stopListening={stopListening}
               transcript={transcript}
               setTranscript={setTranscript}
+              isModelLoading={isModelLoading}
             />
           ) : (
             <p className="text-red-500 font-semibold text-center">
