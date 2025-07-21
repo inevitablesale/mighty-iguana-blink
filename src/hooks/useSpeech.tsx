@@ -12,7 +12,7 @@ declare global {
 }
 
 // The pipeline function can return a single object or an array of objects
-type Transcriber = (audio: string | Float32Array) => Promise<AutomaticSpeechRecognitionOutput | AutomaticSpeechRecognitionOutput[]>;
+type Transcriber = (audio: Float32Array) => Promise<AutomaticSpeechRecognitionOutput | AutomaticSpeechRecognitionOutput[]>;
 
 export function useSpeech() {
   const [isModelLoading, setIsModelLoading] = useState(false);
@@ -67,11 +67,14 @@ export function useSpeech() {
     if (audioChunksRef.current.length === 0 || !transcriberRef.current) return;
 
     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-    const audioUrl = URL.createObjectURL(audioBlob);
-
+    
     try {
-      // Pass the audio URL directly to the pipeline
-      const result = await transcriberRef.current(audioUrl);
+      const audioBuffer = await audioBlob.arrayBuffer();
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
+      const audioData = decodedAudio.getChannelData(0);
+
+      const result = await transcriberRef.current(audioData);
       
       const text = Array.isArray(result) ? result[0]?.text : result?.text;
 
@@ -80,15 +83,13 @@ export function useSpeech() {
         setTranscript(newTranscript);
         setFinalTranscript(newTranscript);
       } else {
-        // This can happen if the audio is silent or couldn't be transcribed
         console.log("Transcription result is empty or invalid.");
-        setTranscript(''); // Clear any partial transcript
+        setTranscript('');
       }
     } catch (error) {
       console.error("Transcription error:", error);
     } finally {
       audioChunksRef.current = [];
-      URL.revokeObjectURL(audioUrl); // Clean up the URL object to avoid memory leaks
     }
   };
 
