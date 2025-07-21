@@ -1,36 +1,37 @@
-import { Header } from "@/components/Header";
-import { useDashboardBriefings } from "@/hooks/useDashboardBriefings";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AIBriefingView } from "@/components/AIBriefingView";
-import { AllClearView } from "@/components/AllClearView";
+import { useDialogueManager } from '@/hooks/useDialogueManager';
+import { AIResponseNarrator } from '@/components/voice/AIResponseNarrator';
+import { DirectiveCard } from '@/components/voice/DirectiveCard';
+import { VoiceCommandInput } from '@/components/voice/VoiceCommandInput';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Index() {
-  const { briefings, loading: briefingsLoading, refresh: refreshBriefings } = useDashboardBriefings();
+  const { messages, isSpeaking, processUserCommand } = useDialogueManager();
 
-  const renderContent = () => {
-    if (briefingsLoading) {
-      return (
-        <div className="w-full max-w-2xl mx-auto space-y-6">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      );
-    }
-
-    if (briefings.length > 0) {
-      return <AIBriefingView briefings={briefings} onBriefingComplete={refreshBriefings} />;
-    }
-
-    return <AllClearView />;
-  };
+  const lastMessage = messages[messages.length - 1];
+  const lastAiMessage = messages.slice().reverse().find(m => m.speaker === 'ai');
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header title="Command Center" />
-      <main className="flex-1 flex items-center justify-center p-4 lg:p-6">
-        {renderContent()}
-      </main>
+    <div className="flex flex-col h-screen items-center justify-end p-4 md:p-8 pb-10">
+      <div className="flex flex-col items-center justify-end w-full h-full gap-8">
+        <AnimatePresence>
+          {lastMessage && lastMessage.speaker === 'ai' && (
+            <motion.div
+              key={lastMessage.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <AIResponseNarrator text={lastMessage.text} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <DirectiveCard directive={lastAiMessage?.directive || null} />
+      </div>
+
+      <div className="fixed bottom-10 w-full flex justify-center px-4">
+        <VoiceCommandInput onSubmit={processUserCommand} disabled={isSpeaking} />
+      </div>
     </div>
   );
 }
