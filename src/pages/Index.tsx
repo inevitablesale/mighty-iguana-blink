@@ -5,6 +5,7 @@ import { AIResponseNarrator } from '@/components/voice/AIResponseNarrator';
 import { DirectiveCard } from '@/components/voice/DirectiveCard';
 import { VoiceCommandInput } from '@/components/voice/VoiceCommandInput';
 import { AddAgentDialog } from '@/components/AddAgentDialog';
+import { ConversationModeToggle } from '@/components/voice/ConversationModeToggle';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Index() {
@@ -19,19 +20,29 @@ export default function Index() {
   } = useSpeech();
 
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
+  const [isConversationModeActive, setIsConversationModeActive] = useState(false);
 
   const lastMessage = messages[messages.length - 1];
   const lastAiMessage = messages.slice().reverse().find(m => m.speaker === 'ai');
 
-  // When the user stops speaking, process the command.
+  // Process command when user stops speaking (or submits text)
   useEffect(() => {
     if (!isListening && transcript) {
       processUserCommand(transcript);
-      setTranscript(''); // Clear transcript after processing
+      setTranscript('');
     }
   }, [isListening, transcript, processUserCommand, setTranscript]);
 
-  // Listen for directives from the AI
+  // Manage the continuous listening loop for Conversation Mode
+  useEffect(() => {
+    if (isConversationModeActive && !isListening && !isAiSpeaking) {
+      startListening();
+    } else if (!isConversationModeActive && isListening) {
+      stopListening();
+    }
+  }, [isConversationModeActive, isListening, isAiSpeaking, startListening, stopListening]);
+
+  // Listen for directives from the AI to open dialogs
   useEffect(() => {
     if (lastAiMessage?.directive?.type === 'open-dialog' && lastAiMessage.directive.payload === 'add-agent') {
       setIsAddAgentDialogOpen(true);
@@ -40,6 +51,10 @@ export default function Index() {
 
   return (
     <>
+      <ConversationModeToggle
+        isConversationMode={isConversationModeActive}
+        onToggle={setIsConversationModeActive}
+      />
       <div className="flex flex-col h-screen items-center justify-end p-4 md:p-8 pb-10">
         <div className="flex flex-col items-center justify-end w-full h-full gap-8">
           <AnimatePresence>
@@ -62,7 +77,7 @@ export default function Index() {
           {isSupported ? (
             <VoiceCommandInput
               onSubmit={processUserCommand}
-              disabled={isAiSpeaking}
+              disabled={isAiSpeaking && !isConversationModeActive}
               isListening={isListening}
               startListening={startListening}
               stopListening={stopListening}

@@ -48,7 +48,7 @@ export function VoiceCommandInput({
         <Input
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
-          placeholder="Speak or type your command..."
+          placeholder={isListening ? "Listening..." : "Speak or type your command..."}
           className="h-14 pl-14 pr-28 text-lg rounded-full bg-background/80 backdrop-blur-sm"
           disabled={disabled}
         />
@@ -57,6 +57,7 @@ export function VoiceCommandInput({
           size="icon"
           onClick={handleMicClick}
           className={`absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full coogi-gradient-bg text-primary-foreground transition-transform ${isListening ? 'animate-pulse scale-110' : ''}`}
+          disabled={disabled && !isListening}
         >
           {isListening ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
@@ -71,7 +72,7 @@ export function VoiceCommandInput({
         </Button>
       </form>
       <p className="text-center text-xs text-muted-foreground mt-2">
-        Click the microphone to speak. The AI will respond when you stop.
+        Enable Conversation Mode for hands-free interaction.
       </p>
     </motion.div>
   );
