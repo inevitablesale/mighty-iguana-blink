@@ -89,6 +89,32 @@
   }
 }
 
+@layer utilities {
+  @keyframes animated-gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .dynamic-canvas-bg {
+    background: linear-gradient(
+      -45deg,
+      hsl(var(--background)),
+      hsl(var(--primary) / 0.05),
+      hsl(var(--secondary) / 0.05),
+      hsl(var(--background))
+    );
+    background-size: 400% 400%;
+    animation: animated-gradient 20s ease infinite;
+  }
+}
+
 @layer components {
   .sidebar-gradient {
     background-image: linear-gradient(to bottom, hsl(var(--sidebar-bg-start)), hsl(var(--sidebar-bg-mid)), hsl(var(--sidebar-bg-end)));

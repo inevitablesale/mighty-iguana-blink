@@ -6,6 +6,7 @@ import { DirectiveCard } from '@/components/voice/DirectiveCard';
 import { VoiceCommandInput } from '@/components/voice/VoiceCommandInput';
 import { AddAgentDialog } from '@/components/AddAgentDialog';
 import { ConversationModeToggle } from '@/components/voice/ConversationModeToggle';
+import { AIBrainOrb } from '@/components/voice/AIBrainOrb';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Index() {
@@ -83,20 +84,26 @@ export default function Index() {
           }
         }}
       />
-      <div className="flex flex-col h-screen items-center justify-end p-4 md:p-8 pb-10">
-        <div className="flex flex-col items-center justify-end w-full h-full gap-8">
-          <AnimatePresence>
-            {lastMessage && lastMessage.speaker === 'ai' && (
-              <motion.div
-                key={lastMessage.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-              >
-                <AIResponseNarrator text={lastMessage.text} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+      <div className="dynamic-canvas-bg flex flex-col h-screen items-center justify-center p-4 md:p-8 pb-32 relative overflow-hidden">
+        
+        <div className="flex flex-col items-center gap-8 text-center">
+          <AIBrainOrb isListening={isListening} isSpeaking={isAiSpeaking} />
+          
+          <div className="h-24"> {/* Placeholder to stabilize layout */}
+            <AnimatePresence mode="wait">
+              {lastMessage && lastMessage.speaker === 'ai' && (
+                <motion.div
+                  key={lastMessage.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <AIResponseNarrator text={lastMessage.text} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           
           <DirectiveCard directive={lastAiMessage?.directive || null} />
         </div>
