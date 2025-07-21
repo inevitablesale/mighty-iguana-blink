@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Campaign } from "@/types/index";
-import { useNavigate } from "react-router-dom";
+import { useCanvas } from "@/contexts/CanvasContext";
 
 interface GenerateProposalDialogProps {
   campaign: Campaign;
@@ -26,7 +26,7 @@ export function GenerateProposalDialog({ campaign, onProposalCreated, children }
   const [open, setOpen] = useState(false);
   const [feeStructure, setFeeStructure] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const navigate = useNavigate();
+  const { setCurrentView } = useCanvas();
 
   const handleGenerate = async () => {
     if (!feeStructure.trim()) {
@@ -61,7 +61,7 @@ export function GenerateProposalDialog({ campaign, onProposalCreated, children }
         description: "You can now view it in the Proposals tab.",
         action: {
           label: "View Proposals",
-          onClick: () => navigate('/proposals'),
+          onClick: () => setCurrentView('proposals'),
         },
       });
       onProposalCreated();
