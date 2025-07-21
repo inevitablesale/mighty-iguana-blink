@@ -4,14 +4,17 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { OpportunityCard } from "@/components/OpportunityCard";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Bot, PartyPopper } from "lucide-react";
+import { Bot, PartyPopper, Check, X, Info } from "lucide-react";
 import { AgentBriefing, Opportunity } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AgentMessage } from "./AgentMessage";
+import { IntelligenceDialog } from "./IntelligenceDialog";
 
 interface AgentBriefingDialogProps {
   briefing: AgentBriefing;
@@ -27,7 +30,6 @@ export function AgentBriefingDialog({ briefing, open, onOpenChange, onBriefingCo
   const [processedOppIds, setProcessedOppIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Reset on new briefing
     setCurrentOppIndex(0);
     setProcessedOppIds(new Set());
   }, [briefing]);
@@ -40,7 +42,6 @@ export function AgentBriefingDialog({ briefing, open, onOpenChange, onBriefingCo
     if (currentOppIndex < opportunities.length - 1) {
       setCurrentOppIndex(prev => prev + 1);
     } else {
-      // Briefing is finished
       onBriefingComplete();
     }
   };
@@ -67,26 +68,23 @@ export function AgentBriefingDialog({ briefing, open, onOpenChange, onBriefingCo
     }
   };
 
-  const progress = isFinished ? 100 : ((currentOppIndex) / opportunities.length) * 100;
+  const isApproved = currentOpp ? processedOppIds.has(currentOpp.id) : false;
+  const isApproving = currentOpp ? approvingId === currentOpp.id : false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl p-0">
-        <DialogHeader className="p-6 pb-0">
-          <div className="p-4 rounded-lg bg-muted">
-            <div className="flex items-center gap-3">
-              <Bot className="h-8 w-8 text-primary" />
-              <div>
-                <h2 className="text-xl font-bold">Briefing from: {agent.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {isFinished ? "Briefing complete!" : `Reviewing opportunity ${currentOppIndex + 1} of ${opportunities.length}`}
-                </p>
-              </div>
-            </div>
-            <Progress value={progress} className="mt-3 h-2" />
-          </div>
+        <DialogHeader className="p-6 pb-4">
+          <DialogTitle className="flex items-center gap-2">
+            <Bot className="h-6 w-6 text-primary" />
+            <span>Briefing with {agent.name}</span>
+          </DialogTitle>
+          <DialogDescription>
+            Your agent will present its findings. Review each opportunity below.
+          </DialogDescription>
         </DialogHeader>
-        <div className="px-6 pb-6 flex justify-center min-h-[450px] items-center">
+        
+        <div className="px-6 pb-6 space-y-4">
           {isFinished ? (
             <div className="text-center py-12">
               <PartyPopper className="mx-auto h-16 w-16 text-primary" />
@@ -95,16 +93,38 @@ export function AgentBriefingDialog({ briefing, open, onOpenChange, onBriefingCo
               <Button onClick={onBriefingComplete} className="mt-6">Close</Button>
             </div>
           ) : (
-            <div className="w-full max-w-md">
-              <OpportunityCard
-                key={currentOpp.id}
-                opportunity={currentOpp}
-                onApproveOutreach={handleApprove}
-                isApproved={processedOppIds.has(currentOpp.id)}
-                isApproving={approvingId === currentOpp.id}
-                onDismiss={handleNext}
-              />
-            </div>
+            <>
+              <AgentMessage>
+                <p>
+                  Alright, let's look at this opportunity at <strong>{currentOpp.companyName}</strong> for a <strong>{currentOpp.role}</strong> role.
+                  I've rated this a <strong>{currentOpp.matchScore}/10</strong> match based on your specialty. My analysis suggests their key pain point is related to "{currentOpp.pain_points.split('\\n- ')[1]?.replace(/^- /, '') || 'growth'}".
+                  What are your thoughts?
+                </p>
+              </AgentMessage>
+
+              <OpportunityCard opportunity={currentOpp} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Button variant="outline" onClick={handleNext} disabled={isApproving}>
+                  <X className="mr-2 h-4 w-4" /> Dismiss
+                </Button>
+                
+                <IntelligenceDialog opportunity={currentOpp}>
+                  <Button variant="outline" className="w-full">
+                    <Info className="mr-2 h-4 w-4" /> Intelligence Briefing
+                  </Button>
+                </IntelligenceDialog>
+
+                <Button 
+                  onClick={() => handleApprove(currentOpp)} 
+                  disabled={isApproving || isApproved}
+                  className="coogi-gradient-bg text-primary-foreground hover:opacity-90 md:col-span-2"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  {isApproving ? 'Approving...' : (isApproved ? 'Approved' : 'Approve & Draft Email')}
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </DialogContent>
