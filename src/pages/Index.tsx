@@ -40,6 +40,8 @@ export default function Index() {
 
   const handleCommandSubmit = useCallback((command: string) => {
     if (!command.trim()) return;
+    // Close any open dialogs when a new command is issued.
+    setIsAddAgentDialogOpen(false);
     cancelSpeech();
     processUserCommand(command);
     setTranscript('');
