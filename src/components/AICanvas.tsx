@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { FloatingNav } from "./FloatingNav";
 import { AnimatePresence, motion } from "framer-motion";
+import { GlobalFeedback } from "./GlobalFeedback";
 
 const AICanvas = () => {
   const location = useLocation();
@@ -19,6 +20,7 @@ const AICanvas = () => {
           <Outlet />
         </motion.div>
       </AnimatePresence>
+      <GlobalFeedback />
     </div>
   );
 };

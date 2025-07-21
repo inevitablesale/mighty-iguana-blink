@@ -16,9 +16,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Agent, AutonomyLevel } from "@/types/index";
 import { supportedCountries } from "@/lib/countries";
+import { useFeedback } from "@/contexts/FeedbackContext";
 
 interface EditAgentDialogProps {
   agent: Agent;
@@ -37,6 +37,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
   const [isRemote, setIsRemote] = useState(false);
   const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { showFeedback } = useFeedback();
 
   useEffect(() => {
     if (agent) {
@@ -53,7 +54,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
 
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
-      toast.error("Name and specialty prompt cannot be empty.");
+      showFeedback({ type: 'error', message: "Name and specialty prompt cannot be empty." });
       return;
     }
     setIsSaving(true);
@@ -75,9 +76,9 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
     setIsSaving(false);
     if (error) {
       console.error("Error updating agent:", error);
-      toast.error("Failed to update agent.");
+      showFeedback({ type: 'error', message: "Failed to update agent." });
     } else {
-      toast.success("Agent updated successfully!");
+      showFeedback({ type: 'success', message: "Agent updated successfully!" });
       onAgentUpdated();
       setOpen(false);
     }
@@ -171,7 +172,7 @@ export function EditAgentDialog({ agent, onAgentUpdated, children }: EditAgentDi
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
                 <RadioGroupItem value="semi-automatic" id="edit-semi-automatic" />
-                <Label htmlFor="edit-semi-automatic" className="font-normal">
+                <Label htmlFor="semi-automatic" className="font-normal">
                   <span className="font-semibold">Semi-Automatic</span>
                   <p className="text-sm text-muted-foreground">Agent finds opportunities and drafts outreach. I will review and send emails.</p>
                 </Label>

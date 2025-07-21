@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot, PlusCircle } from "lucide-react";
 import { AddAgentDialog } from "@/components/AddAgentDialog";
@@ -9,6 +8,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { Agent } from "@/types/index";
 import { useNavigate } from "react-router-dom";
+import { useFeedback } from "@/contexts/FeedbackContext";
 
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -16,6 +16,7 @@ const Agents = () => {
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const { showFeedback, hideFeedback } = useFeedback();
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -32,7 +33,7 @@ const Agents = () => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Could not load your agents.");
+      showFeedback({ type: 'error', message: "Could not load your agents." });
     } else if (data) {
       setAgents(data);
     }
@@ -41,21 +42,22 @@ const Agents = () => {
 
   useEffect(() => {
     fetchAgents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDeleteAgent = async (agentId: string) => {
     const { error } = await supabase.from("agents").delete().eq("id", agentId);
     if (error) {
-      toast.error("Failed to delete agent.");
+      showFeedback({ type: 'error', message: "Failed to delete agent." });
     } else {
-      toast.success("Agent deleted.");
+      showFeedback({ type: 'success', message: "Agent deleted." });
       fetchAgents();
     }
   };
 
   const handleRunDiscovery = async (agentId: string) => {
     setRunningAgentId(agentId);
-    const toastId = toast.loading("Agent is running its playbook...");
+    showFeedback({ type: 'loading', message: "Agent is running its playbook..." });
 
     try {
       const { data, error } = await supabase.functions.invoke('run-discovery-and-outreach-playbook', {
@@ -64,18 +66,17 @@ const Agents = () => {
 
       if (error) throw error;
 
-      toast.success(data.message, {
-        id: toastId,
+      hideFeedback();
+      showFeedback({
+        type: 'success',
+        message: data.message,
         description: "You can review the results on the relevant pages.",
-        action: {
-          label: "View Campaigns",
-          onClick: () => navigate('/campaigns'),
-        },
       });
       fetchAgents(); // Refresh to get new last_run_at time
     } catch (e) {
       const err = e as Error;
-      toast.error(`Playbook failed: ${err.message}`, { id: toastId });
+      hideFeedback();
+      showFeedback({ type: 'error', message: 'Playbook failed', description: err.message });
     } finally {
       setRunningAgentId(null);
     }

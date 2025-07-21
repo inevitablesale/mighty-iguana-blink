@@ -15,9 +15,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { AutonomyLevel } from "@/types/index";
 import { supportedCountries } from "@/lib/countries";
+import { useFeedback } from "@/contexts/FeedbackContext";
 
 interface AddAgentDialogProps {
   open: boolean;
@@ -35,6 +35,7 @@ export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentD
   const [isRemote, setIsRemote] = useState(false);
   const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const { showFeedback } = useFeedback();
 
   const resetForm = () => {
     setName("");
@@ -49,13 +50,13 @@ export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentD
 
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
-      toast.error("Please provide a name and a specialty prompt for your agent.");
+      showFeedback({ type: 'error', message: "Please provide a name and a specialty prompt." });
       return;
     }
     setIsSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      toast.error("You must be logged in to create an agent.");
+      showFeedback({ type: 'error', message: "You must be logged in to create an agent." });
       setIsSaving(false);
       return;
     }
@@ -75,9 +76,9 @@ export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentD
     setIsSaving(false);
     if (error) {
       console.error("Error creating agent:", error);
-      toast.error("Failed to create agent.");
+      showFeedback({ type: 'error', message: "Failed to create agent." });
     } else {
-      toast.success(`Agent "${name}" created successfully!`);
+      showFeedback({ type: 'success', message: `Agent "${name}" created successfully!` });
       onAgentCreated();
       resetForm();
       onOpenChange(false);

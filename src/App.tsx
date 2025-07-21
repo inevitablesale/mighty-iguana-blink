@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { FeedbackProvider } from "@/contexts/FeedbackContext";
 
 import AICanvas from "./components/AICanvas";
 import Index from "./pages/Index";
@@ -45,30 +45,31 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-            <Route 
-              path="/" 
-              element={session ? <AICanvas /> : <Navigate to="/login" />}
-            >
-              <Route index element={<Index />} />
-              <Route path="campaigns" element={<Campaigns />} />
-              <Route path="agents" element={<Agents />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="placements" element={<Placements />} />
-              <Route path="proposals" element={<Proposals />} />
-              <Route path="analytics" element={<Analytics />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <FeedbackProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+              <Route 
+                path="/" 
+                element={session ? <AICanvas /> : <Navigate to="/login" />}
+              >
+                <Route index element={<Index />} />
+                <Route path="campaigns" element={<Campaigns />} />
+                <Route path="agents" element={<Agents />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="placements" element={<Placements />} />
+                <Route path="proposals" element={<Proposals />} />
+                <Route path="analytics" element={<Analytics />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </FeedbackProvider>
   );
 };
 
