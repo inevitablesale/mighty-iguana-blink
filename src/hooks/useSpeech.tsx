@@ -11,8 +11,8 @@ declare global {
   }
 }
 
-// Fix for TS2322: Update Transcriber type to match the pipeline's output
-type Transcriber = (audio: Float32Array) => Promise<AutomaticSpeechRecognitionOutput | AutomaticSpeechRecognitionOutput[]>;
+// The pipeline function can return a single object or an array of objects
+type Transcriber = (audio: string | Float32Array) => Promise<AutomaticSpeechRecognitionOutput | AutomaticSpeechRecognitionOutput[]>;
 
 export function useSpeech() {
   const [isModelLoading, setIsModelLoading] = useState(false);
@@ -66,24 +66,12 @@ export function useSpeech() {
   const transcribeAudio = async () => {
     if (audioChunksRef.current.length === 0 || !transcriberRef.current) return;
 
-    try {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const decodedAudio = await audioContext.decodeAudioData(arrayBuffer);
+    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    const audioUrl = URL.createObjectURL(audioBlob);
 
-      const targetSampleRate = 16000;
-      const offlineContext = new OfflineAudioContext(decodedAudio.numberOfChannels, decodedAudio.duration * targetSampleRate, targetSampleRate);
-      const bufferSource = offlineContext.createBufferSource();
-      bufferSource.buffer = decodedAudio;
-      bufferSource.connect(offlineContext.destination);
-      bufferSource.start();
-      const resampledAudio = await offlineContext.startRendering();
-      
-      const audioData = resampledAudio.getChannelData(0);
-      
-      const result = await transcriberRef.current(audioData);
+    try {
+      // Pass the audio URL directly to the pipeline
+      const result = await transcriberRef.current(audioUrl);
       
       const text = Array.isArray(result) ? result[0]?.text : result?.text;
 
@@ -92,12 +80,15 @@ export function useSpeech() {
         setTranscript(newTranscript);
         setFinalTranscript(newTranscript);
       } else {
-        throw new Error("Invalid transcription result.");
+        // This can happen if the audio is silent or couldn't be transcribed
+        console.log("Transcription result is empty or invalid.");
+        setTranscript(''); // Clear any partial transcript
       }
     } catch (error) {
       console.error("Transcription error:", error);
     } finally {
       audioChunksRef.current = [];
+      URL.revokeObjectURL(audioUrl); // Clean up the URL object to avoid memory leaks
     }
   };
 
