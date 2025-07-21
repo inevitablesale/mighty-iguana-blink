@@ -2,18 +2,25 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Zap, Check, Eye } from "lucide-react";
 import { Opportunity } from "@/types/index";
+import { OpportunityAnalysisDialog } from "./OpportunityAnalysisDialog";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
+  onApproveOutreach: (opportunity: Opportunity) => void;
+  isApproved: boolean;
+  isApproving: boolean;
 }
 
-export function OpportunityCard({ opportunity }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach, isApproved, isApproving }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     if (!value) return "outline";
     const lowerValue = value.toLowerCase();
@@ -28,12 +35,12 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle>{opportunity.companyName}</CardTitle>
         <CardDescription>{opportunity.role}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow">
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Badge variant={getBadgeVariant(opportunity.hiring_urgency)}>
@@ -55,6 +62,21 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
           </div>
         </div>
       </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        <OpportunityAnalysisDialog opportunity={opportunity}>
+          <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
+        </OpportunityAnalysisDialog>
+        {isApproved ? (
+          <Button size="sm" disabled>
+            <Check className="mr-2 h-4 w-4" />
+            Drafted
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => onApproveOutreach(opportunity)} disabled={isApproving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+            {isApproving ? 'Approving...' : 'Approve'}
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 }

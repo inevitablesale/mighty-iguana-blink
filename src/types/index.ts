@@ -54,11 +54,6 @@ export interface Agent {
   country?: string | null;
 }
 
-export interface AgentBriefing {
-  agent: Agent;
-  opportunities: Opportunity[];
-}
-
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';
 
 export interface Placement {

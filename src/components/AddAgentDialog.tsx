@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,17 +16,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { PlusCircle } from "lucide-react";
 import { AutonomyLevel } from "@/types/index";
 import { supportedCountries } from "@/lib/countries";
-import { useFeedback } from "@/contexts/FeedbackContext";
 
 interface AddAgentDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   onAgentCreated: () => void;
 }
 
-export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentDialogProps) {
+export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
@@ -35,28 +36,16 @@ export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentD
   const [isRemote, setIsRemote] = useState(false);
   const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const { showFeedback } = useFeedback();
-
-  const resetForm = () => {
-    setName("");
-    setPrompt("");
-    setAutonomyLevel("semi-automatic");
-    setSearchLookbackHours("720");
-    setMaxResults("20");
-    setJobType("");
-    setIsRemote(false);
-    setCountry("");
-  };
 
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
-      showFeedback({ type: 'error', message: "Please provide a name and a specialty prompt." });
+      toast.error("Please provide a name and a specialty prompt for your agent.");
       return;
     }
     setIsSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      showFeedback({ type: 'error', message: "You must be logged in to create an agent." });
+      toast.error("You must be logged in to create an agent.");
       setIsSaving(false);
       return;
     }
@@ -76,17 +65,30 @@ export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentD
     setIsSaving(false);
     if (error) {
       console.error("Error creating agent:", error);
-      showFeedback({ type: 'error', message: "Failed to create agent." });
+      toast.error("Failed to create agent.");
     } else {
-      showFeedback({ type: 'success', message: `Agent "${name}" created successfully!` });
+      toast.success(`Agent "${name}" created successfully!`);
       onAgentCreated();
-      resetForm();
-      onOpenChange(false);
+      setName("");
+      setPrompt("");
+      setAutonomyLevel("semi-automatic");
+      setSearchLookbackHours("720");
+      setMaxResults("20");
+      setJobType("");
+      setIsRemote(false);
+      setCountry("");
+      setOpen(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Agent
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Agent</DialogTitle>
