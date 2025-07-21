@@ -9,18 +9,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Zap, Check, Eye } from "lucide-react";
+import { Check, Eye, X } from "lucide-react";
 import { Opportunity } from "@/types/index";
 import { OpportunityAnalysisDialog } from "./OpportunityAnalysisDialog";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
   onApproveOutreach: (opportunity: Opportunity) => void;
+  onDismiss: () => void;
   isApproved: boolean;
   isApproving: boolean;
 }
 
-export function OpportunityCard({ opportunity, onApproveOutreach, isApproved, isApproving }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach, onDismiss, isApproved, isApproving }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     if (!value) return "outline";
     const lowerValue = value.toLowerCase();
@@ -62,17 +63,18 @@ export function OpportunityCard({ opportunity, onApproveOutreach, isApproved, is
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end space-x-2">
+      <CardFooter className="grid grid-cols-3 gap-2">
+        <Button variant="outline" onClick={onDismiss} disabled={isApproving}><X className="mr-2 h-4 w-4" />Dismiss</Button>
         <OpportunityAnalysisDialog opportunity={opportunity}>
-          <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
+          <Button variant="outline" className="w-full"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
         </OpportunityAnalysisDialog>
         {isApproved ? (
-          <Button size="sm" disabled>
+          <Button disabled>
             <Check className="mr-2 h-4 w-4" />
             Drafted
           </Button>
         ) : (
-          <Button size="sm" onClick={() => onApproveOutreach(opportunity)} disabled={isApproving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+          <Button onClick={() => onApproveOutreach(opportunity)} disabled={isApproving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
             {isApproving ? 'Approving...' : 'Approve'}
           </Button>
         )}
