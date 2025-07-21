@@ -91,3 +91,28 @@ export interface Proposal {
     role: string;
   }
 }
+
+export type TaskStatus = 'pending' | 'processing' | 'complete' | 'error';
+
+export interface ContactEnrichmentTask {
+  id: string;
+  opportunity_id: string;
+  company_name: string;
+  status: TaskStatus;
+  error_message: string | null;
+  user_id: string;
+  created_at: string;
+  contacts?: Contact[];
+}
+
+export interface Contact {
+  id: string;
+  task_id: string;
+  opportunity_id: string;
+  user_id: string;
+  name: string;
+  job_title: string;
+  linkedin_profile_url: string | null;
+  email: string | null;
+  created_at: string;
+}

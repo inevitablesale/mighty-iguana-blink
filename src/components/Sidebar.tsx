@@ -1,4 +1,4 @@
-import { Bell, Home, Target, Users, Award, FileText } from "lucide-react";
+import { Bell, Home, Target, Users, Award, FileText, Users2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { SweaterIcon } from "./SweaterIcon";
 
@@ -26,6 +26,10 @@ export function Sidebar(): JSX.Element {
             <NavLink to="/opportunities" className={getLinkClassName}>
               <Target className="h-4 w-4" />
               Opportunities
+            </NavLink>
+            <NavLink to="/contacts" className={getLinkClassName}>
+              <Users2 className="h-4 w-4" />
+              Contacts
             </NavLink>
             <NavLink to="/campaigns" className={getLinkClassName}>
               <Bell className="h-4 w-4" />

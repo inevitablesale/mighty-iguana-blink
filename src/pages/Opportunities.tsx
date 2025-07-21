@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
-import { Target } from "lucide-react";
+import { Target, Users2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Opportunity, Agent } from "@/types/index";
 import { OpportunityList } from "@/components/OpportunityList";
 import { useNavigate } from "react-router-dom";
+import { useExtension } from "@/context/ExtensionContext";
 
 const Opportunities = () => {
   const [opportunitiesByAgent, setOpportunitiesByAgent] = useState<Map<string, Opportunity[]>>(new Map());
@@ -15,6 +16,7 @@ const Opportunities = () => {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { isExtensionInstalled } = useExtension();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,7 +55,6 @@ const Opportunities = () => {
         if (opp.agent_id) {
           const agentOpps = groupedOpps.get(opp.agent_id) || [];
           agentOpps.push(opp);
-          // Sort opportunities within each agent group by match score
           agentOpps.sort((a, b) => b.matchScore - a.matchScore);
           groupedOpps.set(opp.agent_id, agentOpps);
         }
@@ -95,6 +96,52 @@ const Opportunities = () => {
     }
   };
 
+  const handleFindContacts = async (opportunity: Opportunity) => {
+    if (!isExtensionInstalled) {
+      toast.info("Please install the Coogi Chrome Extension to find contacts.", {
+        description: "The extension works in the background to find contacts for you.",
+      });
+      return;
+    }
+
+    const { data: existingTask, error: checkError } = await supabase
+      .from('contact_enrichment_tasks')
+      .select('id')
+      .eq('opportunity_id', opportunity.id)
+      .maybeSingle();
+
+    if (checkError) {
+      toast.error("Could not check for existing tasks.");
+      return;
+    }
+
+    if (existingTask) {
+      toast.info("A contact search for this opportunity is already running.", {
+        action: { label: "View Progress", onClick: () => navigate('/contacts') },
+      });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase.from('contact_enrichment_tasks').insert({
+      opportunity_id: opportunity.id,
+      company_name: opportunity.companyName,
+      user_id: user.id,
+      status: 'pending',
+    });
+
+    if (error) {
+      toast.error("Failed to start contact search.");
+    } else {
+      toast.success("Contact search started!", {
+        description: "The Coogi extension will now search for contacts.",
+        action: { label: "View Progress", onClick: () => navigate('/contacts') },
+      });
+    }
+  };
+
   const agentsWithOpps = agents.filter(agent => opportunitiesByAgent.has(agent.id));
 
   return (
@@ -113,6 +160,7 @@ const Opportunities = () => {
               agent={agent}
               opportunities={opportunitiesByAgent.get(agent.id) || []}
               onApproveOutreach={handleApprove}
+              onFindContacts={handleFindContacts}
               processedOppIds={processedOppIds}
               approvingId={approvingId}
             />
