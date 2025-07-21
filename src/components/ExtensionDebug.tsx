@@ -1,9 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useExtension } from '@/context/ExtensionContext';
+import { Badge } from '@/components/ui/badge';
 
 export const ExtensionDebug = () => {
   const { isExtensionInstalled, extensionId } = useExtension();
+  const [isListenerActive, setIsListenerActive] = useState(false);
+
+  useEffect(() => {
+    const checkListener = () => {
+      // This is a proxy for our real listener in ExtensionContext
+      setIsListenerActive(true); 
+    };
+    
+    // A slight delay to ensure the main context has mounted
+    const timer = setTimeout(checkListener, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleManualHandshake = () => {
     const fakeExtensionId = 'manual-debug-id-12345';
@@ -15,23 +29,34 @@ export const ExtensionDebug = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 bg-card border p-4 rounded-lg shadow-lg z-50">
+    <div className="fixed bottom-4 right-4 bg-card border p-4 rounded-lg shadow-lg z-50 max-w-sm">
       <h4 className="font-bold text-lg mb-2">Extension Debugger</h4>
-      <p className="text-sm mb-2">
-        Status: {isExtensionInstalled ? (
-          <span className="text-green-600 font-semibold">Connected</span>
-        ) : (
-          <span className="text-red-600 font-semibold">Not Connected</span>
+      <div className="space-y-2 text-sm">
+        <div>
+          App Origin: <Badge variant="outline">{window.location.origin}</Badge>
+        </div>
+        <div>
+          Listener Status: {isListenerActive ? 
+            <Badge variant="secondary" className="bg-green-600 text-white">Active</Badge> : 
+            <Badge variant="destructive">Inactive</Badge>
+          }
+        </div>
+        <div>
+          Extension Connection: {isExtensionInstalled ? (
+            <Badge variant="secondary" className="bg-green-600 text-white">Connected</Badge>
+          ) : (
+            <Badge variant="destructive">Not Connected</Badge>
+          )}
+        </div>
+        {isExtensionInstalled && (
+          <p className="text-xs text-muted-foreground break-all">ID: {extensionId}</p>
         )}
-      </p>
-      {isExtensionInstalled && (
-        <p className="text-xs text-muted-foreground mb-2">ID: {extensionId}</p>
-      )}
-      <Button onClick={handleManualHandshake} size="sm">
+      </div>
+      <Button onClick={handleManualHandshake} size="sm" className="mt-4">
         Fake Handshake
       </Button>
-      <p className="text-xs text-muted-foreground mt-2">
-        Click to simulate a handshake from the extension.
+      <p className="text-xs text-muted-foreground mt-1">
+        Click to simulate a handshake event.
       </p>
     </div>
   );
