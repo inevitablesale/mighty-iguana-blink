@@ -9,32 +9,21 @@ export const ExtensionDebug = () => {
 
   useEffect(() => {
     const checkListener = () => {
-      // This is a proxy for our real listener in ExtensionContext
       setIsListenerActive(true); 
     };
-    
-    // A slight delay to ensure the main context has mounted
     const timer = setTimeout(checkListener, 100);
-
     return () => clearTimeout(timer);
   }, []);
 
-  const handleManualHandshake = () => {
-    const fakeExtensionId = 'manual-debug-id-12345';
-    console.log('Manually dispatching coogi-extension-ready event...');
-    const event = new CustomEvent('coogi-extension-ready', {
-      detail: { extensionId: fakeExtensionId },
-    });
-    window.dispatchEvent(event);
+  const handleManualPing = () => {
+    console.log('%cManually dispatching coogi-app-ready event...', 'color: #ff9900; font-weight: bold;');
+    window.dispatchEvent(new CustomEvent('coogi-app-ready'));
   };
 
   return (
     <div className="fixed bottom-4 right-4 bg-card border p-4 rounded-lg shadow-lg z-50 max-w-sm">
       <h4 className="font-bold text-lg mb-2">Extension Debugger</h4>
       <div className="space-y-2 text-sm">
-        <div>
-          App Origin: <Badge variant="outline">{window.location.origin}</Badge>
-        </div>
         <div>
           Listener Status: {isListenerActive ? 
             <Badge variant="secondary" className="bg-green-600 text-white">Active</Badge> : 
@@ -52,11 +41,11 @@ export const ExtensionDebug = () => {
           <p className="text-xs text-muted-foreground break-all">ID: {extensionId}</p>
         )}
       </div>
-      <Button onClick={handleManualHandshake} size="sm" className="mt-4">
-        Fake Handshake
+      <Button onClick={handleManualPing} size="sm" className="mt-4">
+        Manual Ping
       </Button>
       <p className="text-xs text-muted-foreground mt-1">
-        Click to simulate a handshake event.
+        Click to manually send a ping to the extension.
       </p>
     </div>
   );

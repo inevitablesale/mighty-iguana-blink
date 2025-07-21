@@ -14,40 +14,37 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     let pingInterval: ReturnType<typeof setInterval>;
     let timeout: ReturnType<typeof setTimeout>;
 
-    // 1. Define the function that will handle the extension's response
     const handleExtensionReady = (event: CustomEvent) => {
       const receivedExtensionId = event.detail?.extensionId;
       if (receivedExtensionId) {
-        console.log(`Coogi Web App: Handshake received from extension ID: ${receivedExtensionId}`);
+        console.log(`%cCoogi Web App: Handshake SUCCESS! Received ID: ${receivedExtensionId}`, 'color: #00ff00; font-weight: bold;');
         setExtensionId(receivedExtensionId);
-        // Once connected, stop pinging and remove listeners
         clearInterval(pingInterval);
         clearTimeout(timeout);
         window.removeEventListener('coogi-extension-ready', listener);
       }
     };
 
-    // 2. Add the listener for the extension's response
     const listener = (event: Event) => handleExtensionReady(event as CustomEvent);
     window.addEventListener('coogi-extension-ready', listener);
     console.log('Coogi Web App: Listening for extension handshake.');
 
-    // 3. Ping the extension every 500ms to let it know the app is ready
+    console.log('Coogi Web App: Setting up ping interval...');
     pingInterval = setInterval(() => {
-      console.log('Coogi Web App: Pinging extension...');
+      console.log('Coogi Web App: Pinging extension with coogi-app-ready event.');
       window.dispatchEvent(new CustomEvent('coogi-app-ready'));
-    }, 500);
+    }, 1000); // Increased interval to 1s to reduce log spam
 
-    // 4. Stop trying after 5 seconds if there's no response
     timeout = setTimeout(() => {
       clearInterval(pingInterval);
+      console.log('Coogi Web App: Ping timeout. No response from extension.');
     }, 5000);
 
-    // 5. Clean up everything when the component unmounts
     return () => {
       clearInterval(pingInterval);
       clearTimeout(timeout);
       window.removeEventListener('coogi-extension-ready', listener);
+      console.log('Coogi Web App: Cleaned up extension listeners and timers.');
     };
   }, []);
 
