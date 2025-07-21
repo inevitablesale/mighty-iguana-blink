@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import Particles, { initParticlesEngine } from "react-tsparticles";
+import Particles from "react-tsparticles";
+import { initParticlesEngine } from "tsparticles-engine";
 import { loadSlim } from "tsparticles-slim";
 import { useTheme } from "next-themes";
 
