@@ -24,6 +24,7 @@ import { ContactEnrichmentTask, Contact, TaskStatus } from "@/types/index";
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { ExtensionStatusIndicator } from "@/components/ExtensionStatusIndicator";
 
 const Contacts = () => {
   const [tasks, setTasks] = useState<ContactEnrichmentTask[]>([]);
@@ -88,6 +89,7 @@ const Contacts = () => {
     <div className="flex flex-col">
       <Header title="Contact Enrichment" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+        <ExtensionStatusIndicator />
         <Card>
           <CardHeader>
             <CardTitle>Enrichment Tasks</CardTitle>
