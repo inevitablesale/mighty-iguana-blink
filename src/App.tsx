@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 
-import AppLayout from "./components/AppLayout";
+import AICanvas from "./components/AICanvas";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Campaigns from "./pages/Campaigns";
@@ -54,7 +54,7 @@ const App = () => {
             <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
             <Route 
               path="/" 
-              element={session ? <AppLayout /> : <Navigate to="/login" />}
+              element={session ? <AICanvas /> : <Navigate to="/login" />}
             >
               <Route index element={<Index />} />
               <Route path="campaigns" element={<Campaigns />} />
