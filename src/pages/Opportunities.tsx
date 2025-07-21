@@ -35,7 +35,7 @@ const Opportunities = () => {
     }
 
     const [oppsRes, campaignsRes] = await Promise.all([
-      supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('opportunities').select('*').eq('user_id', user.id).order('match_score', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('opportunity_id').eq('user_id', user.id)
     ]);
 

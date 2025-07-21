@@ -50,6 +50,20 @@ async function callGemini(prompt, apiKey) {
   }
 }
 
+function sanitizeMatchScore(score) {
+  if (!score) return 0;
+  const cleanedScore = String(score).replace(/[^0-9.]/g, '');
+  let numScore = parseFloat(cleanedScore);
+
+  if (isNaN(numScore)) return 0;
+
+  if (numScore > 10) {
+    numScore = numScore / 10;
+  }
+
+  return Math.max(0, Math.min(10, Math.round(numScore)));
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -121,7 +135,9 @@ serve(async (req) => {
       
       if (cached && !cacheError) {
         console.log(`Cache hit for job: ${job.title}`);
-        return cached.analysis_data;
+        const sanitizedData = cached.analysis_data;
+        sanitizedData.match_score = sanitizeMatchScore(sanitizedData.match_score || sanitizedData.matchScore);
+        return sanitizedData;
       }
 
       console.log(`Cache miss for job: ${job.title}. Calling AI...`);
@@ -130,10 +146,13 @@ serve(async (req) => {
         Recruiter's specialty: "${agent.prompt}"
         Job Posting: ${JSON.stringify(job)}
         Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
+        **The "match_score" MUST be an integer between 1 and 10.**
         **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
       `;
       const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
       
+      analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
+
       const { error: insertCacheError } = await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
       if (insertCacheError) console.error(`Failed to cache analysis for ${job.title}:`, insertCacheError.message);
       
@@ -151,7 +170,9 @@ serve(async (req) => {
     console.log("Step 4: Validating and saving opportunities to database...");
     const validatedOpportunities = enrichedOpportunities
       .map(opp => {
-        const matchScore = parseInt(opp.match_score || opp.matchScore || '0', 10);
+        const matchScore = opp.match_score;
+        if (matchScore < 6) return null;
+
         return {
           user_id: user.id,
           agent_id: agentId,
@@ -159,7 +180,7 @@ serve(async (req) => {
           role: opp.role,
           location: opp.location || 'N/A',
           company_overview: opp.company_overview || 'N/A',
-          match_score: isNaN(matchScore) ? 0 : matchScore,
+          match_score: matchScore,
           contract_value_assessment: opp.contract_value_assessment || 'N/A',
           hiring_urgency: opp.hiring_urgency || 'N/A',
           pain_points: opp.pain_points || 'N/A',
@@ -167,10 +188,10 @@ serve(async (req) => {
           key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
         };
       })
-      .filter(opp => opp.company_name && opp.role);
+      .filter(opp => opp !== null && opp.company_name && opp.role);
 
     if (validatedOpportunities.length === 0) {
-       throw new Error("No valid opportunities to save after validation.");
+       throw new Error("No valid opportunities to save after validation and filtering.");
     }
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(validatedOpportunities).select();
