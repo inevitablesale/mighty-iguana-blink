@@ -2,55 +2,49 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface ExtensionContextType {
   isExtensionInstalled: boolean;
-  extensionId: string | null;
 }
 
 const ExtensionContext = createContext<ExtensionContextType | undefined>(undefined);
 
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
-  const [extensionId, setExtensionId] = useState<string | null>(null);
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
 
   useEffect(() => {
     let pingInterval: ReturnType<typeof setInterval>;
     let timeout: ReturnType<typeof setTimeout>;
 
-    const handleExtensionReady = (event: CustomEvent) => {
-      const receivedExtensionId = event.detail?.extensionId;
-      if (receivedExtensionId) {
-        console.log(`%cCoogi Web App: Handshake SUCCESS! Received ID: ${receivedExtensionId}`, 'color: #00ff00; font-weight: bold;');
-        setExtensionId(receivedExtensionId);
-        clearInterval(pingInterval);
-        clearTimeout(timeout);
-        window.removeEventListener('coogi-extension-ready', listener);
-      }
+    const handleExtensionReady = () => {
+      console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
+      setIsExtensionInstalled(true);
+      clearInterval(pingInterval);
+      clearTimeout(timeout);
+      window.removeEventListener('coogi-extension-ready', listener);
     };
 
-    const listener = (event: Event) => handleExtensionReady(event as CustomEvent);
+    const listener = () => handleExtensionReady();
     window.addEventListener('coogi-extension-ready', listener);
     console.log('Coogi Web App: Listening for extension handshake.');
 
-    console.log('Coogi Web App: Setting up ping interval...');
     pingInterval = setInterval(() => {
-      console.log('Coogi Web App: Pinging extension with coogi-app-ready event.');
       window.dispatchEvent(new CustomEvent('coogi-app-ready'));
-    }, 1000); // Increased interval to 1s to reduce log spam
+    }, 1000);
 
     timeout = setTimeout(() => {
       clearInterval(pingInterval);
-      console.log('Coogi Web App: Ping timeout. No response from extension.');
+      if (!isExtensionInstalled) {
+        console.log('Coogi Web App: Ping timeout. No response from extension.');
+      }
     }, 5000);
 
     return () => {
       clearInterval(pingInterval);
       clearTimeout(timeout);
       window.removeEventListener('coogi-extension-ready', listener);
-      console.log('Coogi Web App: Cleaned up extension listeners and timers.');
     };
-  }, []);
+  }, [isExtensionInstalled]);
 
   const value = {
-    isExtensionInstalled: !!extensionId,
-    extensionId,
+    isExtensionInstalled,
   };
 
   return (

@@ -5,10 +5,10 @@ import { useExtension } from '@/context/ExtensionContext';
 import { toast } from 'sonner';
 
 export const CommandSender = () => {
-  const { isExtensionInstalled, extensionId } = useExtension();
+  const { isExtensionInstalled } = useExtension();
 
   const handleSendCommand = () => {
-    if (!isExtensionInstalled || !extensionId) {
+    if (!isExtensionInstalled) {
       toast.error("Extension is not connected. Cannot send command.");
       return;
     }
@@ -18,15 +18,17 @@ export const CommandSender = () => {
       data: { text: "Hello from the web app!" },
     };
 
-    console.log("Coogi Web App: Sending command to extension...", { extensionId, message });
+    console.log("Coogi Web App: Sending command to extension...", { message });
     toast.info("Sending test command to extension...");
 
-    chrome.runtime.sendMessage(extensionId, message, (response) => {
+    // When using externally_connectable, you don't need the extension ID.
+    chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
         console.error("Coogi Web App: Error sending message:", chrome.runtime.lastError.message);
         toast.error(`Error sending message: ${chrome.runtime.lastError.message}`);
       } else {
         console.log("Coogi Web App: Message sent successfully, response:", response);
+        toast.success("Extension received the command!");
       }
     });
   };
@@ -37,6 +39,7 @@ export const CommandSender = () => {
       <Button onClick={handleSendCommand} disabled={!isExtensionInstalled}>
         Send Test Command
       </Button>
+      {!isExtensionInstalled && <p className="text-xs text-muted-foreground mt-2">Extension not detected. Make sure it's installed and enabled.</p>}
     </div>
   );
 };
