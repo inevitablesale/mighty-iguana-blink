@@ -57,7 +57,6 @@ export function VoiceCommandInput({
           size="icon"
           onClick={handleMicClick}
           className={`absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full coogi-gradient-bg text-primary-foreground transition-transform ${isListening ? 'animate-pulse scale-110' : ''}`}
-          disabled={disabled && !isListening}
         >
           {isListening ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>

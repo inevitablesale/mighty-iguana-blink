@@ -77,7 +77,7 @@ export default function Index() {
           {isSupported ? (
             <VoiceCommandInput
               onSubmit={processUserCommand}
-              disabled={isAiSpeaking && !isConversationModeActive}
+              disabled={isListening}
               isListening={isListening}
               startListening={startListening}
               stopListening={stopListening}
