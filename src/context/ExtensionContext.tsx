@@ -13,37 +13,23 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // This effect handles the initial handshake to detect the extension
   useEffect(() => {
-    let pingInterval: ReturnType<typeof setInterval>;
-    let timeout: ReturnType<typeof setTimeout>;
-
-    const handleExtensionReady = () => {
-      console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
-      setIsExtensionInstalled(true);
-      clearInterval(pingInterval);
-      clearTimeout(timeout);
-      window.removeEventListener('coogi-extension-ready', listener);
-    };
-
-    const listener = () => handleExtensionReady();
-    window.addEventListener('coogi-extension-ready', listener);
-    console.log('Coogi Web App: Listening for extension handshake.');
-
-    pingInterval = setInterval(() => {
-      window.dispatchEvent(new CustomEvent('coogi-app-ready'));
-    }, 1000);
-
-    timeout = setTimeout(() => {
-      clearInterval(pingInterval);
-      if (!isExtensionInstalled) {
-        console.log('Coogi Web App: Ping timeout. No response from extension.');
-      }
-    }, 5000);
-
-    return () => {
-      clearInterval(pingInterval);
-      clearTimeout(timeout);
-      window.removeEventListener('coogi-extension-ready', listener);
-    };
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage(
+        { type: "HANDSHAKE_PING" },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.log("Coogi Web App: Handshake failed. Extension not detected.", chrome.runtime.lastError.message);
+            setIsExtensionInstalled(false);
+          } else if (response && response.type === "HANDSHAKE_PONG") {
+            console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
+            setIsExtensionInstalled(true);
+          }
+        }
+      );
+    } else {
+      console.log("Coogi Web App: Not in an extension environment.");
+      setIsExtensionInstalled(false);
+    }
   }, []); // Run only once on mount
 
   // This effect sends the auth token when the extension is ready and user is logged in
@@ -58,7 +44,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("Coogi Web App: Error sending token:", chrome.runtime.lastError.message);
-          toast.error("Could not connect to extension's authenticated session.");
+          // Don't toast here, it can be annoying if the user doesn't have the extension.
         } else {
           console.log("Coogi Web App: Extension confirmed token receipt.", response);
           toast.success("Extension connected to your session.");
