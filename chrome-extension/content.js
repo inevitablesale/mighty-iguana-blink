@@ -23,7 +23,7 @@ async function waitForSelector(selector, timeout = 5000) {
   return null;
 }
 
-async function waitForSpinnerToDisappear(selector = ".artdeco-spinner", timeout = 10000) {
+async function waitForSpinnerToDisappear(selector = ".loading-spinner", timeout = 10000) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     if (!document.querySelector(selector)) return true;
@@ -58,19 +58,36 @@ function detectCaptchaOrRestriction() {
 // =======================
 // ✅ SCRAPING LOGIC
 // =======================
-function scrapePeopleResults(opportunityId) {
-  const listItems = document.querySelectorAll(".reusable-search__result-container");
+function scrapeAccounts(opportunityId) {
+  const listItems = document.querySelectorAll(".artdeco-list .artdeco-list__item");
   return Array.from(listItems).map(item => {
-    const nameElement = item.querySelector(".entity-result__title-text a");
-    const name = nameElement ? nameElement.innerText.split('\\n')[0].trim() : null;
-    const profileUrl = nameElement ? nameElement.href : null;
-    const title = item.querySelector(".entity-result__primary-subtitle")?.innerText.trim() || null;
+    const nameElement = item.querySelector(".artdeco-entity-lockup__title a");
+    const name = nameElement ? nameElement.textContent.trim() : null;
+    const profileUrl = nameElement ? `https://www.linkedin.com${nameElement.getAttribute("href")}` : null;
 
     return {
       opportunityId,
-      name,
-      title,
+      name: name || null,
+      title: item.querySelector("span[data-anonymize='title']")?.textContent.trim() || null,
       profileUrl,
+      email: null
+    };
+  });
+}
+
+function scrapeLeads(opportunityId) {
+  const rows = document.querySelectorAll("tbody tr");
+  return Array.from(rows).map(row => {
+    const nameCell = row.querySelector("a span");
+    const name = nameCell ? nameCell.textContent.trim() : null;
+    const profileLink = row.querySelector("a")?.getAttribute("href");
+    const designation = row.querySelector("div[data-anonymize='job-title']")?.textContent.trim() || null;
+
+    return {
+      opportunityId,
+      name: name || null,
+      title: designation,
+      profileUrl: profileLink ? `https://www.linkedin.com${profileLink}` : null,
       email: null
     };
   });
@@ -79,7 +96,7 @@ function scrapePeopleResults(opportunityId) {
 // =======================
 // ✅ MAIN HANDLER
 // =======================
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message) => {
   if (message.action === "scrapeEmployees") {
     const { taskId, opportunityId } = message;
     console.log(`🚀 Starting scrape for task ${taskId}`);
@@ -94,41 +111,43 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
       while (currentPage <= MAX_PAGES) {
         console.log(`📄 Scraping page ${currentPage}`);
-        if (detectCaptchaOrRestriction()) throw new Error("CAPTCHA or login wall detected.");
+        if (detectCaptchaOrRestriction()) throw new Error("CAPTCHA detected.");
 
         await humanScrollToBottom();
         await addBehaviorNoise();
 
-        const resultsContainer = await waitForSelector(".reusable-search__results-container", SELECTOR_TIMEOUT);
-        if (!resultsContainer) {
+        const accountList = await waitForSelector(".artdeco-list", SELECTOR_TIMEOUT);
+        let contacts = [];
+
+        if (accountList) {
+          contacts = scrapeAccounts(opportunityId);
+        } else {
+          const leadTable = await waitForSelector("table", SELECTOR_TIMEOUT);
+          if (leadTable) {
+            contacts = scrapeLeads(opportunityId);
+          } else {
             if (retries < RETRY_LIMIT) {
               retries++;
-              console.log(`Results container not found. Retrying... (${retries}/${RETRY_LIMIT})`);
               await waitRandom(Math.pow(2, retries) * 1000, Math.pow(2, retries) * 1500);
               continue;
-            } else throw new Error("Could not find search results container on page.");
+            } else throw new Error("Page structure not found.");
+          }
         }
-        
-        const contacts = scrapePeopleResults(opportunityId);
+
         allContacts.push(...contacts);
-        console.log(`Found ${contacts.length} contacts on page ${currentPage}. Total: ${allContacts.length}`);
 
         const nextButton = document.querySelector(".artdeco-pagination__button--next");
-        if (!nextButton || nextButton.disabled) {
-            console.log("No more pages to scrape.");
-            break;
-        }
+        if (!nextButton || nextButton.disabled) break;
 
         await waitRandom(...COOLDOWN_RANGE);
         nextButton.click();
         await waitForSpinnerToDisappear();
+        await waitForSelector(".artdeco-list, table", SELECTOR_TIMEOUT);
         currentPage++;
-        retries = 0; // Reset retries for the new page
       }
 
       chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: allContacts });
     } catch (error) {
-      console.error("Scraping failed:", error);
       chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: [], error: error.message });
     }
   }
