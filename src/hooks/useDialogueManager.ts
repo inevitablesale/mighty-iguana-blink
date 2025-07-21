@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSpeech } from './useSpeech';
 
 export type Speaker = 'ai' | 'user';
 export type Message = {
@@ -29,19 +28,14 @@ const initialGreeting: Message = {
 export function useDialogueManager() {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
-  const { isSpeaking, speak, cancelSpeech } = useSpeech();
 
   const addMessage = useCallback((message: Omit<Message, 'id'>) => {
     const newMessage = { ...message, id: crypto.randomUUID() };
     setMessages(prev => [...prev, newMessage]);
-    if (newMessage.speaker === 'ai') {
-      speak(newMessage.text);
-    }
-  }, [speak]);
+  }, []);
 
   const processUserCommand = useCallback((command: string) => {
     if (!command.trim()) return;
-    cancelSpeech();
     const lowerCaseCommand = command.toLowerCase();
     addMessage({ speaker: 'user', text: command });
 
@@ -94,7 +88,7 @@ export function useDialogueManager() {
         });
       }
     }, 500);
-  }, [addMessage, navigate, cancelSpeech]);
+  }, [addMessage, navigate]);
 
   useEffect(() => {
     // Start the conversation on mount
@@ -104,5 +98,5 @@ export function useDialogueManager() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { messages, isSpeaking, processUserCommand };
+  return { messages, processUserCommand };
 }

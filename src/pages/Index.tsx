@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDialogueManager } from '@/hooks/useDialogueManager';
 import { useSpeech } from '@/hooks/useSpeech';
 import { AIResponseNarrator } from '@/components/voice/AIResponseNarrator';
@@ -9,7 +9,7 @@ import { ConversationModeToggle } from '@/components/voice/ConversationModeToggl
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Index() {
-  const { messages, isSpeaking: isAiSpeaking, processUserCommand } = useDialogueManager();
+  const { messages, processUserCommand } = useDialogueManager();
   const {
     isListening,
     transcript,
@@ -17,6 +17,9 @@ export default function Index() {
     startListening,
     stopListening,
     isSupported,
+    isSpeaking: isAiSpeaking,
+    speak,
+    cancelSpeech,
   } = useSpeech();
 
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
@@ -25,22 +28,34 @@ export default function Index() {
   const lastMessage = messages[messages.length - 1];
   const lastAiMessage = messages.slice().reverse().find(m => m.speaker === 'ai');
 
-  // Process command when user stops speaking (or submits text)
+  useEffect(() => {
+    if (lastMessage?.speaker === 'ai' && isConversationModeActive) {
+      speak(lastMessage.text);
+    }
+  }, [lastMessage, isConversationModeActive, speak]);
+
+  const handleCommandSubmit = useCallback((command: string) => {
+    if (!command.trim()) return;
+    cancelSpeech();
+    processUserCommand(command);
+  }, [cancelSpeech, processUserCommand]);
+
+  // Process command when user stops speaking
   useEffect(() => {
     if (!isListening && transcript) {
-      processUserCommand(transcript);
+      handleCommandSubmit(transcript);
       setTranscript('');
     }
-  }, [isListening, transcript, processUserCommand, setTranscript]);
+  }, [isListening, transcript, handleCommandSubmit, setTranscript]);
 
   // Manage the continuous listening loop for Conversation Mode
   useEffect(() => {
-    if (isConversationModeActive && !isListening) {
+    if (isConversationModeActive && !isListening && !isAiSpeaking) {
       startListening();
     } else if (!isConversationModeActive && isListening) {
       stopListening();
     }
-  }, [isConversationModeActive, isListening, startListening, stopListening]);
+  }, [isConversationModeActive, isListening, isAiSpeaking, startListening, stopListening]);
 
   // Listen for directives from the AI to open dialogs
   useEffect(() => {
@@ -53,7 +68,12 @@ export default function Index() {
     <>
       <ConversationModeToggle
         isConversationMode={isConversationModeActive}
-        onToggle={setIsConversationModeActive}
+        onToggle={(checked) => {
+          setIsConversationModeActive(checked);
+          if (!checked) {
+            cancelSpeech();
+          }
+        }}
       />
       <div className="flex flex-col h-screen items-center justify-end p-4 md:p-8 pb-10">
         <div className="flex flex-col items-center justify-end w-full h-full gap-8">
@@ -76,7 +96,7 @@ export default function Index() {
         <div className="fixed bottom-10 w-full flex justify-center px-4">
           {isSupported ? (
             <VoiceCommandInput
-              onSubmit={processUserCommand}
+              onSubmit={handleCommandSubmit}
               disabled={isListening}
               isListening={isListening}
               startListening={startListening}
