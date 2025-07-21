@@ -98,9 +98,11 @@ export function useDialogueManager() {
         
         case 'NAVIGATE':
           addMessage({ speaker: 'ai', text: aiResponseText });
-          const page = intentData.entities?.page || '';
-          if (page && ['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page.toLowerCase())) {
-            navigate(`/${page.toLowerCase()}`);
+          const page = intentData.entities?.page?.toLowerCase() || '';
+          if (page === 'home') {
+            navigate('/');
+          } else if (['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page)) {
+            navigate(`/${page}`);
           }
           break;
 
