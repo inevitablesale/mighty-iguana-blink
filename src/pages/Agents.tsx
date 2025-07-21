@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Header } from "@/components/Header";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Bot } from "lucide-react";
@@ -81,9 +80,8 @@ const Agents = () => {
   };
 
   return (
-    <div className="flex flex-col">
-      <Header title="Agents" />
-      <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <div className="flex flex-col h-screen">
+      <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6 pt-24">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Your Recruiting Agents</h2>

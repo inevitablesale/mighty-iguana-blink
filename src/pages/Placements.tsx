@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
@@ -112,9 +111,8 @@ const Placements = () => {
   };
 
   return (
-    <div className="flex flex-col">
-      <Header title="Placements" />
-      <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <div className="flex flex-col h-screen">
+      <main className="flex flex-1 flex-col gap-6 p-4 lg:p-6 pt-24">
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

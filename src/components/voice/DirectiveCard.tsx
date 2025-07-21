@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Directive } from '@/hooks/useDialogueManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Loader, List } from 'lucide-react';
@@ -9,7 +9,7 @@ interface DirectiveCardProps {
 }
 
 export function DirectiveCard({ directive }: DirectiveCardProps) {
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: 'easeOut' } },
     exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },

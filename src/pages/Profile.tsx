@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,9 +48,8 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col">
-        <Header title="Profile" />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <div className="flex flex-col h-screen">
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 pt-24">
           <Card>
             <CardHeader>
               <Skeleton className="h-6 w-1/4" />
@@ -72,9 +70,8 @@ const Profile = () => {
   }
 
   return (
-    <div className="flex flex-col">
-      <Header title="Profile" />
-      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+    <div className="flex flex-col h-screen">
+      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 pt-24">
         <Card>
           <CardHeader>
             <CardTitle>Profile & Integrations</CardTitle>

@@ -50,7 +50,7 @@ export function useDialogueManager() {
         setTimeout(() => {
           addMessage({
             speaker: 'ai',
-            text: 'The valuation report is ready and has been sent. What's next?",
+            text: "The valuation report is ready and has been sent. What's next?",
             directive: { type: 'confirmation', title: 'Report Sent', payload: {} },
           });
           setIsSpeaking(false);

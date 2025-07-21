@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -109,9 +108,8 @@ const Proposals = () => {
   );
 
   return (
-    <div className="flex flex-col">
-      <Header title="Proposals" />
-      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+    <div className="flex flex-col h-screen">
+      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 pt-24">
         <Card>
           <CardHeader>
             <CardTitle>Contract Proposals</CardTitle>
