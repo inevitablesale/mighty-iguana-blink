@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 const SUPABASE_URL = "https://dbtdplhlatnlzcvdvptn.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRidGRwbGhsYXRubHpjdmR2cHRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NDk3MTIsImV4cCI6MjA2ODUyNTcxMn0.U3pnytCxcEoo_bJGLzjeNdt_qQ9eX8dzwezrxXOaOfA";
+const ALARM_NAME = 'poll-tasks-alarm';
 
 let supabase = null;
 let supabaseChannel = null;
@@ -26,13 +27,9 @@ function initSupabase(token) {
 
 // Subscribe to new tasks for the logged-in user
 function subscribeToTasks() {
-  if (!supabase || !userId) return;
+  if (!supabase || !userId || (supabaseChannel && supabaseChannel.state === 'joined')) return;
 
-  // Unsubscribe from any existing channel to prevent duplicates
-  if (supabaseChannel) {
-    supabase.removeChannel(supabaseChannel);
-    supabaseChannel = null;
-  }
+  if (supabaseChannel) supabase.removeChannel(supabaseChannel);
 
   supabaseChannel = supabase
     .channel("contact_enrichment_tasks")
@@ -43,33 +40,30 @@ function subscribeToTasks() {
       }
     })
     .subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Successfully subscribed to Supabase task changes for user:", userId);
-      }
-      if (err) {
-        console.error("❌ Supabase subscription error:", err);
-      }
+      if (status === 'SUBSCRIBED') console.log("✅ Realtime subscription active for user:", userId);
+      if (err) console.error("❌ Supabase subscription error:", err);
     });
 }
 
 // This function runs when the service worker starts up
 async function initializeFromStorage() {
-  console.log("Coogi Extension: Service worker starting, attempting to initialize from storage.");
+  console.log("Coogi Extension: Service worker starting...");
   const data = await chrome.storage.local.get(['token', 'userId']);
   if (data.token && data.userId) {
-    console.log("Coogi Extension: Found token in storage. Initializing session.");
+    console.log("Found token in storage. Initializing session.");
     userId = data.userId;
     initSupabase(data.token);
     subscribeToTasks();
+    pollForPendingTasks(); // Poll immediately on startup
   } else {
-    console.log("Coogi Extension: No token found in storage. Waiting for user to log in.");
+    console.log("No token found in storage. Waiting for user to log in.");
   }
 }
 
 // Listen for messages from the web app
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   if (message.type === "SET_TOKEN") {
-    console.log("Coogi Extension: Received new token from web app.");
+    console.log("Received new token from web app.");
     userId = message.userId;
     await chrome.storage.local.set({ token: message.token, userId: message.userId });
     initSupabase(message.token);
@@ -99,13 +93,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 });
 
 function enqueueTask(task) {
-  taskQueue.push(task);
-  processQueue();
+  if (!taskQueue.some(t => t.id === task.id)) {
+    taskQueue.push(task);
+    console.log(`📥 Task ${task.id} enqueued. Queue size: ${taskQueue.length}`);
+    processQueue();
+  }
 }
 
 async function processQueue() {
   if (isTaskActive || cooldownActive || taskQueue.length === 0) return;
   const nextTask = taskQueue.shift();
+  console.log(`🚀 Processing task ${nextTask.id}. Queue size: ${taskQueue.length}`);
   await handleTask(nextTask);
 }
 
@@ -133,6 +131,29 @@ async function handleTask(task) {
     await updateTaskStatus(task.id, "error", error.message);
     isTaskActive = false;
     startCooldown();
+  }
+}
+
+async function pollForPendingTasks() {
+  console.log("⏰ Polling for pending tasks...");
+  if (!supabase || !userId) {
+    console.log("Polling skipped: Supabase client not ready.");
+    return;
+  }
+  const { data, error } = await supabase
+    .from('contact_enrichment_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending');
+
+  if (error) {
+    console.error("Error polling for tasks:", error);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    console.log(`Found ${data.length} pending tasks during poll.`);
+    data.forEach(task => enqueueTask(task));
   }
 }
 
@@ -172,6 +193,20 @@ function startCooldown() {
     processQueue();
   }, cooldownTime);
 }
+
+// --- Alarm Setup ---
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(ALARM_NAME, {
+    periodInMinutes: 1,
+  });
+  console.log("Task polling alarm created.");
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_NAME) {
+    pollForPendingTasks();
+  }
+});
 
 // Initialize the extension when the service worker starts
 initializeFromStorage();
