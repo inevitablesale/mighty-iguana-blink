@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
 export type Speaker = 'ai' | 'user';
 export type Message = {
@@ -44,6 +43,7 @@ export function useDialogueManager() {
       if (intentError) throw intentError;
 
       const aiResponseText = intentData.responseText || "Sorry, I'm not sure how to respond to that.";
+      addMessage({ speaker: 'ai', text: aiResponseText });
 
       switch (intentData.intent) {
         case 'CREATE_AGENT':
@@ -55,16 +55,16 @@ export function useDialogueManager() {
           break;
 
         case 'RUN_AGENT':
-          addMessage({
+          // This would trigger the actual agent run
+          // For now, we just show progress and confirmation
+           addMessage({
             speaker: 'ai',
-            text: aiResponseText,
+            text: "I'm on it.",
             directive: { type: 'progress', title: 'Running Playbook', payload: {} },
           });
-          // This would trigger the actual agent run
           break;
 
-        case 'SEND_CAMPAIGN':
-          addMessage({ speaker: 'ai', text: aiResponseText });
+        case 'SEND_CAMPAIGN': {
           const companyName = intentData.entities?.company_name;
           if (!companyName) {
             addMessage({ speaker: 'ai', text: "Which company's campaign should I send?" });
@@ -72,8 +72,8 @@ export function useDialogueManager() {
           }
           addMessage({
             speaker: 'ai',
-            text: `Okay, sending the campaign for ${companyName}.`,
-            directive: { type: 'progress', title: 'Sending Campaign', payload: {} },
+            text: `Okay, I'll send the campaign for ${companyName}.`,
+            directive: { type: 'progress', title: 'Sending Campaign', payload: { companyName } },
           });
 
           const { data: campaigns, error: campaignError } = await supabase
@@ -88,16 +88,21 @@ export function useDialogueManager() {
             break;
           }
 
-          await supabase.from('campaigns').update({ status: 'sent' }).eq('id', campaigns[0].id);
-          addMessage({
-            speaker: 'ai',
-            text: `The campaign for ${companyName} has been sent.`,
-            directive: { type: 'confirmation', title: 'Campaign Sent', payload: {} },
-          });
+          const { error: updateError } = await supabase.from('campaigns').update({ status: 'sent' }).eq('id', campaigns[0].id);
+          
+          if (updateError) {
+             addMessage({ speaker: 'ai', text: `I ran into an issue sending the campaign for ${companyName}. Please check the console for details.` });
+          } else {
+            addMessage({
+              speaker: 'ai',
+              text: `The campaign for ${companyName} has been sent.`,
+              directive: { type: 'confirmation', title: 'Campaign Sent', payload: {} },
+            });
+          }
           break;
+        }
         
-        case 'NAVIGATE':
-          addMessage({ speaker: 'ai', text: aiResponseText });
+        case 'NAVIGATE': {
           const page = intentData.entities?.page?.toLowerCase() || '';
           if (page === 'home') {
             navigate('/');
@@ -105,16 +110,16 @@ export function useDialogueManager() {
             navigate(`/${page}`);
           }
           break;
+        }
 
         default: // UNKNOWN
-          addMessage({ speaker: 'ai', text: aiResponseText });
+          // The initial AI response is already added above.
           break;
       }
     } catch (e) {
       const err = e as Error;
       console.error("Error processing command:", err);
-      toast.error("There was an issue understanding your command.");
-      addMessage({ speaker: 'ai', text: "Sorry, I'm having trouble understanding right now." });
+      addMessage({ speaker: 'ai', text: "Sorry, I'm having trouble understanding right now. Please try again." });
     }
   }, [addMessage, navigate]);
 

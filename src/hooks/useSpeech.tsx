@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { toast } from 'sonner';
 import { pipeline, env, AutomaticSpeechRecognitionOutput } from '@xenova/transformers';
-import { ModelLoadingToast } from '@/components/voice/ModelLoadingToast';
 
 // Since we're running in the browser, we need to disable local model checking
 env.allowLocalModels = false;
@@ -33,29 +31,11 @@ export function useSpeech() {
       if (transcriberRef.current) return;
       setIsModelLoading(true);
       
-      const toastId = toast(
-        <ModelLoadingToast progress={0} status="initiate" file="" />
-      );
-
-      const progress_callback = (data: { status: string; file: string; progress: number }) => {
-        toast(
-          <ModelLoadingToast
-            progress={data.progress || 0}
-            status={data.status}
-            file={data.file || ''}
-          />,
-          { id: toastId }
-        );
-      };
-
       try {
-        transcriberRef.current = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
-          progress_callback,
-        });
-        toast.success("Speech model loaded successfully.", { id: toastId });
+        transcriberRef.current = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en');
+        console.log("Speech model loaded successfully.");
       } catch (error) {
         console.error("Failed to load speech model:", error);
-        toast.error("Could not load the speech recognition model.", { id: toastId });
       } finally {
         setIsModelLoading(false);
       }
@@ -86,7 +66,6 @@ export function useSpeech() {
   const transcribeAudio = async () => {
     if (audioChunksRef.current.length === 0 || !transcriberRef.current) return;
 
-    const toastId = toast.loading("Transcribing audio...");
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       const arrayBuffer = await audioBlob.arrayBuffer();
@@ -112,13 +91,11 @@ export function useSpeech() {
         const newTranscript = text.trim();
         setTranscript(newTranscript);
         setFinalTranscript(newTranscript);
-        toast.success("Transcription complete.", { id: toastId });
       } else {
         throw new Error("Invalid transcription result.");
       }
     } catch (error) {
       console.error("Transcription error:", error);
-      toast.error("Failed to transcribe audio.", { id: toastId });
     } finally {
       audioChunksRef.current = [];
     }
@@ -144,7 +121,6 @@ export function useSpeech() {
       setIsListening(true);
     } catch (error) {
       console.error("Failed to start listening:", error);
-      toast.error("Microphone access denied or failed.");
     }
   }, [isListening, isModelLoading]);
 
