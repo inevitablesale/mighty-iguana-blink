@@ -5,13 +5,31 @@ function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function waitForSelector(selector, timeout = 10000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const el = document.querySelector(selector);
+    // Wait for the container to exist and have at least one result in it
+    if (el && el.children.length > 0) return el;
+    await wait(200);
+  }
+  return null;
+}
+
 // =======================
 // ✅ SCRAPING LOGIC
 // =======================
 async function scrapeCompanySearchResults() {
   console.log("Coogi Extension: Scraping company search results...");
   try {
-    await wait(3000); // Wait for dynamic content to load
+    // Wait for the main results container to appear and be populated
+    const resultsContainer = await waitForSelector('ul.reusable-search__results-container');
+    if (!resultsContainer) {
+      throw new Error("Search results did not load in time.");
+    }
+    
+    // Give it a brief moment for all elements to be fully rendered
+    await wait(1000);
 
     const results = [];
     const resultElements = document.querySelectorAll('li.reusable-search__result-container');

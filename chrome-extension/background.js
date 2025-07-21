@@ -147,8 +147,41 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
 });
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (message.action === "scrapingError") {
+    const errorMsg = `Scraping failed on page: ${message.error}`;
+    broadcastStatus('error', errorMsg);
+    if (currentOpportunityContext) {
+        const { finalAction } = currentOpportunityContext;
+        if (finalAction.type === 'find_contacts') {
+            await updateTaskStatus(finalAction.taskId, "error", errorMsg);
+            isTaskActive = false;
+            startCooldown();
+            processQueue();
+        }
+    }
+    if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+    currentOpportunityContext = null;
+    return;
+  }
+
   if (message.action === "scrapedCompanySearchResults") {
     if (!supabase || !currentOpportunityContext) return;
+
+    if (!message.results || message.results.length === 0) {
+        const errorMsg = "Could not find any company results on the page.";
+        broadcastStatus('error', errorMsg);
+        const { finalAction } = currentOpportunityContext;
+        if (finalAction.type === 'find_contacts') {
+            await updateTaskStatus(finalAction.taskId, "error", errorMsg);
+            isTaskActive = false;
+            startCooldown();
+            processQueue();
+        }
+        if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+        currentOpportunityContext = null;
+        return;
+    }
+
     broadcastStatus('active', `AI is selecting the correct company page...`);
     try {
       const { data, error } = await supabase.functions.invoke('select-linkedin-company', { body: { searchResults: message.results, opportunityContext } });
