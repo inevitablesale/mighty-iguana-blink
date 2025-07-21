@@ -1,14 +1,32 @@
+import { useEffect } from 'react';
 import { useDialogueManager } from '@/hooks/useDialogueManager';
+import { useSpeech } from '@/hooks/useSpeech';
 import { AIResponseNarrator } from '@/components/voice/AIResponseNarrator';
 import { DirectiveCard } from '@/components/voice/DirectiveCard';
 import { VoiceCommandInput } from '@/components/voice/VoiceCommandInput';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Index() {
-  const { messages, isSpeaking, processUserCommand } = useDialogueManager();
+  const { messages, isSpeaking: isAiSpeaking, processUserCommand } = useDialogueManager();
+  const {
+    isListening,
+    transcript,
+    setTranscript,
+    startListening,
+    stopListening,
+    isSupported,
+  } = useSpeech();
 
   const lastMessage = messages[messages.length - 1];
   const lastAiMessage = messages.slice().reverse().find(m => m.speaker === 'ai');
+
+  // When the user stops speaking, process the command.
+  useEffect(() => {
+    if (!isListening && transcript) {
+      processUserCommand(transcript);
+      setTranscript(''); // Clear transcript after processing
+    }
+  }, [isListening, transcript, processUserCommand, setTranscript]);
 
   return (
     <div className="flex flex-col h-screen items-center justify-end p-4 md:p-8 pb-10">
@@ -30,7 +48,21 @@ export default function Index() {
       </div>
 
       <div className="fixed bottom-10 w-full flex justify-center px-4">
-        <VoiceCommandInput onSubmit={processUserCommand} disabled={isSpeaking} />
+        {isSupported ? (
+          <VoiceCommandInput
+            onSubmit={processUserCommand}
+            disabled={isAiSpeaking}
+            isListening={isListening}
+            startListening={startListening}
+            stopListening={stopListening}
+            transcript={transcript}
+            setTranscript={setTranscript}
+          />
+        ) : (
+          <p className="text-red-500 font-semibold text-center">
+            Sorry, the Web Speech API is not supported in your browser. Please use Chrome or Edge.
+          </p>
+        )}
       </div>
     </div>
   );

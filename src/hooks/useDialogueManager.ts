@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSpeech } from './useSpeech';
 
 export type Speaker = 'ai' | 'user';
 export type Message = {
@@ -28,15 +29,20 @@ const initialGreeting: Message = {
 export function useDialogueManager() {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const { isSpeaking, speak, cancelSpeech } = useSpeech();
 
   const addMessage = useCallback((message: Omit<Message, 'id'>) => {
-    setMessages(prev => [...prev, { ...message, id: crypto.randomUUID() }]);
-  }, []);
+    const newMessage = { ...message, id: crypto.randomUUID() };
+    setMessages(prev => [...prev, newMessage]);
+    if (newMessage.speaker === 'ai') {
+      speak(newMessage.text);
+    }
+  }, [speak]);
 
   const processUserCommand = useCallback((command: string) => {
+    if (!command.trim()) return;
+    cancelSpeech();
     addMessage({ speaker: 'user', text: command });
-    setIsSpeaking(true);
 
     // Simulated Intent Engine
     setTimeout(() => {
@@ -46,14 +52,12 @@ export function useDialogueManager() {
           text: 'Got it. Pulling the valuation report now.',
           directive: { type: 'progress', title: 'Fetching Report', payload: {} },
         });
-        // Simulate completion
         setTimeout(() => {
           addMessage({
             speaker: 'ai',
             text: "The valuation report is ready and has been sent. What's next?",
             directive: { type: 'confirmation', title: 'Report Sent', payload: {} },
           });
-          setIsSpeaking(false);
         }, 2000);
       } else if (command.toLowerCase().includes('agent')) {
         addMessage({
@@ -67,28 +71,30 @@ export function useDialogueManager() {
             text: 'The agent has completed its run and found 3 new opportunities. I have prepared a briefing.',
             directive: null,
           });
-          setIsSpeaking(false);
         }, 3000);
       } else if (command.toLowerCase().includes('briefing')) {
-        navigate('/briefing'); // Navigate to a dedicated briefing view
+        addMessage({
+            speaker: 'ai',
+            text: "Of course. Navigating to the briefing view now.",
+            directive: null,
+        });
+        setTimeout(() => navigate('/briefing'), 500);
       } else {
         addMessage({
           speaker: 'ai',
           text: "I'm not sure how to handle that yet. Please try asking about the 'buyer' or the 'agent'.",
           directive: null,
         });
-        setIsSpeaking(false);
       }
     }, 500);
-  }, [addMessage, navigate]);
+  }, [addMessage, navigate, cancelSpeech]);
 
   useEffect(() => {
     // Start the conversation on mount
-    setIsSpeaking(true);
     setTimeout(() => {
-      setMessages([initialGreeting]);
-      setIsSpeaking(false);
+      addMessage(initialGreeting);
     }, 1000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { messages, isSpeaking, processUserCommand };

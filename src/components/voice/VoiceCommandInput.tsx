@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Mic, Send } from 'lucide-react';
+import { Mic, Send, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion } from 'framer-motion';
@@ -7,16 +6,34 @@ import { motion } from 'framer-motion';
 interface VoiceCommandInputProps {
   onSubmit: (command: string) => void;
   disabled: boolean;
+  isListening: boolean;
+  startListening: () => void;
+  stopListening: () => void;
+  transcript: string;
+  setTranscript: (value: string) => void;
 }
 
-export function VoiceCommandInput({ onSubmit, disabled }: VoiceCommandInputProps) {
-  const [command, setCommand] = useState('');
-
+export function VoiceCommandInput({
+  onSubmit,
+  disabled,
+  isListening,
+  startListening,
+  stopListening,
+  transcript,
+  setTranscript,
+}: VoiceCommandInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (command.trim()) {
-      onSubmit(command.trim());
-      setCommand('');
+    if (transcript.trim()) {
+      onSubmit(transcript.trim());
+    }
+  };
+
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -29,8 +46,8 @@ export function VoiceCommandInput({ onSubmit, disabled }: VoiceCommandInputProps
     >
       <form onSubmit={handleSubmit} className="relative">
         <Input
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
           placeholder="Speak or type your command..."
           className="h-14 pl-14 pr-28 text-lg rounded-full bg-background/80 backdrop-blur-sm"
           disabled={disabled}
@@ -38,23 +55,24 @@ export function VoiceCommandInput({ onSubmit, disabled }: VoiceCommandInputProps
         <Button
           type="button"
           size="icon"
-          className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full coogi-gradient-bg text-primary-foreground"
+          onClick={handleMicClick}
+          className={`absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full coogi-gradient-bg text-primary-foreground transition-transform ${isListening ? 'animate-pulse scale-110' : ''}`}
           disabled={disabled}
         >
-          <Mic className="h-5 w-5" />
+          {isListening ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </Button>
         <Button
           type="submit"
           size="sm"
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
-          disabled={disabled || !command.trim()}
+          disabled={disabled || !transcript.trim()}
         >
           <Send className="h-4 w-4 mr-2" />
           Send
         </Button>
       </form>
       <p className="text-center text-xs text-muted-foreground mt-2">
-        Voice input is simulated. Type your command to interact with the AI.
+        Click the microphone to speak. The AI will respond when you stop.
       </p>
     </motion.div>
   );
