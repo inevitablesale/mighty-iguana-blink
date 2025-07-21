@@ -5,6 +5,7 @@ import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useRevenueChartData } from "@/hooks/useRevenueChartData";
 import { RevenueChart } from "@/components/RevenueChart";
+import { ExtensionDebug } from "@/components/ExtensionDebug";
 
 export default function Index() {
   const { stats, loading: statsLoading } = useDashboardStats();
@@ -32,6 +33,7 @@ export default function Index() {
           </div>
         </div>
       </main>
+      <ExtensionDebug />
     </div>
   );
 }
