@@ -5,40 +5,50 @@ import { isExtensionReady } from '@/lib/extension-listener';
 
 interface ExtensionContextType {
   isExtensionInstalled: boolean;
+  extensionId: string | null;
 }
 
 const ExtensionContext = createContext<ExtensionContextType | undefined>(undefined);
 
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
-  // Initialize state by immediately checking if the early listener already caught the event.
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(isExtensionReady());
+  const [extensionId, setExtensionId] = useState<string | null>(() => {
+    // Attempt to get the ID immediately on component initialization
+    return document.body.getAttribute('data-coogi-extension-id');
+  });
 
   useEffect(() => {
-    // This effect handles the unlikely case where the extension might load *after* the initial check.
-    // If it's already installed, we don't need this listener.
-    if (isExtensionInstalled) {
+    // This effect handles the case where the extension loads after the initial check.
+    if (isExtensionInstalled && extensionId) {
       return;
     }
 
-    const handleLateExtensionReady = () => {
-      console.log("Coogi App: Late listener caught 'coogi-extension-ready'.");
-      setIsExtensionInstalled(true);
+    const handleExtensionReady = () => {
+      console.log("Coogi App: Context listener caught 'coogi-extension-ready'.");
+      const id = document.body.getAttribute('data-coogi-extension-id');
+      if (id) {
+        setIsExtensionInstalled(true);
+        setExtensionId(id);
+      } else {
+        console.error("Coogi App: Extension ready event fired, but ID not found in DOM.");
+      }
     };
 
-    window.addEventListener('coogi-extension-ready', handleLateExtensionReady, { once: true });
+    // If the ID wasn't available on init, listen for the event
+    window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
 
     return () => {
-      window.removeEventListener('coogi-extension-ready', handleLateExtensionReady);
+      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
     };
-  }, [isExtensionInstalled]);
+  }, [isExtensionInstalled, extensionId]);
 
-  // This effect sends the auth token when the extension is ready and user is logged in
+  // This effect sends the auth token once the extensionId is known
   useEffect(() => {
     const sendAuthToExtension = (session: any) => {
-      if (!session || typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return;
+      if (!session || !extensionId) return;
       
-      console.log("Coogi Web App: Sending auth token to extension.");
-      chrome.runtime.sendMessage({
+      console.log(`Coogi Web App: Sending auth token to extension ID: ${extensionId}.`);
+      chrome.runtime.sendMessage(extensionId, {
         type: "SET_TOKEN",
         token: session.access_token,
         userId: session.user.id,
@@ -52,27 +62,20 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       });
     };
 
-    if (isExtensionInstalled) {
-      console.log("Coogi Web App: Extension is installed, attempting to send token.");
+    if (extensionId) {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          sendAuthToExtension(session);
-        } else {
-          console.log("Coogi Web App: No active session to send to extension.");
-        }
+        if (session) sendAuthToExtension(session);
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (_event === 'SIGNED_IN') {
-          sendAuthToExtension(session);
-        }
+        if (_event === 'SIGNED_IN') sendAuthToExtension(session);
       });
 
       return () => subscription.unsubscribe();
     }
-  }, [isExtensionInstalled]);
+  }, [extensionId]);
 
-  const value = { isExtensionInstalled };
+  const value = { isExtensionInstalled, extensionId };
 
   return (
     <ExtensionContext.Provider value={value}>

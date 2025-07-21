@@ -5,10 +5,10 @@ import { useExtension } from '@/context/ExtensionContext';
 import { toast } from 'sonner';
 
 export const CommandSender = () => {
-  const { isExtensionInstalled } = useExtension();
+  const { isExtensionInstalled, extensionId } = useExtension();
 
   const handleSendCommand = () => {
-    if (!isExtensionInstalled) {
+    if (!isExtensionInstalled || !extensionId) {
       toast.error("Extension is not connected. Cannot send command.");
       return;
     }
@@ -21,8 +21,7 @@ export const CommandSender = () => {
     console.log("Coogi Web App: Sending command to extension...", { message });
     toast.info("Sending test command to extension...");
 
-    // When using externally_connectable, you don't need the extension ID.
-    chrome.runtime.sendMessage(message, (response) => {
+    chrome.runtime.sendMessage(extensionId, message, (response) => {
       if (chrome.runtime.lastError) {
         console.error("Coogi Web App: Error sending message:", chrome.runtime.lastError.message);
         toast.error(`Error sending message: ${chrome.runtime.lastError.message}`);
