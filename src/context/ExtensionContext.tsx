@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isExtensionReady } from '@/lib/extension-listener';
 
 interface ExtensionContextType {
   isExtensionInstalled: boolean;
@@ -9,44 +10,27 @@ interface ExtensionContextType {
 const ExtensionContext = createContext<ExtensionContextType | undefined>(undefined);
 
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
-  const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
+  // Initialize state by immediately checking if the early listener already caught the event.
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState(isExtensionReady());
 
   useEffect(() => {
-    let pingInterval: number;
-    let timeoutId: number;
+    // This effect handles the unlikely case where the extension might load *after* the initial check.
+    // If it's already installed, we don't need this listener.
+    if (isExtensionInstalled) {
+      return;
+    }
 
-    const handleExtensionReady = () => {
-      console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
-      cleanup();
+    const handleLateExtensionReady = () => {
+      console.log("Coogi App: Late listener caught 'coogi-extension-ready'.");
       setIsExtensionInstalled(true);
     };
 
-    const cleanup = () => {
-      clearInterval(pingInterval);
-      clearTimeout(timeoutId);
-      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
+    window.addEventListener('coogi-extension-ready', handleLateExtensionReady, { once: true });
+
+    return () => {
+      window.removeEventListener('coogi-extension-ready', handleLateExtensionReady);
     };
-
-    // Listen for the extension's response
-    window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
-
-    // Start pinging the extension
-    pingInterval = window.setInterval(() => {
-      console.log("Coogi Web App: Pinging extension with 'coogi-app-ready'...");
-      window.dispatchEvent(new CustomEvent('coogi-app-ready'));
-    }, 500);
-
-    // Stop trying after 3 seconds
-    timeoutId = window.setTimeout(() => {
-      if (!isExtensionInstalled) {
-        console.log("Coogi Web App: Handshake timeout. Extension not detected.");
-        cleanup();
-        setIsExtensionInstalled(false);
-      }
-    }, 3000);
-
-    return cleanup;
-  }, [isExtensionInstalled]); // Re-run if state changes, though it shouldn't
+  }, [isExtensionInstalled]);
 
   // This effect sends the auth token when the extension is ready and user is logged in
   useEffect(() => {
@@ -69,12 +53,19 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (isExtensionInstalled) {
+      console.log("Coogi Web App: Extension is installed, attempting to send token.");
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) sendAuthToExtension(session);
+        if (session) {
+          sendAuthToExtension(session);
+        } else {
+          console.log("Coogi Web App: No active session to send to extension.");
+        }
       });
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (_event === 'SIGNED_IN') sendAuthToExtension(session);
+        if (_event === 'SIGNED_IN') {
+          sendAuthToExtension(session);
+        }
       });
 
       return () => subscription.unsubscribe();
