@@ -1,12 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { pipeline, env } from '@xenova/transformers';
+import { pipeline, env, AutomaticSpeechRecognitionOutput } from '@xenova/transformers';
 
 // Since we're running in the browser, we need to disable local model checking
 env.allowLocalModels = false;
 
-// Define the type for our transcription pipeline
-type Transcriber = (audio: Float32Array) => Promise<{ text: string }>;
+// Fix for TS2551: Add webkitAudioContext to the Window interface
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
+// Fix for TS2322: Update Transcriber type to match the pipeline's output
+type Transcriber = (audio: Float32Array) => Promise<AutomaticSpeechRecognitionOutput | AutomaticSpeechRecognitionOutput[]>;
 
 export function useSpeech() {
   const [isModelLoading, setIsModelLoading] = useState(false);
@@ -82,8 +89,11 @@ export function useSpeech() {
       
       const result = await transcriberRef.current(audioData);
       
-      if (result && typeof result.text === 'string') {
-        const newTranscript = result.text.trim();
+      // Handle both single and array results from the pipeline
+      const text = Array.isArray(result) ? result[0]?.text : result?.text;
+
+      if (text && typeof text === 'string') {
+        const newTranscript = text.trim();
         setTranscript(newTranscript);
         setFinalTranscript(newTranscript);
         toast.success("Transcription complete.", { id: toastId });
