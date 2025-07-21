@@ -43,30 +43,25 @@ export function useDialogueManager() {
 
       if (intentError) throw intentError;
 
+      const aiResponseText = intentData.responseText || "Sorry, I'm not sure how to respond to that.";
+      addMessage({ speaker: 'ai', text: aiResponseText });
+
       switch (intentData.intent) {
         case 'CREATE_AGENT':
           addMessage({
             speaker: 'ai',
-            text: "Of course. I'll open the new agent form for you.",
+            text: aiResponseText,
             directive: { type: 'open-dialog', title: 'Create Agent', payload: 'add-agent' },
           });
           break;
 
         case 'RUN_AGENT':
-          const agentName = intentData.entities?.agent_name || 'the agent';
           addMessage({
             speaker: 'ai',
-            text: `Understood. I'm initiating the playbook for the '${agentName}' agent now. This may take a moment.`,
+            text: aiResponseText,
             directive: { type: 'progress', title: 'Running Playbook', payload: {} },
           });
-          // In a real app, we would trigger the agent run here and wait for a result.
-          setTimeout(() => {
-            addMessage({
-              speaker: 'ai',
-              text: 'The agent has completed its run and found 3 new opportunities.',
-              directive: { type: 'confirmation', title: 'Playbook Complete', payload: {} },
-            });
-          }, 5000);
+          // This would trigger the actual agent run
           break;
 
         case 'SEND_CAMPAIGN':
@@ -77,7 +72,7 @@ export function useDialogueManager() {
           }
           addMessage({
             speaker: 'ai',
-            text: `Okay, looking for a draft campaign for ${companyName}...`,
+            text: aiResponseText,
             directive: { type: 'progress', title: 'Sending Campaign', payload: {} },
           });
 
@@ -89,21 +84,11 @@ export function useDialogueManager() {
             .limit(1);
 
           if (campaignError || !campaigns || campaigns.length === 0) {
-            addMessage({
-              speaker: 'ai',
-              text: `I couldn't find a draft campaign for ${companyName}. You can create one from the opportunities page.`,
-              directive: null,
-            });
+            addMessage({ speaker: 'ai', text: `I couldn't find a draft campaign for ${companyName}.` });
             break;
           }
 
-          const { error: updateError } = await supabase
-            .from('campaigns')
-            .update({ status: 'sent' })
-            .eq('id', campaigns[0].id);
-
-          if (updateError) throw updateError;
-
+          await supabase.from('campaigns').update({ status: 'sent' }).eq('id', campaigns[0].id);
           addMessage({
             speaker: 'ai',
             text: `The campaign for ${companyName} has been sent.`,
@@ -114,19 +99,13 @@ export function useDialogueManager() {
         case 'NAVIGATE':
           const page = intentData.entities?.page || '';
           if (page && ['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page.toLowerCase())) {
-            addMessage({ speaker: 'ai', text: `Navigating to ${page}.` });
             navigate(`/${page.toLowerCase()}`);
-          } else {
-             addMessage({ speaker: 'ai', text: "I'm not sure which page you want to go to. You can say 'go to campaigns' for example." });
           }
           break;
 
         default: // UNKNOWN
-          addMessage({
-            speaker: 'ai',
-            text: "I'm not sure how to handle that. Please try asking me to 'run an agent' or 'send a campaign'.",
-            directive: null,
-          });
+          // The default response is already handled by the initial addMessage call
+          break;
       }
     } catch (e) {
       const err = e as Error;

@@ -28,34 +28,30 @@ serve(async (req) => {
     }
 
     const prompt = `
-      You are the intent recognition engine for a recruiter assistant app called Coogi.
-      Your task is to analyze the user's command and determine their intent and any relevant entities based on your knowledge of the app.
+      You are the conversational AI engine for a recruiter assistant app called Coogi.
+      Your task is to analyze the user's command, determine their intent, and generate a natural, conversational response for the AI to speak.
 
       **App Knowledge Base:**
-      - "Agents": These are AI assistants that find job opportunities. They can be "run" to start a search.
-      - "Campaigns": These are outreach emails drafted for opportunities. They have a status like 'draft' or 'sent'. Users can "send" a draft campaign.
-      - "Placements": These are successful hires resulting from a campaign.
-      - "Proposals": These are formal contracts generated for a client.
-      - "Analytics" or "Reports": This is a page with charts and metrics.
+      - "Agents": AI assistants that find job opportunities. They can be "run".
+      - "Campaigns": Outreach emails. They can be "sent".
+      - "Placements", "Proposals", "Analytics": Pages the user can navigate to.
 
       **Possible Intents:**
-      - "CREATE_AGENT": User wants to create or build a new agent.
-      - "RUN_AGENT": User wants to run an existing agent. Extract the "agent_name".
-      - "SEND_CAMPAIGN": User wants to send a draft outreach campaign. Extract the "company_name".
-      - "NAVIGATE": User wants to go to a specific page. Extract the "page" name (e.g., campaigns, agents, placements, proposals, analytics).
-      - "UNKNOWN": The user's intent is unclear or not supported.
+      - "CREATE_AGENT", "RUN_AGENT", "SEND_CAMPAIGN", "NAVIGATE", "UNKNOWN"
 
       **User Command:** "${command}"
 
       **Instructions:**
-      Return a single, valid JSON object with two keys:
-      1. "intent": One of the possible intents listed above.
-      2. "entities": An object containing any extracted information. If no entities are found, return an empty object.
+      Return a single, valid JSON object with three keys:
+      1. "intent": One of the possible intents.
+      2. "entities": An object with any extracted info (e.g., "agent_name", "company_name", "page").
+      3. "responseText": A friendly, conversational sentence for the AI to say back to the user.
 
       **Examples:**
-      - Command: "run the fintech agent" -> { "intent": "RUN_AGENT", "entities": { "agent_name": "fintech" } }
-      - Command: "go to my placements" -> { "intent": "NAVIGATE", "entities": { "page": "placements" } }
-      - Command: "send the email to Globex Corp" -> { "intent": "SEND_CAMPAIGN", "entities": { "company_name": "Globex Corp" } }
+      - Command: "run the fintech agent" -> { "intent": "RUN_AGENT", "entities": { "agent_name": "fintech" }, "responseText": "Sure, I'm running the fintech agent for you now. I'll let you know when it's done." }
+      - Command: "go to my placements" -> { "intent": "NAVIGATE", "entities": { "page": "placements" }, "responseText": "Of course, heading over to the Placements page now." }
+      - Command: "send the email to Globex Corp" -> { "intent": "SEND_CAMPAIGN", "entities": { "company_name": "Globex Corp" }, "responseText": "You got it. Sending the campaign to Globex Corp." }
+      - Command: "make me a new agent" -> { "intent": "CREATE_AGENT", "entities": {}, "responseText": "No problem, I'll bring up the form to create a new agent." }
     `;
 
     const geminiResponse = await fetch(
