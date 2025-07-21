@@ -15,7 +15,7 @@
     "https://dbtdplhlatnlzcvdvptn.supabase.co/*"
   ],
   "background": {
-    "service_worker": "chrome-extension/background.js",
+    "service_worker": "background.js",
     "type": "module"
   },
   "action": {
@@ -33,7 +33,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],
-      "js": ["chrome-extension/content.js"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     },
     {
@@ -41,7 +41,7 @@
         "http://localhost:*/*",
         "https://coogi.netlify.app/*"
       ],
-      "js": ["chrome-extension/handshake.js"],
+      "js": ["handshake.js"],
       "run_at": "document_idle"
     }
   ],
@@ -53,7 +53,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["chrome-extension/page-messenger.js"],
+      "resources": ["page-messenger.js"],
       "matches": [
         "http://localhost:*/*",
         "https://coogi.netlify.app/*"
