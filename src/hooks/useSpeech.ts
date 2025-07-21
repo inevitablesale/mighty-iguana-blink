@@ -114,8 +114,14 @@ export function useSpeech() {
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error', event.error);
-      toast.error(`Speech synthesis error: ${event.error}`);
+      if (event.error === 'interrupted') {
+        // This is an expected error when the user barges in.
+        // We can just log it and not show a user-facing error.
+        console.log('Speech synthesis was interrupted.');
+      } else {
+        console.error('Speech synthesis error', event.error);
+        toast.error(`Speech synthesis error: ${event.error}`);
+      }
       setIsSpeaking(false);
     };
 

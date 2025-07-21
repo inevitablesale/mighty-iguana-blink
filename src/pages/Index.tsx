@@ -50,12 +50,12 @@ export default function Index() {
 
   // Manage the continuous listening loop for Conversation Mode
   useEffect(() => {
-    if (isConversationModeActive && !isListening && !isAiSpeaking) {
+    if (isConversationModeActive && !isListening) {
       startListening();
     } else if (!isConversationModeActive && isListening) {
       stopListening();
     }
-  }, [isConversationModeActive, isListening, isAiSpeaking, startListening, stopListening]);
+  }, [isConversationModeActive, isListening, startListening, stopListening]);
 
   // Listen for directives from the AI to open dialogs
   useEffect(() => {
