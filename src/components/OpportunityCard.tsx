@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, Eye, Users2 } from "lucide-react";
+import { Check, Eye, Users2, Building } from "lucide-react";
 import { Opportunity } from "@/types/index";
 import { OpportunityAnalysisDialog } from "./OpportunityAnalysisDialog";
 
@@ -17,11 +17,12 @@ interface OpportunityCardProps {
   opportunity: Opportunity;
   onApproveOutreach: (opportunity: Opportunity) => void;
   onFindContacts: (opportunity: Opportunity) => void;
+  onEnrichCompany: (opportunity: Opportunity) => void;
   isApproved: boolean;
   isApproving: boolean;
 }
 
-export function OpportunityCard({ opportunity, onApproveOutreach, onFindContacts, isApproved, isApproving }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, onApproveOutreach, onFindContacts, onEnrichCompany, isApproved, isApproving }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     if (!value) return "outline";
     const lowerValue = value.toLowerCase();
@@ -67,9 +68,13 @@ export function OpportunityCard({ opportunity, onApproveOutreach, onFindContacts
         <OpportunityAnalysisDialog opportunity={opportunity}>
           <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
         </OpportunityAnalysisDialog>
+        <Button variant="outline" size="sm" onClick={() => onEnrichCompany(opportunity)}>
+          <Building className="mr-2 h-4 w-4" />
+          Enrich
+        </Button>
         <Button variant="outline" size="sm" onClick={() => onFindContacts(opportunity)}>
           <Users2 className="mr-2 h-4 w-4" />
-          Find Contacts
+          Contacts
         </Button>
         {isApproved ? (
           <Button size="sm" disabled>

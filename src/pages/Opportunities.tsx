@@ -16,7 +16,7 @@ const Opportunities = () => {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isExtensionInstalled } = useExtension();
+  const { isExtensionInstalled, extensionId } = useExtension();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -48,6 +48,7 @@ const Opportunities = () => {
         pain_points: o.pain_points || 'N/A',
         recruiter_angle: o.recruiter_angle || 'N/A',
         key_signal_for_outreach: o.key_signal_for_outreach || 'N/A',
+        linkedin_url_slug: o.linkedin_url_slug,
       }));
 
       const groupedOpps = new Map<string, Opportunity[]>();
@@ -142,6 +143,27 @@ const Opportunities = () => {
     }
   };
 
+  const handleEnrichCompany = (opportunity: Opportunity) => {
+    if (!isExtensionInstalled || !extensionId) {
+      toast.info("Please install and connect the Coogi Chrome Extension to enrich company data.");
+      return;
+    }
+    toast.loading("Starting company enrichment via extension...");
+    chrome.runtime.sendMessage(extensionId, {
+      type: "SCRAPE_COMPANY_PAGE",
+      opportunityId: opportunity.id,
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        toast.error("Could not communicate with the extension.");
+        console.error(chrome.runtime.lastError.message);
+      } else if (response?.error) {
+        toast.error(response.error);
+      } else {
+        toast.success("Company enrichment process started.");
+      }
+    });
+  };
+
   const agentsWithOpps = agents.filter(agent => opportunitiesByAgent.has(agent.id));
 
   return (
@@ -161,6 +183,7 @@ const Opportunities = () => {
               opportunities={opportunitiesByAgent.get(agent.id) || []}
               onApproveOutreach={handleApprove}
               onFindContacts={handleFindContacts}
+              onEnrichCompany={handleEnrichCompany}
               processedOppIds={processedOppIds}
               approvingId={approvingId}
             />

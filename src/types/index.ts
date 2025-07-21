@@ -11,6 +11,7 @@ export interface Opportunity {
   pain_points: string;
   recruiter_angle: string;
   key_signal_for_outreach: string;
+  linkedin_url_slug?: string | null;
 }
 
 export interface SearchCriteria {
