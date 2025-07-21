@@ -19,12 +19,8 @@ export type Directive = {
 const initialGreeting: Message = {
   id: '0',
   speaker: 'ai',
-  text: "Good morning. You have two urgent tasks: a buyer is requesting a valuation update, and your 'Fintech Sales' agent hasn't run in 4 days. Which should we handle first?",
-  directive: {
-    type: 'task-list',
-    title: 'Priority Tasks',
-    payload: ['Handle buyer valuation', 'Run Fintech agent'],
-  },
+  text: "Good morning. What can I help you with today? You can ask me to run an agent, send a campaign, or navigate to a page.",
+  directive: null,
 };
 
 export function useDialogueManager() {
@@ -41,28 +37,13 @@ export function useDialogueManager() {
     addMessage({ speaker: 'user', text: command });
 
     try {
-      const { data: intentData, error } = await supabase.functions.invoke('process-command', {
+      const { data: intentData, error: intentError } = await supabase.functions.invoke('process-command', {
         body: { command },
       });
 
-      if (error) throw error;
+      if (intentError) throw intentError;
 
       switch (intentData.intent) {
-        case 'HANDLE_VALUATION':
-          addMessage({
-            speaker: 'ai',
-            text: 'Got it. Pulling the valuation report now.',
-            directive: { type: 'progress', title: 'Fetching Report', payload: {} },
-          });
-          setTimeout(() => {
-            addMessage({
-              speaker: 'ai',
-              text: "The valuation report is ready and has been sent. What's next?",
-              directive: { type: 'confirmation', title: 'Report Sent', payload: {} },
-            });
-          }, 2000);
-          break;
-
         case 'CREATE_AGENT':
           addMessage({
             speaker: 'ai',
@@ -75,41 +56,75 @@ export function useDialogueManager() {
           const agentName = intentData.entities?.agent_name || 'the agent';
           addMessage({
             speaker: 'ai',
-            text: `Understood. I'm initiating the playbook for the '${agentName}' agent now.`,
+            text: `Understood. I'm initiating the playbook for the '${agentName}' agent now. This may take a moment.`,
             directive: { type: 'progress', title: 'Running Playbook', payload: {} },
           });
+          // In a real app, we would trigger the agent run here and wait for a result.
           setTimeout(() => {
             addMessage({
               speaker: 'ai',
-              text: 'The agent has completed its run and found 3 new opportunities. I have prepared a briefing.',
-              directive: null,
+              text: 'The agent has completed its run and found 3 new opportunities.',
+              directive: { type: 'confirmation', title: 'Playbook Complete', payload: {} },
             });
-          }, 3000);
+          }, 5000);
           break;
 
-        case 'VIEW_BRIEFING':
+        case 'SEND_CAMPAIGN':
+          const companyName = intentData.entities?.company_name;
+          if (!companyName) {
+            addMessage({ speaker: 'ai', text: "Which company's campaign should I send?" });
+            break;
+          }
           addMessage({
             speaker: 'ai',
-            text: "Of course. Navigating to the briefing view now.",
-            directive: null,
+            text: `Okay, looking for a draft campaign for ${companyName}...`,
+            directive: { type: 'progress', title: 'Sending Campaign', payload: {} },
           });
-          setTimeout(() => navigate('/'), 500); // Navigate to command center for now
+
+          const { data: campaigns, error: campaignError } = await supabase
+            .from('campaigns')
+            .select('id')
+            .ilike('company_name', `%${companyName}%`)
+            .eq('status', 'draft')
+            .limit(1);
+
+          if (campaignError || !campaigns || campaigns.length === 0) {
+            addMessage({
+              speaker: 'ai',
+              text: `I couldn't find a draft campaign for ${companyName}. You can create one from the opportunities page.`,
+              directive: null,
+            });
+            break;
+          }
+
+          const { error: updateError } = await supabase
+            .from('campaigns')
+            .update({ status: 'sent' })
+            .eq('id', campaigns[0].id);
+
+          if (updateError) throw updateError;
+
+          addMessage({
+            speaker: 'ai',
+            text: `The campaign for ${companyName} has been sent.`,
+            directive: { type: 'confirmation', title: 'Campaign Sent', payload: {} },
+          });
           break;
         
         case 'NAVIGATE':
           const page = intentData.entities?.page || '';
-          if (page) {
+          if (page && ['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page.toLowerCase())) {
             addMessage({ speaker: 'ai', text: `Navigating to ${page}.` });
             navigate(`/${page.toLowerCase()}`);
           } else {
-             addMessage({ speaker: 'ai', text: "I'm not sure which page you want to go to." });
+             addMessage({ speaker: 'ai', text: "I'm not sure which page you want to go to. You can say 'go to campaigns' for example." });
           }
           break;
 
         default: // UNKNOWN
           addMessage({
             speaker: 'ai',
-            text: "I'm not sure how to handle that yet. Please try asking about creating an agent or running a playbook.",
+            text: "I'm not sure how to handle that. Please try asking me to 'run an agent' or 'send a campaign'.",
             directive: null,
           });
       }

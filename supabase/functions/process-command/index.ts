@@ -29,33 +29,33 @@ serve(async (req) => {
 
     const prompt = `
       You are the intent recognition engine for a recruiter assistant app called Coogi.
-      Your task is to analyze the user's command and determine their intent and any relevant entities.
+      Your task is to analyze the user's command and determine their intent and any relevant entities based on your knowledge of the app.
 
-      Here are the possible intents you can return:
+      **App Knowledge Base:**
+      - "Agents": These are AI assistants that find job opportunities. They can be "run" to start a search.
+      - "Campaigns": These are outreach emails drafted for opportunities. They have a status like 'draft' or 'sent'. Users can "send" a draft campaign.
+      - "Placements": These are successful hires resulting from a campaign.
+      - "Proposals": These are formal contracts generated for a client.
+      - "Analytics" or "Reports": This is a page with charts and metrics.
+
+      **Possible Intents:**
       - "CREATE_AGENT": User wants to create or build a new agent.
-      - "RUN_AGENT": User wants to run an existing agent. You should extract the agent's name if possible.
-      - "VIEW_BRIEFING": User wants to see a briefing or summary of opportunities.
-      - "HANDLE_VALUATION": User is referring to a buyer or valuation task.
-      - "NAVIGATE": User wants to go to a specific page (e.g., "go to campaigns"). Extract the page name.
+      - "RUN_AGENT": User wants to run an existing agent. Extract the "agent_name".
+      - "SEND_CAMPAIGN": User wants to send a draft outreach campaign. Extract the "company_name".
+      - "NAVIGATE": User wants to go to a specific page. Extract the "page" name (e.g., campaigns, agents, placements, proposals, analytics).
       - "UNKNOWN": The user's intent is unclear or not supported.
 
-      User command: "${command}"
+      **User Command:** "${command}"
 
+      **Instructions:**
       Return a single, valid JSON object with two keys:
       1. "intent": One of the possible intents listed above.
-      2. "entities": An object containing any extracted information, like "agent_name" or "page". If no entities are found, return an empty object.
+      2. "entities": An object containing any extracted information. If no entities are found, return an empty object.
 
-      Example for "run the fintech agent":
-      {
-        "intent": "RUN_AGENT",
-        "entities": { "agent_name": "fintech" }
-      }
-
-      Example for "go to my placements":
-      {
-        "intent": "NAVIGATE",
-        "entities": { "page": "placements" }
-      }
+      **Examples:**
+      - Command: "run the fintech agent" -> { "intent": "RUN_AGENT", "entities": { "agent_name": "fintech" } }
+      - Command: "go to my placements" -> { "intent": "NAVIGATE", "entities": { "page": "placements" } }
+      - Command: "send the email to Globex Corp" -> { "intent": "SEND_CAMPAIGN", "entities": { "company_name": "Globex Corp" } }
     `;
 
     const geminiResponse = await fetch(
