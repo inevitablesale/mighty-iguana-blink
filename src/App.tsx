@@ -8,7 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 import { FeedbackProvider } from "@/contexts/FeedbackContext";
 
 import AICanvas from "./components/AICanvas";
-import Index from "./pages/Index";
+import TheLoom from "./pages/TheLoom";
 import NotFound from "./pages/NotFound";
 import Campaigns from "./pages/Campaigns";
 import Agents from "./pages/Agents";
@@ -17,6 +17,7 @@ import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
 import Proposals from "./pages/Proposals";
 import Analytics from "./pages/Analytics";
+import CommandCenter from "./pages/CommandCenter";
 
 const queryClient = new QueryClient();
 
@@ -56,7 +57,8 @@ const App = () => {
                 path="/" 
                 element={session ? <AICanvas /> : <Navigate to="/login" />}
               >
-                <Route index element={<Index />} />
+                <Route index element={<TheLoom />} />
+                <Route path="opportunities" element={<CommandCenter />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="profile" element={<Profile />} />
