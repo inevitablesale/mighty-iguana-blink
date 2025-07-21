@@ -16,7 +16,6 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
 import Proposals from "./pages/Proposals";
-import Briefing from "./pages/Briefing";
 
 const queryClient = new QueryClient();
 
@@ -57,7 +56,6 @@ const App = () => {
               element={session ? <AppLayout /> : <Navigate to="/login" />}
             >
               <Route index element={<Index />} />
-              <Route path="briefing" element={<Briefing />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="agents" element={<Agents />} />
               <Route path="profile" element={<Profile />} />

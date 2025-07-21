@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Bot, Target } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useRevenueChartData } from "@/hooks/useRevenueChartData";
@@ -10,16 +11,13 @@ import { AgentBriefingCard } from "@/components/AgentBriefingCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { AgentBriefingDialog } from "@/components/AgentBriefingDialog";
 
 export default function Index() {
-  const navigate = useNavigate();
   const { stats, loading: statsLoading } = useDashboardStats();
   const { data: chartData, loading: chartLoading } = useRevenueChartData();
-  const { briefings, loading: briefingsLoading } = useDashboardBriefings();
-
-  const handleStartReview = (briefing: AgentBriefing) => {
-    navigate('/briefing', { state: { briefing } });
-  };
+  const { briefings, loading: briefingsLoading, refresh: refreshBriefings } = useDashboardBriefings();
+  const [selectedBriefing, setSelectedBriefing] = useState<AgentBriefing | null>(null);
 
   return (
     <div className="flex flex-col h-screen">
@@ -44,7 +42,7 @@ export default function Index() {
                   key={briefing.agent.id}
                   agent={briefing.agent}
                   opportunityCount={briefing.opportunities.length}
-                  onStartReview={() => handleStartReview(briefing)}
+                  onStartReview={() => setSelectedBriefing(briefing)}
                 />
               ))}
             </div>
@@ -70,6 +68,20 @@ export default function Index() {
         <RevenueChart data={chartData} loading={chartLoading} />
 
       </main>
+
+      {selectedBriefing && (
+        <AgentBriefingDialog
+          briefing={selectedBriefing}
+          open={!!selectedBriefing}
+          onOpenChange={(open) => {
+            if (!open) setSelectedBriefing(null);
+          }}
+          onBriefingComplete={() => {
+            setSelectedBriefing(null);
+            refreshBriefings();
+          }}
+        />
+      )}
     </div>
   );
 }

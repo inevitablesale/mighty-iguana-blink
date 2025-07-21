@@ -15,7 +15,7 @@ export function AgentBriefingCard({ agent, opportunityCount, onStartReview }: Ag
       <CardHeader>
         <CardTitle>{agent.name}</CardTitle>
         <CardDescription className="text-primary-foreground/80">
-          This agent has found {opportunityCount} new high-potential opportunities for your review.
+          This agent is ready to brief you on {opportunityCount} new high-potential opportunities.
         </CardDescription>
       </CardHeader>
       <CardContent>
