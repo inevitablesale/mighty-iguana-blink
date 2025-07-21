@@ -66,13 +66,15 @@ export function useSpeech() {
         }
       }
       
-      setTranscript(currentFinalTranscript + interimTranscript);
+      // Rebuild the full transcript for display from the event results
+      let full_transcript_for_display = "";
+      for (const res of event.results) {
+          full_transcript_for_display += res[0].transcript;
+      }
+      setTranscript(full_transcript_for_display);
 
       if (currentFinalTranscript.trim()) {
         setFinalTranscript(currentFinalTranscript.trim());
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
-        }
       }
     };
 

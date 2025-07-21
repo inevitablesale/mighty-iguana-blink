@@ -32,9 +32,10 @@ export default function Index() {
 
   useEffect(() => {
     if (lastMessage?.speaker === 'ai' && isConversationModeActive) {
+      stopListening();
       speak(lastMessage.text);
     }
-  }, [lastMessage, isConversationModeActive, speak]);
+  }, [lastMessage, isConversationModeActive, speak, stopListening]);
 
   const handleCommandSubmit = useCallback((command: string) => {
     if (!command.trim()) return;
