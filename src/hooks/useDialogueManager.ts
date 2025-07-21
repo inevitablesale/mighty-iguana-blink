@@ -44,7 +44,6 @@ export function useDialogueManager() {
       if (intentError) throw intentError;
 
       const aiResponseText = intentData.responseText || "Sorry, I'm not sure how to respond to that.";
-      addMessage({ speaker: 'ai', text: aiResponseText });
 
       switch (intentData.intent) {
         case 'CREATE_AGENT':
@@ -65,6 +64,7 @@ export function useDialogueManager() {
           break;
 
         case 'SEND_CAMPAIGN':
+          addMessage({ speaker: 'ai', text: aiResponseText });
           const companyName = intentData.entities?.company_name;
           if (!companyName) {
             addMessage({ speaker: 'ai', text: "Which company's campaign should I send?" });
@@ -72,7 +72,7 @@ export function useDialogueManager() {
           }
           addMessage({
             speaker: 'ai',
-            text: aiResponseText,
+            text: `Okay, sending the campaign for ${companyName}.`,
             directive: { type: 'progress', title: 'Sending Campaign', payload: {} },
           });
 
@@ -97,6 +97,7 @@ export function useDialogueManager() {
           break;
         
         case 'NAVIGATE':
+          addMessage({ speaker: 'ai', text: aiResponseText });
           const page = intentData.entities?.page || '';
           if (page && ['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page.toLowerCase())) {
             navigate(`/${page.toLowerCase()}`);
@@ -104,7 +105,7 @@ export function useDialogueManager() {
           break;
 
         default: // UNKNOWN
-          // The default response is already handled by the initial addMessage call
+          addMessage({ speaker: 'ai', text: aiResponseText });
           break;
       }
     } catch (e) {
