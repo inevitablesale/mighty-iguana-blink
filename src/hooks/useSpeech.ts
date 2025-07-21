@@ -66,7 +66,6 @@ export function useSpeech() {
         }
       }
       
-      // Rebuild the full transcript for display from the event results
       let full_transcript_for_display = "";
       for (const res of event.results) {
           full_transcript_for_display += res[0].transcript;
@@ -83,6 +82,11 @@ export function useSpeech() {
     };
     
     recognition.onerror = (event) => {
+      if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'not-allowed') {
+        console.warn(`Speech recognition error (ignoring): ${event.error}`);
+        setIsListening(false);
+        return;
+      }
       console.error('Speech recognition error', event.error);
       toast.error(`Speech recognition error: ${event.error}`);
       setIsListening(false);
@@ -93,17 +97,27 @@ export function useSpeech() {
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
-      setTranscript('');
-      setFinalTranscript('');
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        setTranscript('');
+        setFinalTranscript('');
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'InvalidStateError') {
+          console.warn('Speech recognition already started. Ignoring redundant call.');
+        } else {
+          console.error('Failed to start speech recognition:', error);
+          toast.error('Could not start microphone.');
+          setIsListening(false);
+        }
+      }
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
-      setIsListening(false);
+      // Let the `onend` event handle setting `isListening` to false to avoid race conditions.
     }
   }, [isListening]);
 
@@ -136,10 +150,16 @@ export function useSpeech() {
 
   useEffect(() => {
     return () => {
-      stopListening();
+      if (recognitionRef.current) {
+        // Clean up handlers to prevent memory leaks
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.stop();
+      }
       cancelSpeech();
     };
-  }, [stopListening, cancelSpeech]);
+  }, [cancelSpeech]);
 
   return {
     isListening,
