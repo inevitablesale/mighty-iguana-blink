@@ -63,8 +63,10 @@ export function useSpeech() {
   }, []);
 
   // --- Speech Recognition (Speech-to-Text) ---
-  const transcribeAudio = async () => {
-    if (audioChunksRef.current.length === 0 || !transcriberRef.current) return;
+  const transcribeAudio = useCallback(async () => {
+    if (audioChunksRef.current.length === 0 || !transcriberRef.current) {
+      return;
+    }
 
     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
     
@@ -83,7 +85,6 @@ export function useSpeech() {
         setTranscript(newTranscript);
         setFinalTranscript(newTranscript);
       } else {
-        console.log("Transcription result is empty or invalid.");
         setTranscript('');
       }
     } catch (error) {
@@ -91,7 +92,7 @@ export function useSpeech() {
     } finally {
       audioChunksRef.current = [];
     }
-  };
+  }, []);
 
   const startListening = useCallback(async () => {
     if (isListening || isModelLoading) return;
@@ -114,7 +115,7 @@ export function useSpeech() {
     } catch (error) {
       console.error("Failed to start listening:", error);
     }
-  }, [isListening, isModelLoading]);
+  }, [isListening, isModelLoading, transcribeAudio]);
 
   const stopListening = useCallback(() => {
     if (!isListening || !mediaRecorderRef.current) return;
