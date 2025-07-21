@@ -11,30 +11,42 @@ const ExtensionContext = createContext<ExtensionContextType | undefined>(undefin
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
 
-  // This effect listens for a one-time announcement from the extension
   useEffect(() => {
+    let pingInterval: number;
     let timeoutId: number;
 
     const handleExtensionReady = () => {
       console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
-      clearTimeout(timeoutId);
+      cleanup();
       setIsExtensionInstalled(true);
     };
 
-    // Listen for the extension's one-time announcement
+    const cleanup = () => {
+      clearInterval(pingInterval);
+      clearTimeout(timeoutId);
+      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
+    };
+
+    // Listen for the extension's response
     window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
 
-    // If we don't hear from the extension after a short time, assume it's not there.
-    timeoutId = window.setTimeout(() => {
-      console.log("Coogi Web App: Handshake timeout. Extension not detected.");
-      setIsExtensionInstalled(false);
-    }, 1500); // Wait 1.5 seconds
+    // Start pinging the extension
+    pingInterval = window.setInterval(() => {
+      console.log("Coogi Web App: Pinging extension with 'coogi-app-ready'...");
+      window.dispatchEvent(new CustomEvent('coogi-app-ready'));
+    }, 500);
 
-    return () => {
-      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
-      clearTimeout(timeoutId);
-    };
-  }, []);
+    // Stop trying after 3 seconds
+    timeoutId = window.setTimeout(() => {
+      if (!isExtensionInstalled) {
+        console.log("Coogi Web App: Handshake timeout. Extension not detected.");
+        cleanup();
+        setIsExtensionInstalled(false);
+      }
+    }, 3000);
+
+    return cleanup;
+  }, [isExtensionInstalled]); // Re-run if state changes, though it shouldn't
 
   // This effect sends the auth token when the extension is ready and user is logged in
   useEffect(() => {

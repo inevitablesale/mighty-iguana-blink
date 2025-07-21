@@ -1,4 +1,12 @@
 // This script runs in the main world of the web page.
-// It announces that the extension's page script is ready.
-console.log("Coogi Extension (In-Page): Announcing presence with 'coogi-extension-ready' event.");
-window.dispatchEvent(new CustomEvent('coogi-extension-ready'));
+console.log("Coogi Extension (In-Page): Messenger script loaded and listening.");
+
+const listener = () => {
+  console.log("Coogi Extension (In-Page): Received app ping. Responding with handshake.");
+  window.dispatchEvent(new CustomEvent('coogi-extension-ready'));
+  // Clean up the listener after it has done its job.
+  window.removeEventListener('coogi-app-ready', listener);
+};
+
+window.addEventListener('coogi-app-ready', listener);
+console.log("Coogi Extension (In-Page): Messenger is now listening for the app's ping.");
