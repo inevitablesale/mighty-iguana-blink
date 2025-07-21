@@ -6,7 +6,7 @@ import { Agent } from "@/types/index";
 interface AgentBriefingCardProps {
   agent: Agent;
   opportunityCount: number;
-  onStartReview: (agent: Agent) => void;
+  onStartReview: () => void;
 }
 
 export function AgentBriefingCard({ agent, opportunityCount, onStartReview }: AgentBriefingCardProps) {
@@ -26,7 +26,7 @@ export function AgentBriefingCard({ agent, opportunityCount, onStartReview }: Ag
       <CardFooter>
         <Button 
           variant="secondary" 
-          onClick={() => onStartReview(agent)}
+          onClick={onStartReview}
           className="ml-auto"
         >
           Start Briefing <ArrowRight className="ml-2 h-4 w-4" />

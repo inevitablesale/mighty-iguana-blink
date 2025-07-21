@@ -10,13 +10,13 @@ import type { Session } from "@supabase/supabase-js";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Opportunities from "./pages/Opportunities";
 import Campaigns from "./pages/Campaigns";
 import Agents from "./pages/Agents";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
 import Proposals from "./pages/Proposals";
+import Briefing from "./pages/Briefing";
 
 const queryClient = new QueryClient();
 
@@ -57,7 +57,7 @@ const App = () => {
               element={session ? <AppLayout /> : <Navigate to="/login" />}
             >
               <Route index element={<Index />} />
-              <Route path="opportunities" element={<Opportunities />} />
+              <Route path="briefing" element={<Briefing />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="agents" element={<Agents />} />
               <Route path="profile" element={<Profile />} />

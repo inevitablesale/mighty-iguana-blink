@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LogOut, User, Menu, Home, Target, Bell, Users, Award, FileText } from "lucide-react";
+import { LogOut, User, Menu, Home, Bell, Users, Award, FileText } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -76,10 +76,6 @@ export function Header({ title }: HeaderProps) {
               <NavLink to="/" end className={getMobileLinkClassName}>
                 <Home className="h-5 w-5" />
                 Dashboard
-              </NavLink>
-              <NavLink to="/opportunities" className={getMobileLinkClassName}>
-                <Target className="h-5 w-5" />
-                Opportunities
               </NavLink>
               <NavLink to="/campaigns" className={getMobileLinkClassName}>
                 <Bell className="h-5 w-5" />
