@@ -1,26 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Target, FileSearch, Check, Eye } from "lucide-react";
+import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Opportunity } from "@/types/index";
-import { CompanyBriefingDialog } from "@/components/CompanyBriefingDialog";
-import { OpportunityAnalysisDialog } from "@/components/OpportunityAnalysisDialog";
+import { Opportunity, Agent } from "@/types/index";
+import { OpportunityList } from "@/components/OpportunityList";
 import { useNavigate } from "react-router-dom";
 
 const Opportunities = () => {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunitiesByAgent, setOpportunitiesByAgent] = useState<Map<string, Opportunity[]>>(new Map());
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [processedOppIds, setProcessedOppIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -34,16 +24,18 @@ const Opportunities = () => {
       return;
     }
 
-    const [oppsRes, campaignsRes] = await Promise.all([
-      supabase.from('opportunities').select('*').eq('user_id', user.id).order('match_score', { ascending: false }).order('created_at', { ascending: false }),
-      supabase.from('campaigns').select('opportunity_id').eq('user_id', user.id)
+    const [oppsRes, campaignsRes, agentsRes] = await Promise.all([
+      supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('campaigns').select('opportunity_id').eq('user_id', user.id),
+      supabase.from('agents').select('*').eq('user_id', user.id)
     ]);
 
-    if (oppsRes.error) {
-      toast.error("Failed to load opportunities.");
+    if (oppsRes.error || agentsRes.error) {
+      toast.error("Failed to load data.");
     } else {
       const formattedOpps = oppsRes.data.map((o: any) => ({
         id: o.id,
+        agent_id: o.agent_id,
         companyName: o.company_name,
         role: o.role,
         location: o.location || 'N/A',
@@ -55,7 +47,20 @@ const Opportunities = () => {
         recruiter_angle: o.recruiter_angle || 'N/A',
         key_signal_for_outreach: o.key_signal_for_outreach || 'N/A',
       }));
-      setOpportunities(formattedOpps);
+
+      const groupedOpps = new Map<string, Opportunity[]>();
+      formattedOpps.forEach(opp => {
+        if (opp.agent_id) {
+          const agentOpps = groupedOpps.get(opp.agent_id) || [];
+          agentOpps.push(opp);
+          // Sort opportunities within each agent group by match score
+          agentOpps.sort((a, b) => b.matchScore - a.matchScore);
+          groupedOpps.set(opp.agent_id, agentOpps);
+        }
+      });
+      
+      setAgents(agentsRes.data || []);
+      setOpportunitiesByAgent(groupedOpps);
     }
 
     if (campaignsRes.data) {
@@ -69,12 +74,12 @@ const Opportunities = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleApprove = async (opportunityId: string) => {
-    setApprovingId(opportunityId);
+  const handleApprove = async (opportunity: Opportunity) => {
+    setApprovingId(opportunity.id);
     const toastId = toast.loading("Generating outreach draft...");
     try {
       const { error } = await supabase.functions.invoke('generate-outreach-for-opportunity', {
-        body: { opportunityId },
+        body: { opportunityId: opportunity.id },
       });
       if (error) throw error;
       toast.success("Draft created!", {
@@ -82,7 +87,7 @@ const Opportunities = () => {
         description: "You can now view it in Campaigns.",
         action: { label: "View Campaigns", onClick: () => navigate('/campaigns') },
       });
-      fetchData(); // Refresh data to update button state
+      fetchData();
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });
     } finally {
@@ -90,57 +95,30 @@ const Opportunities = () => {
     }
   };
 
+  const agentsWithOpps = agents.filter(agent => opportunitiesByAgent.has(agent.id));
+
   return (
     <div className="flex flex-col">
       <Header title="Opportunities" />
-      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+      <main className="flex flex-1 flex-col gap-8 p-4 lg:p-6">
         {loading ? (
-          <Card><CardHeader><Skeleton className="h-6 w-1/4" /></CardHeader><CardContent><div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card>
-        ) : opportunities.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>All Opportunities</CardTitle>
-              <CardDescription>A log of all opportunities discovered by your AI agents. Approve them to create outreach campaigns.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Match</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {opportunities.map((opp) => (
-                    <TableRow key={opp.id}>
-                      <TableCell className="font-medium">{opp.companyName}</TableCell>
-                      <TableCell>{opp.role}</TableCell>
-                      <TableCell>{opp.matchScore}/10</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <OpportunityAnalysisDialog opportunity={opp}>
-                           <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
-                        </OpportunityAnalysisDialog>
-                        <CompanyBriefingDialog companyName={opp.companyName}>
-                          <Button variant="outline" size="sm"><FileSearch className="mr-2 h-4 w-4" />Research</Button>
-                        </CompanyBriefingDialog>
-                        {processedOppIds.has(opp.id) ? (
-                          <Button size="sm" disabled><Check className="mr-2 h-4 w-4" />Drafted</Button>
-                        ) : (
-                          <Button size="sm" onClick={() => handleApprove(opp.id)} disabled={approvingId === opp.id} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                            {approvingId === opp.id ? 'Approving...' : 'Approve'}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+        ) : agentsWithOpps.length > 0 ? (
+          agentsWithOpps.map(agent => (
+            <OpportunityList
+              key={agent.id}
+              agent={agent}
+              opportunities={opportunitiesByAgent.get(agent.id) || []}
+              onApproveOutreach={handleApprove}
+              processedOppIds={processedOppIds}
+              approvingId={approvingId}
+            />
+          ))
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-full min-h-[60vh]">
             <div className="flex flex-col items-center gap-1 text-center">
               <Target className="h-10 w-10 text-muted-foreground" />
               <h3 className="text-2xl font-bold tracking-tight">No Opportunities Found Yet</h3>

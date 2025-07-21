@@ -1,5 +1,6 @@
 export interface Opportunity {
   id: string;
+  agent_id: string;
   companyName: string;
   role: string;
   location: string;
