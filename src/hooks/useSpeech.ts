@@ -27,6 +27,7 @@ const SpeechRecognition = (window as unknown as IWindow).SpeechRecognition || (w
 export function useSpeech() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [finalTranscript, setFinalTranscript] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -51,22 +52,28 @@ export function useSpeech() {
     recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
-      // Barge-in logic: if we get a result, the user is speaking.
-      // Immediately stop any AI speech that is currently happening.
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
 
       let interimTranscript = '';
-      let finalTranscript = '';
+      let currentFinalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          currentFinalTranscript += event.results[i][0].transcript;
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      setTranscript(finalTranscript + interimTranscript);
+      
+      setTranscript(currentFinalTranscript + interimTranscript);
+
+      if (currentFinalTranscript.trim()) {
+        setFinalTranscript(currentFinalTranscript.trim());
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      }
     };
 
     recognition.onend = () => {
@@ -84,8 +91,8 @@ export function useSpeech() {
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
-      // We no longer cancel speech here. Interruption is handled by onresult.
       setTranscript('');
+      setFinalTranscript('');
       recognitionRef.current.start();
       setIsListening(true);
     }
@@ -103,7 +110,6 @@ export function useSpeech() {
       console.warn("Speech synthesis is not supported in this browser.");
       return;
     }
-    // Cancel any previous speech before starting a new one.
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -115,8 +121,6 @@ export function useSpeech() {
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = (event) => {
       if (event.error === 'interrupted') {
-        // This is an expected error when the user barges in.
-        // We can just log it and not show a user-facing error.
         console.log('Speech synthesis was interrupted.');
       } else {
         console.error('Speech synthesis error', event.error);
@@ -138,6 +142,8 @@ export function useSpeech() {
   return {
     isListening,
     transcript,
+    finalTranscript,
+    clearFinalTranscript: () => setFinalTranscript(''),
     startListening,
     stopListening,
     setTranscript,

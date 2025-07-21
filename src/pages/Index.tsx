@@ -20,6 +20,8 @@ export default function Index() {
     isSpeaking: isAiSpeaking,
     speak,
     cancelSpeech,
+    finalTranscript,
+    clearFinalTranscript,
   } = useSpeech();
 
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
@@ -38,24 +40,24 @@ export default function Index() {
     if (!command.trim()) return;
     cancelSpeech();
     processUserCommand(command);
-  }, [cancelSpeech, processUserCommand]);
+    setTranscript('');
+  }, [cancelSpeech, processUserCommand, setTranscript]);
 
-  // Process command when user stops speaking
   useEffect(() => {
-    if (!isListening && transcript) {
-      handleCommandSubmit(transcript);
-      setTranscript('');
+    if (finalTranscript) {
+      handleCommandSubmit(finalTranscript);
+      clearFinalTranscript();
     }
-  }, [isListening, transcript, handleCommandSubmit, setTranscript]);
+  }, [finalTranscript, handleCommandSubmit, clearFinalTranscript]);
 
   // Manage the continuous listening loop for Conversation Mode
   useEffect(() => {
-    if (isConversationModeActive && !isListening) {
+    if (isConversationModeActive && !isListening && !isAiSpeaking) {
       startListening();
     } else if (!isConversationModeActive && isListening) {
       stopListening();
     }
-  }, [isConversationModeActive, isListening, startListening, stopListening]);
+  }, [isConversationModeActive, isListening, isAiSpeaking, startListening, stopListening]);
 
   // Listen for directives from the AI to open dialogs
   useEffect(() => {
