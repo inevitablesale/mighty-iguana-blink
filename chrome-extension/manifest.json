@@ -1,18 +1,35 @@
 {
   "manifest_version": 3,
-  "name": "Coogi Extension",
+  "name": "Coogi",
   "version": "1.0",
-  "description": "The Coogi Chrome Extension for finding contacts and enabling app features.",
+  "description": "Coogi AI Recruiting Intelligence Platform Extension.",
+  "permissions": ["scripting", "storage", "tabs"],
+  "host_permissions": ["https://www.linkedin.com/*"],
+  "action": {
+    "default_title": "Coogi"
+  },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": [
-        "http://localhost:*/*",
-        "https://coogi.netlify.app/*"
-      ],
-      "js": ["handshake.js"]
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["content.js"]
+    },
+    {
+      "matches": ["http://localhost:*/*", "https://*.dyad.sh/*"],
+      "js": ["handshake.js"],
+      "run_at": "document_start"
     }
-  ]
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-messenger.js"],
+      "matches": ["http://localhost:*/*", "https://*.dyad.sh/*"]
+    }
+  ],
+  "externally_connectable": {
+    "matches": ["http://localhost:*/*", "https://*.dyad.sh/*"]
+  }
 }
