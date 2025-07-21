@@ -6,7 +6,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,16 +16,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PlusCircle } from "lucide-react";
 import { AutonomyLevel } from "@/types/index";
 import { supportedCountries } from "@/lib/countries";
 
 interface AddAgentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onAgentCreated: () => void;
 }
 
-export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AddAgentDialog({ open, onOpenChange, onAgentCreated }: AddAgentDialogProps) {
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>("semi-automatic");
@@ -36,6 +35,17 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [isRemote, setIsRemote] = useState(false);
   const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const resetForm = () => {
+    setName("");
+    setPrompt("");
+    setAutonomyLevel("semi-automatic");
+    setSearchLookbackHours("720");
+    setMaxResults("20");
+    setJobType("");
+    setIsRemote(false);
+    setCountry("");
+  };
 
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
@@ -69,26 +79,13 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
     } else {
       toast.success(`Agent "${name}" created successfully!`);
       onAgentCreated();
-      setName("");
-      setPrompt("");
-      setAutonomyLevel("semi-automatic");
-      setSearchLookbackHours("720");
-      setMaxResults("20");
-      setJobType("");
-      setIsRemote(false);
-      setCountry("");
-      setOpen(false);
+      resetForm();
+      onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Agent
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Agent</DialogTitle>

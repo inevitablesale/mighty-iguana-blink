@@ -42,11 +42,12 @@ export function useDialogueManager() {
   const processUserCommand = useCallback((command: string) => {
     if (!command.trim()) return;
     cancelSpeech();
+    const lowerCaseCommand = command.toLowerCase();
     addMessage({ speaker: 'user', text: command });
 
     // Simulated Intent Engine
     setTimeout(() => {
-      if (command.toLowerCase().includes('buyer')) {
+      if (lowerCaseCommand.includes('buyer')) {
         addMessage({
           speaker: 'ai',
           text: 'Got it. Pulling the valuation report now.',
@@ -59,7 +60,14 @@ export function useDialogueManager() {
             directive: { type: 'confirmation', title: 'Report Sent', payload: {} },
           });
         }, 2000);
-      } else if (command.toLowerCase().includes('agent')) {
+      } else if (lowerCaseCommand.includes('build an agent') || lowerCaseCommand.includes('create an agent') || lowerCaseCommand.includes('new agent')) {
+        addMessage({
+          speaker: 'ai',
+          text: "Of course. Let's build a new agent. I'll take you there now.",
+          directive: null,
+        });
+        setTimeout(() => navigate('/agents?action=new'), 500);
+      } else if (lowerCaseCommand.includes('agent')) {
         addMessage({
           speaker: 'ai',
           text: "Understood. I'm initiating the playbook for the 'Fintech Sales' agent now.",
@@ -72,7 +80,7 @@ export function useDialogueManager() {
             directive: null,
           });
         }, 3000);
-      } else if (command.toLowerCase().includes('briefing')) {
+      } else if (lowerCaseCommand.includes('briefing')) {
         addMessage({
             speaker: 'ai',
             text: "Of course. Navigating to the briefing view now.",

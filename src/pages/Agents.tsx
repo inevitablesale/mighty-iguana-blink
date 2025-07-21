@@ -1,19 +1,30 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot } from "lucide-react";
+import { Bot, PlusCircle } from "lucide-react";
 import { AddAgentDialog } from "@/components/AddAgentDialog";
 import { AgentCard } from "@/components/AgentCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Agent } from "@/types/index";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
+  const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setIsAddAgentDialogOpen(true);
+      // Clean up the URL
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -89,7 +100,15 @@ const Agents = () => {
               Deploy your specialized agents to proactively find and create new opportunities.
             </p>
           </div>
-          <AddAgentDialog onAgentCreated={fetchAgents} />
+          <Button onClick={() => setIsAddAgentDialogOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Agent
+          </Button>
+          <AddAgentDialog 
+            open={isAddAgentDialogOpen}
+            onOpenChange={setIsAddAgentDialogOpen}
+            onAgentCreated={fetchAgents} 
+          />
         </div>
         
         {loading ? (
