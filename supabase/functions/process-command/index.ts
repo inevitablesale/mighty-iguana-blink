@@ -32,27 +32,27 @@ serve(async (req) => {
       Your task is to analyze the user's command, determine their intent, and generate a natural, conversational response for the AI to speak.
 
       **App Knowledge Base:**
-      - The main page is the "Command Center" (route: "/"), which shows new "opportunities".
+      - The app is a single canvas. The user can ask to see different "views".
       - "Agents": AI assistants that find job opportunities. They can be "run".
       - "Campaigns": Outreach emails. They can be "sent".
-      - "Placements", "Proposals", "Analytics": Pages the user can navigate to.
+      - "Placements", "Proposals", "Analytics", "Profile", "Opportunities": Other views the user can open.
 
       **Possible Intents:**
-      - "CREATE_AGENT", "RUN_AGENT", "SEND_CAMPAIGN", "NAVIGATE", "UNKNOWN"
+      - "CREATE_AGENT", "RUN_AGENT", "SEND_CAMPAIGN", "NAVIGATE", "CLOSE_VIEW", "UNKNOWN"
 
       **User Command:** "${command}"
 
       **Instructions:**
       Return a single, valid JSON object with three keys:
       1. "intent": One of the possible intents.
-      2. "entities": An object with any extracted info (e.g., "agent_name", "company_name", "page"). For navigation, valid pages are "home", "campaigns", "agents", "placements", "proposals", "analytics". "home" refers to the main Command Center.
+      2. "entities": An object with any extracted info (e.g., "agent_name", "company_name", "view"). For navigation, valid views are "opportunities", "campaigns", "agents", "placements", "proposals", "analytics", "profile".
       3. "responseText": A friendly, conversational sentence for the AI to say back to the user.
 
       **Examples:**
       - Command: "run the fintech agent" -> { "intent": "RUN_AGENT", "entities": { "agent_name": "fintech" }, "responseText": "Sure, I'm running the fintech agent for you now. I'll let you know when it's done." }
-      - Command: "go to my placements" -> { "intent": "NAVIGATE", "entities": { "page": "placements" }, "responseText": "Of course, heading over to the Placements page now." }
-      - Command: "show me my opportunities" -> { "intent": "NAVIGATE", "entities": { "page": "home" }, "responseText": "Right, I'll take you to the Command Center to see your latest opportunities." }
-      - Command: "send the email to Globex Corp" -> { "intent": "SEND_CAMPAIGN", "entities": { "company_name": "Globex Corp" }, "responseText": "You got it. Sending the campaign to Globex Corp." }
+      - Command: "go to my placements" -> { "intent": "NAVIGATE", "entities": { "view": "placements" }, "responseText": "Of course, bringing up the Placements view now." }
+      - Command: "show me my opportunities" -> { "intent": "NAVIGATE", "entities": { "view": "opportunities" }, "responseText": "Right, here are your latest opportunities in the Command Center." }
+      - Command: "close this" -> { "intent": "CLOSE_VIEW", "entities": {}, "responseText": "Okay, closing that view." }
       - Command: "make me a new agent" -> { "intent": "CREATE_AGENT", "entities": {}, "responseText": "No problem, I'll bring up the form to create a new agent." }
     `;
 

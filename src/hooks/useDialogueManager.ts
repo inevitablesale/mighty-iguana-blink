@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useCanvas, CanvasView } from '@/contexts/CanvasContext';
 
 export type Speaker = 'ai' | 'user';
 export type Message = {
@@ -18,12 +18,12 @@ export type Directive = {
 const initialGreeting: Message = {
   id: '0',
   speaker: 'ai',
-  text: "Good morning. What can I help you with today? You can ask me to run an agent, send a campaign, or navigate to a page.",
+  text: "Welcome to Coogi. What would you like to see first?",
   directive: null,
 };
 
 export function useDialogueManager() {
-  const navigate = useNavigate();
+  const { setCurrentView } = useCanvas();
   const [messages, setMessages] = useState<Message[]>([]);
 
   const addMessage = useCallback((message: Omit<Message, 'id'>) => {
@@ -53,67 +53,21 @@ export function useDialogueManager() {
             directive: { type: 'open-dialog', title: 'Create Agent', payload: 'add-agent' },
           });
           break;
-
-        case 'RUN_AGENT':
-          // This would trigger the actual agent run
-          // For now, we just show progress and confirmation
-           addMessage({
-            speaker: 'ai',
-            text: "I'm on it.",
-            directive: { type: 'progress', title: 'Running Playbook', payload: {} },
-          });
-          break;
-
-        case 'SEND_CAMPAIGN': {
-          const companyName = intentData.entities?.company_name;
-          if (!companyName) {
-            addMessage({ speaker: 'ai', text: "Which company's campaign should I send?" });
-            break;
-          }
-          addMessage({
-            speaker: 'ai',
-            text: `Okay, I'll send the campaign for ${companyName}.`,
-            directive: { type: 'progress', title: 'Sending Campaign', payload: { companyName } },
-          });
-
-          const { data: campaigns, error: campaignError } = await supabase
-            .from('campaigns')
-            .select('id')
-            .ilike('company_name', `%${companyName}%`)
-            .eq('status', 'draft')
-            .limit(1);
-
-          if (campaignError || !campaigns || campaigns.length === 0) {
-            addMessage({ speaker: 'ai', text: `I couldn't find a draft campaign for ${companyName}.` });
-            break;
-          }
-
-          const { error: updateError } = await supabase.from('campaigns').update({ status: 'sent' }).eq('id', campaigns[0].id);
-          
-          if (updateError) {
-             addMessage({ speaker: 'ai', text: `I ran into an issue sending the campaign for ${companyName}. Please check the console for details.` });
-          } else {
-            addMessage({
-              speaker: 'ai',
-              text: `The campaign for ${companyName} has been sent.`,
-              directive: { type: 'confirmation', title: 'Campaign Sent', payload: {} },
-            });
-          }
-          break;
-        }
         
         case 'NAVIGATE': {
-          const page = intentData.entities?.page?.toLowerCase() || '';
-          if (page === 'home') {
-            navigate('/');
-          } else if (['campaigns', 'agents', 'placements', 'proposals', 'analytics'].includes(page)) {
-            navigate(`/${page}`);
+          const view = intentData.entities?.view as CanvasView;
+          if (view) {
+            setCurrentView(view);
           }
           break;
         }
 
-        default: // UNKNOWN
-          // The initial AI response is already added above.
+        case 'CLOSE_VIEW':
+          setCurrentView(null);
+          break;
+
+        // Other intents like RUN_AGENT can be handled here in the future
+        default:
           break;
       }
     } catch (e) {
@@ -121,7 +75,7 @@ export function useDialogueManager() {
       console.error("Error processing command:", err);
       addMessage({ speaker: 'ai', text: "Sorry, I'm having trouble understanding right now. Please try again." });
     }
-  }, [addMessage, navigate]);
+  }, [addMessage, setCurrentView]);
 
   useEffect(() => {
     setTimeout(() => {
