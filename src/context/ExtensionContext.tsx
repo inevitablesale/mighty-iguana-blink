@@ -11,31 +11,36 @@ const ExtensionContext = createContext<ExtensionContextType | undefined>(undefin
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
 
-  // This effect handles the initial handshake to detect the extension
+  // This effect listens for a one-time announcement from the extension
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage(
-        { type: "HANDSHAKE_PING" },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.log("Coogi Web App: Handshake failed. Extension not detected.", chrome.runtime.lastError.message);
-            setIsExtensionInstalled(false);
-          } else if (response && response.type === "HANDSHAKE_PONG") {
-            console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
-            setIsExtensionInstalled(true);
-          }
-        }
-      );
-    } else {
-      console.log("Coogi Web App: Not in an extension environment.");
+    let timeoutId: number;
+
+    const handleExtensionReady = () => {
+      console.log('%cCoogi Web App: Handshake SUCCESS! Extension is ready.', 'color: #00ff00; font-weight: bold;');
+      clearTimeout(timeoutId);
+      setIsExtensionInstalled(true);
+    };
+
+    // Listen for the extension's one-time announcement
+    window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
+
+    // If we don't hear from the extension after a short time, assume it's not there.
+    timeoutId = window.setTimeout(() => {
+      console.log("Coogi Web App: Handshake timeout. Extension not detected.");
       setIsExtensionInstalled(false);
-    }
-  }, []); // Run only once on mount
+    }, 1500); // Wait 1.5 seconds
+
+    return () => {
+      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   // This effect sends the auth token when the extension is ready and user is logged in
   useEffect(() => {
     const sendAuthToExtension = (session: any) => {
-      if (!session) return;
+      if (!session || typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return;
+      
       console.log("Coogi Web App: Sending auth token to extension.");
       chrome.runtime.sendMessage({
         type: "SET_TOKEN",
@@ -44,7 +49,6 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("Coogi Web App: Error sending token:", chrome.runtime.lastError.message);
-          // Don't toast here, it can be annoying if the user doesn't have the extension.
         } else {
           console.log("Coogi Web App: Extension confirmed token receipt.", response);
           toast.success("Extension connected to your session.");
@@ -53,23 +57,15 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (isExtensionInstalled) {
-      // Send token immediately if session already exists
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          sendAuthToExtension(session);
-        }
+        if (session) sendAuthToExtension(session);
       });
 
-      // And listen for future sign-ins
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (_event === 'SIGNED_IN') {
-          sendAuthToExtension(session);
-        }
+        if (_event === 'SIGNED_IN') sendAuthToExtension(session);
       });
 
-      return () => {
-        subscription.unsubscribe();
-      };
+      return () => subscription.unsubscribe();
     }
   }, [isExtensionInstalled]);
 
