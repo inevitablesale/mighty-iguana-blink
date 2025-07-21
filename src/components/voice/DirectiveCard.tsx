@@ -2,7 +2,6 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Directive } from '@/hooks/useDialogueManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Loader, List } from 'lucide-react';
-import { Button } from '../ui/button';
 
 interface DirectiveCardProps {
   directive: Directive | null;
