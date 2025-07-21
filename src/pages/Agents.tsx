@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Agent } from "@/types/index";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Agents = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -16,15 +16,6 @@ const Agents = () => {
   const [runningAgentId, setRunningAgentId] = useState<string | null>(null);
   const [isAddAgentDialogOpen, setIsAddAgentDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  useEffect(() => {
-    if (searchParams.get('action') === 'new') {
-      setIsAddAgentDialogOpen(true);
-      // Clean up the URL
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   const fetchAgents = async () => {
     setLoading(true);

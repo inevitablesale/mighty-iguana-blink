@@ -10,7 +10,7 @@ export type Message = {
   directive?: Directive | null;
 };
 export type Directive = {
-  type: 'task-list' | 'confirmation' | 'progress' | 'briefing';
+  type: 'task-list' | 'confirmation' | 'progress' | 'briefing' | 'open-dialog';
   title: string;
   payload: any;
 };
@@ -63,10 +63,9 @@ export function useDialogueManager() {
       } else if (lowerCaseCommand.includes('build an agent') || lowerCaseCommand.includes('create an agent') || lowerCaseCommand.includes('new agent')) {
         addMessage({
           speaker: 'ai',
-          text: "Of course. Let's build a new agent. I'll take you there now.",
-          directive: null,
+          text: "Of course. I'll open the new agent form for you.",
+          directive: { type: 'open-dialog', title: 'Create Agent', payload: 'add-agent' },
         });
-        setTimeout(() => navigate('/agents?action=new'), 500);
       } else if (lowerCaseCommand.includes('agent')) {
         addMessage({
           speaker: 'ai',
