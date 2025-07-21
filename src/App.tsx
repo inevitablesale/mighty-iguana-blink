@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
@@ -47,26 +48,28 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-            <Route 
-              path="/" 
-              element={session ? <AppLayout /> : <Navigate to="/login" />}
-            >
-              <Route index element={<Index />} />
-              <Route path="opportunities" element={<Opportunities />} />
-              <Route path="campaigns" element={<Campaigns />} />
-              <Route path="agents" element={<Agents />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="placements" element={<Placements />} />
-              <Route path="proposals" element={<Proposals />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <ExtensionProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+              <Route 
+                path="/" 
+                element={session ? <AppLayout /> : <Navigate to="/login" />}
+              >
+                <Route index element={<Index />} />
+                <Route path="opportunities" element={<Opportunities />} />
+                <Route path="campaigns" element={<Campaigns />} />
+                <Route path="agents" element={<Agents />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="placements" element={<Placements />} />
+                <Route path="proposals" element={<Proposals />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ExtensionProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
