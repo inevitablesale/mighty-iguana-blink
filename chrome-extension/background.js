@@ -77,10 +77,21 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
       sendResponse({ error: "Not authenticated." });
       return true;
     }
-    console.log("Coogi Extension: Received request to scrape company page:", message.companyName);
+    console.log("Coogi Extension: Received request to scrape company page for opportunity:", message.opportunityId);
     
-    const companyUrl = `https://www.linkedin.com/company/${message.companyUrlName}/posts`;
+    const { data: opportunity, error } = await supabase
+      .from('opportunities')
+      .select('linkedin_url_slug')
+      .eq('id', message.opportunityId)
+      .single();
 
+    if (error || !opportunity || !opportunity.linkedin_url_slug) {
+      console.error("Could not find opportunity or LinkedIn slug:", error);
+      sendResponse({ error: "Could not find a LinkedIn page for this opportunity." });
+      return true;
+    }
+
+    const companyUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/posts`;
     const tab = await chrome.tabs.create({ url: companyUrl, active: false });
 
     const tabUpdateListener = async (tabId, info) => {

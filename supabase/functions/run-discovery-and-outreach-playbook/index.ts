@@ -9,6 +9,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to extract the unique slug from a full LinkedIn company URL
+function extractLinkedInSlug(url) {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname.includes('linkedin.com') && parsedUrl.pathname.startsWith('/company/')) {
+      const parts = parsedUrl.pathname.split('/');
+      // Expected format: ['', 'company', 'slug', ...]
+      // We remove any trailing slashes or extra path segments.
+      return parts[2]?.replace(/\/$/, '') || null;
+    }
+  } catch (e) {
+    // Ignore invalid URLs
+  }
+  return null;
+}
+
 // Helper to create a consistent hash for a job object using the Web Crypto API
 async function createJobHash(job) {
   const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
@@ -137,6 +154,8 @@ serve(async (req) => {
         console.log(`Cache hit for job: ${job.title}`);
         const sanitizedData = cached.analysis_data;
         sanitizedData.match_score = sanitizeMatchScore(sanitizedData.match_score || sanitizedData.matchScore);
+        // Pass through the linkedin url from the original job object
+        sanitizedData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
         return sanitizedData;
       }
 
@@ -152,6 +171,7 @@ serve(async (req) => {
       const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
       
       analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
+      analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
 
       const { error: insertCacheError } = await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
       if (insertCacheError) console.error(`Failed to cache analysis for ${job.title}:`, insertCacheError.message);
@@ -186,6 +206,7 @@ serve(async (req) => {
           pain_points: opp.pain_points || 'N/A',
           recruiter_angle: opp.recruiter_angle || 'N/A',
           key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
+          linkedin_url_slug: opp.linkedin_url_slug || null,
         };
       })
       .filter(opp => opp !== null && opp.company_name && opp.role);
