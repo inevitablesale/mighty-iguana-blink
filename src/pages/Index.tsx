@@ -37,8 +37,7 @@ export default function Index() {
       stopListening();
       speak(lastMessage.text);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastMessage, isConversationModeActive]);
+  }, [lastMessage, isConversationModeActive, speak, stopListening]);
 
   const handleCommandSubmit = useCallback((command: string) => {
     if (!command.trim()) return;
@@ -63,8 +62,7 @@ export default function Index() {
     } else if (!isConversationModeActive && isListening) {
       stopListening();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConversationModeActive, isListening, isAiSpeaking, isModelLoading]);
+  }, [isConversationModeActive, isListening, isAiSpeaking, isModelLoading, startListening, stopListening]);
 
   // Listen for directives from the AI to open dialogs
   useEffect(() => {
