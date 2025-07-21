@@ -11,6 +11,7 @@ let userId = null;
 let isTaskActive = false;
 let cooldownActive = false;
 const taskQueue = [];
+let currentOpportunityContext = null; // Store context for multi-step scraping
 
 // Initialize Supabase client with a specific user's token
 function initSupabase(token) {
@@ -81,18 +82,39 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     
     const { data: opportunity, error } = await supabase
       .from('opportunities')
-      .select('linkedin_url_slug')
+      .select('linkedin_url_slug, company_name, role, location')
       .eq('id', message.opportunityId)
       .single();
 
-    if (error || !opportunity || !opportunity.linkedin_url_slug) {
-      console.error("Could not find opportunity or LinkedIn slug:", error);
-      sendResponse({ error: "Could not find a LinkedIn page for this opportunity." });
+    if (error || !opportunity) {
+      console.error("Could not find opportunity:", error);
+      sendResponse({ error: "Could not find this opportunity in the database." });
       return true;
     }
 
-    const companyUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/posts`;
-    const tab = await chrome.tabs.create({ url: companyUrl, active: false });
+    currentOpportunityContext = {
+      id: message.opportunityId,
+      company_name: opportunity.company_name,
+      role: opportunity.role,
+      location: opportunity.location,
+    };
+
+    let targetUrl;
+    let scriptToInject;
+
+    if (opportunity.linkedin_url_slug) {
+      // Happy path: direct link exists
+      console.log("Direct slug found, navigating to company page.");
+      targetUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/posts`;
+      scriptToInject = "company-content.js";
+    } else {
+      // Fallback: search for the company
+      console.log("No direct slug, searching for company.");
+      targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
+      scriptToInject = "company-search-content.js";
+    }
+
+    const tab = await chrome.tabs.create({ url: targetUrl, active: false });
 
     const tabUpdateListener = async (tabId, info) => {
       if (tabId === tab.id && info.status === 'complete') {
@@ -100,13 +122,16 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
         
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ["company-content.js"],
+          files: [scriptToInject],
         });
 
-        await chrome.tabs.sendMessage(tab.id, {
-          action: "startCompanyScrape",
-          opportunityId: message.opportunityId,
-        });
+        // If it's the direct scrape, send the start message
+        if (scriptToInject === "company-content.js") {
+          await chrome.tabs.sendMessage(tab.id, {
+            action: "startCompanyScrape",
+            opportunityId: message.opportunityId,
+          });
+        }
       }
     };
     chrome.tabs.onUpdated.addListener(tabUpdateListener);
@@ -118,6 +143,45 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (message.action === "scrapedCompanySearchResults") {
+    if (!supabase || !currentOpportunityContext) {
+      console.error("Received search results but context is missing.");
+      if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('select-linkedin-company', {
+        body: { searchResults: message.results, opportunityContext: currentOpportunityContext },
+      });
+
+      if (error) throw new Error(error.message);
+
+      // Navigate the same tab to the AI-selected URL
+      await chrome.tabs.update(sender.tab.id, { url: data.url });
+
+      // Now we need to wait for this new page to load and then inject the *other* script
+      const tabUpdateListener = async (tabId, info) => {
+        if (tabId === sender.tab.id && info.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+          await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ["company-content.js"],
+          });
+          await chrome.tabs.sendMessage(tabId, {
+            action: "startCompanyScrape",
+            opportunityId: currentOpportunityContext.id,
+          });
+        }
+      };
+      chrome.tabs.onUpdated.addListener(tabUpdateListener);
+
+    } catch (e) {
+      console.error("Error during AI company selection:", e.message);
+      if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+    }
+  }
+
   if (message.action === "scrapedData") {
     const { taskId, contacts, error, opportunityId } = message;
 
@@ -155,12 +219,14 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         console.log("Successfully saved scraped company data.");
       }
     }
+    currentOpportunityContext = null; // Clear context
   }
 
   if (message.action === "scrapingComplete") {
     if (sender.tab?.id) {
       chrome.tabs.remove(sender.tab.id);
     }
+    currentOpportunityContext = null; // Clear context
   }
 });
 
