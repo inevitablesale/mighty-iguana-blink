@@ -30,6 +30,14 @@ export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
+  // --- Speech Synthesis (Text-to-Speech) ---
+  const cancelSpeech = useCallback(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, []);
+
   // --- Speech Recognition (Speech-to-Text) ---
   useEffect(() => {
     if (!SpeechRecognition) {
@@ -70,11 +78,12 @@ export function useSpeech() {
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
+      cancelSpeech(); // Interrupt any ongoing speech
       setTranscript('');
       recognitionRef.current.start();
       setIsListening(true);
     }
-  }, [isListening]);
+  }, [isListening, cancelSpeech]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
@@ -83,7 +92,6 @@ export function useSpeech() {
     }
   }, [isListening]);
 
-  // --- Speech Synthesis (Text-to-Speech) ---
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) {
       console.warn("Speech synthesis is not supported in this browser.");
@@ -105,13 +113,6 @@ export function useSpeech() {
     };
 
     window.speechSynthesis.speak(utterance);
-  }, []);
-  
-  const cancelSpeech = useCallback(() => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
   }, []);
 
   useEffect(() => {
