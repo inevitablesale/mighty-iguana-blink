@@ -251,8 +251,28 @@ async function handleTask(task) {
   await updateTaskStatus(task.id, "processing");
 
   try {
-    const searchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(task.company_name)}`;
-    const tab = await chrome.tabs.create({ url: searchUrl, active: false });
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { data: opportunity, error: oppError } = await supabase
+      .from('opportunities')
+      .select('linkedin_url_slug')
+      .eq('id', task.opportunity_id)
+      .single();
+
+    if (oppError) {
+      console.error(`Could not fetch opportunity details for task ${task.id}:`, oppError.message);
+    }
+
+    let targetUrl;
+    if (opportunity && opportunity.linkedin_url_slug) {
+      console.log(`Found slug, navigating to company people page: ${opportunity.linkedin_url_slug}`);
+      targetUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/people/`;
+    } else {
+      console.log(`No slug found for opportunity ${task.opportunity_id}, falling back to search for company: ${task.company_name}`);
+      targetUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(task.company_name)}`;
+    }
+
+    const tab = await chrome.tabs.create({ url: targetUrl, active: false });
 
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },

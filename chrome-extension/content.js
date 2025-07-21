@@ -71,18 +71,45 @@ function scrapeLinkedInSearchResults(opportunityId) {
     const subtitleElement = entityResult.querySelector('.entity-result__primary-subtitle');
     const title = subtitleElement ? subtitleElement.innerText.trim() : null;
 
-    // Skip entries that are anonymized ("LinkedIn Member")
     if (name && name.toLowerCase() !== 'linkedin member' && profileUrl) {
       contacts.push({
         opportunityId,
         name,
         title,
         profileUrl,
-        email: null // Email is not available on this page
+        email: null
       });
     }
   });
-  console.log(`Content Script: Scraped ${contacts.length} contacts from the page.`);
+  console.log(`Content Script: Scraped ${contacts.length} contacts from the search page.`);
+  return contacts;
+}
+
+function scrapeCompanyPeoplePage(opportunityId) {
+  const results = document.querySelectorAll('li.org-people-profile-card');
+  const contacts = [];
+
+  results.forEach(item => {
+    const linkElement = item.querySelector('a');
+    const profileUrl = linkElement ? linkElement.href : null;
+
+    const nameElement = item.querySelector('.org-people-profile-card__profile-title');
+    const name = nameElement ? nameElement.innerText.trim() : null;
+
+    const titleElement = item.querySelector('.artdeco-entity-lockup__subtitle');
+    const title = titleElement ? titleElement.innerText.trim().split('\n')[0] : null;
+
+    if (name && name.toLowerCase() !== 'linkedin member' && profileUrl) {
+      contacts.push({
+        opportunityId,
+        name,
+        title,
+        profileUrl,
+        email: null
+      });
+    }
+  });
+  console.log(`Content Script: Scraped ${contacts.length} contacts from the company people page.`);
   return contacts;
 }
 
@@ -95,9 +122,10 @@ chrome.runtime.onMessage.addListener(async (message) => {
     const { taskId, opportunityId } = message;
     console.log(`🚀 Starting scrape for task ${taskId}`);
 
-    let allContacts = [];
+    let allContacts = new Map();
     let retries = 0;
     let currentPage = 1;
+    const isCompanyPeoplePage = window.location.pathname.includes('/company/') && window.location.pathname.includes('/people/');
 
     try {
       await waitRandom(3000, 6000);
@@ -107,41 +135,45 @@ chrome.runtime.onMessage.addListener(async (message) => {
         console.log(`📄 Scraping page ${currentPage}`);
         if (detectCaptchaOrRestriction()) throw new Error("CAPTCHA or login wall detected.");
 
+        const scrollHeightBefore = document.body.scrollHeight;
         await humanScrollToBottom();
         await addBehaviorNoise();
+        await waitRandom(3000, 5000);
 
-        const searchResultsList = await waitForSelector("ul.reusable-search__results-list", SELECTOR_TIMEOUT);
-        let contactsOnPage = [];
+        const contactsOnPage = isCompanyPeoplePage 
+          ? scrapeCompanyPeoplePage(opportunityId)
+          : scrapeLinkedInSearchResults(opportunityId);
+        
+        contactsOnPage.forEach(contact => {
+          if (contact.profileUrl && !allContacts.has(contact.profileUrl)) {
+            allContacts.set(contact.profileUrl, contact);
+          }
+        });
+        
+        console.log(`Total unique contacts found so far: ${allContacts.size}`);
 
-        if (searchResultsList) {
-            contactsOnPage = scrapeLinkedInSearchResults(opportunityId);
+        if (isCompanyPeoplePage) {
+          const scrollHeightAfter = document.body.scrollHeight;
+          if (scrollHeightAfter === scrollHeightBefore) {
+            console.log("Content Script: Reached end of infinite scroll.");
+            break;
+          }
         } else {
-            if (retries < RETRY_LIMIT) {
-                retries++;
-                console.log(`Content Script: Search results list not found. Retrying... (${retries}/${RETRY_LIMIT})`);
-                await waitRandom(Math.pow(2, retries) * 1000, Math.pow(2, retries) * 1500);
-                continue; // Restart the while loop for the current page
-            } else {
-                throw new Error("LinkedIn search results page structure not found after multiple retries.");
-            }
+          const nextButton = document.querySelector(".artdeco-pagination__button--next");
+          if (!nextButton || nextButton.disabled) {
+            console.log("Content Script: No 'next' button found or it is disabled.");
+            break;
+          }
+          await waitRandom(...COOLDOWN_RANGE);
+          nextButton.click();
+          await waitForSpinnerToDisappear();
         }
         
-        allContacts.push(...contactsOnPage);
-
-        const nextButton = document.querySelector(".artdeco-pagination__button--next");
-        if (!nextButton || nextButton.disabled) {
-          console.log("Content Script: No 'next' button found or it is disabled. Ending scrape.");
-          break;
-        }
-
-        await waitRandom(...COOLDOWN_RANGE);
-        nextButton.click();
-        await waitForSpinnerToDisappear();
         currentPage++;
-        retries = 0; // Reset retries for the new page
+        retries = 0;
       }
 
-      chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: allContacts });
+      chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: Array.from(allContacts.values()) });
     } catch (error) {
       chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: [], error: error.message });
     }
