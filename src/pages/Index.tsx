@@ -5,6 +5,7 @@ import { DashboardMetrics } from "@/components/DashboardMetrics";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useRevenueChartData } from "@/hooks/useRevenueChartData";
 import { RevenueChart } from "@/components/RevenueChart";
+import { CommandSender } from "@/components/CommandSender";
 
 export default function Index() {
   const { stats, loading: statsLoading } = useDashboardStats();
@@ -31,6 +32,7 @@ export default function Index() {
             </div>
           </div>
         </div>
+        <CommandSender />
       </main>
     </div>
   );

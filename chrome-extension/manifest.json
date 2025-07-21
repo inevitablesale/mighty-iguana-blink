@@ -3,6 +3,9 @@
   "name": "Coogi Extension",
   "version": "1.0",
   "description": "The Coogi Chrome Extension for finding contacts and enabling app features.",
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
