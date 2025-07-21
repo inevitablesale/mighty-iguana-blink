@@ -96,9 +96,9 @@ export function AgentBriefingDialog({ briefing, open, onOpenChange, onBriefingCo
             <>
               <AgentMessage>
                 <p>
-                  Alright, let's look at this opportunity at <strong>{currentOpp.companyName}</strong> for a <strong>{currentOpp.role}</strong> role.
-                  I've rated this a <strong>{currentOpp.matchScore}/10</strong> match based on your specialty. My analysis suggests their key pain point is related to "{currentOpp.pain_points.split('\\n- ')[1]?.replace(/^- /, '') || 'growth'}".
-                  What are your thoughts?
+                  Sir, I've identified a priority opportunity. Company: <strong>{currentOpp.companyName}</strong>, Role: <strong>{currentOpp.role}</strong>. 
+                  My analysis indicates a <strong>{currentOpp.matchScore}/10</strong> strategic fit, targeting their need for "{currentOpp.pain_points.split('\\n- ')[1]?.replace(/^- /, '') || 'growth'}".
+                  My recommendation is to engage. Shall I proceed with drafting the outreach?
                 </p>
               </AgentMessage>
 

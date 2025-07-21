@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Bot, Target } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -12,12 +12,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { AgentBriefingDialog } from "@/components/AgentBriefingDialog";
+import { toast } from "sonner";
 
 export default function Index() {
   const { stats, loading: statsLoading } = useDashboardStats();
   const { data: chartData, loading: chartLoading } = useRevenueChartData();
   const { briefings, loading: briefingsLoading, refresh: refreshBriefings } = useDashboardBriefings();
   const [selectedBriefing, setSelectedBriefing] = useState<AgentBriefing | null>(null);
+  const notifiedBriefingIds = useRef(new Set());
+
+  useEffect(() => {
+    if (!briefingsLoading && briefings.length > 0) {
+      briefings.forEach((briefing) => {
+        if (!notifiedBriefingIds.current.has(briefing.agent.id)) {
+          const topOpp = briefing.opportunities[0];
+          toast.info(`New Briefing: ${briefing.agent.name}`, {
+            description: `Found ${briefing.opportunities.length} new opportunities, including a high-match role at ${topOpp.companyName}.`,
+            action: {
+              label: "Start Briefing",
+              onClick: () => setSelectedBriefing(briefing),
+            },
+            duration: 10000,
+          });
+          notifiedBriefingIds.current.add(briefing.agent.id);
+        }
+      });
+    }
+  }, [briefings, briefingsLoading]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -79,6 +100,8 @@ export default function Index() {
           onBriefingComplete={() => {
             setSelectedBriefing(null);
             refreshBriefings();
+            // Clear notified so it can re-notify if there are still items
+            notifiedBriefingIds.current.delete(selectedBriefing.agent.id);
           }}
         />
       )}
