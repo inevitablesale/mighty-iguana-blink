@@ -71,6 +71,38 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     sendResponse({ status: "Token received and stored." });
     return true;
   }
+
+  if (message.type === "SCRAPE_COMPANY_PAGE") {
+    if (!supabase) {
+      sendResponse({ error: "Not authenticated." });
+      return true;
+    }
+    console.log("Coogi Extension: Received request to scrape company page:", message.companyName);
+    
+    const companyUrl = `https://www.linkedin.com/company/${message.companyUrlName}/posts`;
+
+    const tab = await chrome.tabs.create({ url: companyUrl, active: false });
+
+    const tabUpdateListener = async (tabId, info) => {
+      if (tabId === tab.id && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+        
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["company-content.js"],
+        });
+
+        await chrome.tabs.sendMessage(tab.id, {
+          action: "startCompanyScrape",
+          opportunityId: message.opportunityId,
+        });
+      }
+    };
+    chrome.tabs.onUpdated.addListener(tabUpdateListener);
+
+    sendResponse({ status: "Company scrape process initiated." });
+    return true;
+  }
 });
 
 // Listen for messages from content scripts
@@ -89,6 +121,35 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     isTaskActive = false;
     startCooldown();
     processQueue();
+  }
+
+  if (message.action === "scrapedCompanyData") {
+    const { opportunityId, data, error } = message;
+    if (error) {
+      console.error(`Error scraping company ${opportunityId}:`, error);
+    } else {
+      if (!supabase) {
+        console.error("Cannot save scraped company data, Supabase client not initialized.");
+        return;
+      }
+      console.log(`Saving scraped data for opportunity ${opportunityId}`);
+      const { error: updateError } = await supabase
+        .from('opportunities')
+        .update({ company_data_scraped: data })
+        .eq('id', opportunityId);
+
+      if (updateError) {
+        console.error("Failed to save scraped company data:", updateError);
+      } else {
+        console.log("Successfully saved scraped company data.");
+      }
+    }
+  }
+
+  if (message.action === "scrapingComplete") {
+    if (sender.tab?.id) {
+      chrome.tabs.remove(sender.tab.id);
+    }
   }
 });
 
