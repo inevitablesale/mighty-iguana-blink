@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -8,6 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 import { FeedbackProvider } from "@/contexts/FeedbackContext";
 
 import AICanvas from "./components/AICanvas";
+import Index from "./pages/Index";
 import TheLoom from "./pages/TheLoom";
 import NotFound from "./pages/NotFound";
 import Campaigns from "./pages/Campaigns";
@@ -57,7 +58,8 @@ const App = () => {
                 path="/" 
                 element={session ? <AICanvas /> : <Navigate to="/login" />}
               >
-                <Route index element={<TheLoom />} />
+                <Route index element={<Index />} />
+                <Route path="loom" element={<TheLoom />} />
                 <Route path="opportunities" element={<CommandCenter />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="agents" element={<Agents />} />

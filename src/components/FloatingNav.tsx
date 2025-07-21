@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Bell, Users, Award, FileText, LineChart, X, Menu, Briefcase } from "lucide-react";
+import { Home, Bell, Users, Award, FileText, LineChart, X, Menu, Briefcase, Mic } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const navItems = [
-  { to: "/", end: true, icon: <Home className="h-5 w-5" />, label: "The Loom" },
+  { to: "/", end: true, icon: <Mic className="h-5 w-5" />, label: "Converse" },
+  { to: "/loom", icon: <Home className="h-5 w-5" />, label: "The Loom" },
   { to: "/opportunities", icon: <Briefcase className="h-5 w-5" />, label: "Command Center" },
   { to: "/campaigns", icon: <Bell className="h-5 w-5" />, label: "Campaigns" },
   { to: "/agents", icon: <Users className="h-5 w-5" />, label: "Playbooks" },
