@@ -2,15 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface ExtensionStatus {
-  status: 'idle' | 'active' | 'cooldown' | 'error' | 'disconnected';
-  message: string;
-}
-
 interface ExtensionContextType {
   isExtensionInstalled: boolean;
   extensionId: string | null;
-  extensionStatus: ExtensionStatus | null;
 }
 
 const ExtensionContext = createContext<ExtensionContextType | undefined>(undefined);
@@ -18,7 +12,6 @@ const ExtensionContext = createContext<ExtensionContextType | undefined>(undefin
 export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
   const [extensionId, setExtensionId] = useState<string | null>(null);
-  const [extensionStatus, setExtensionStatus] = useState<ExtensionStatus | null>(null);
 
   // Effect for the initial handshake
   useEffect(() => {
@@ -45,16 +38,6 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     }, 100); // Check every 100ms
 
     return () => clearInterval(interval);
-  }, []);
-
-  // Effect for listening to status updates from the extension
-  useEffect(() => {
-    const handleStatusUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<ExtensionStatus>;
-      setExtensionStatus(customEvent.detail);
-    };
-    window.addEventListener('coogi-extension-status', handleStatusUpdate);
-    return () => window.removeEventListener('coogi-extension-status', handleStatusUpdate);
   }, []);
 
   // Effect for sending auth token to the extension once connected
@@ -93,7 +76,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [extensionId]);
 
-  const value = { isExtensionInstalled, extensionId, extensionStatus };
+  const value = { isExtensionInstalled, extensionId };
 
   return (
     <ExtensionContext.Provider value={value}>

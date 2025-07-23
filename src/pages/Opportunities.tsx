@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
-import { Target, Users2 } from "lucide-react";
+import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -97,52 +97,6 @@ const Opportunities = () => {
     }
   };
 
-  const handleFindContacts = async (opportunity: Opportunity) => {
-    if (!isExtensionInstalled) {
-      toast.info("Please install the Coogi Chrome Extension to find contacts.", {
-        description: "The extension works in the background to find contacts for you.",
-      });
-      return;
-    }
-
-    const { data: existingTask, error: checkError } = await supabase
-      .from('contact_enrichment_tasks')
-      .select('id')
-      .eq('opportunity_id', opportunity.id)
-      .maybeSingle();
-
-    if (checkError) {
-      toast.error("Could not check for existing tasks.");
-      return;
-    }
-
-    if (existingTask) {
-      toast.info("A contact search for this opportunity is already running.", {
-        action: { label: "View Progress", onClick: () => navigate('/contacts') },
-      });
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase.from('contact_enrichment_tasks').insert({
-      opportunity_id: opportunity.id,
-      company_name: opportunity.companyName,
-      user_id: user.id,
-      status: 'pending',
-    });
-
-    if (error) {
-      toast.error("Failed to start contact search.");
-    } else {
-      toast.success("Contact search started!", {
-        description: "The Coogi extension will now search for contacts.",
-        action: { label: "View Progress", onClick: () => navigate('/contacts') },
-      });
-    }
-  };
-
   const handleEnrichCompany = (opportunity: Opportunity) => {
     if (!isExtensionInstalled || !extensionId) {
       toast.info("Please install and connect the Coogi Chrome Extension to enrich company data.");
@@ -182,7 +136,6 @@ const Opportunities = () => {
               agent={agent}
               opportunities={opportunitiesByAgent.get(agent.id) || []}
               onApproveOutreach={handleApprove}
-              onFindContacts={handleFindContacts}
               onEnrichCompany={handleEnrichCompany}
               processedOppIds={processedOppIds}
               approvingId={approvingId}

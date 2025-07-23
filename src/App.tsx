@@ -18,7 +18,6 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
 import Proposals from "./pages/Proposals";
-import Contacts from "./pages/Contacts";
 
 const queryClient = new QueryClient();
 
@@ -66,7 +65,6 @@ const App = () => {
                 <Route path="profile" element={<Profile />} />
                 <Route path="placements" element={<Placements />} />
                 <Route path="proposals" element={<Proposals />} />
-                <Route path="contacts" element={<Contacts />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
