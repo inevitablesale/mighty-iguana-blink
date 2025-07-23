@@ -22,39 +22,30 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect for the initial handshake
   useEffect(() => {
-    console.log("Coogi Web App: Initializing handshake.");
+    console.log("Coogi Web App: Starting check for extension flag...");
+    let checkCount = 0;
+    const maxChecks = 20; // 20 checks over 2 seconds
 
-    const handleExtensionReady = (event: Event) => {
-      const customEvent = event as CustomEvent<{ extensionId: string }>;
-      const id = customEvent.detail?.extensionId;
+    const interval = setInterval(() => {
+      const id = document.body.getAttribute('data-coogi-extension-id');
       if (id) {
-        console.log(`Coogi Web App: Handshake complete! Extension ID: ${id}`);
+        console.log(`Coogi Web App: Extension detected! ID: ${id}`);
         setIsExtensionInstalled(true);
         setExtensionId(id);
+        clearInterval(interval);
+        return;
       }
-    };
-
-    // 1. Set up the listener for the extension's response.
-    window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
-
-    // 2. Announce that the app is ready and listening.
-    console.log("Coogi Web App: Announcing readiness to extension.");
-    window.dispatchEvent(new CustomEvent('coogi-app-ready'));
-
-    // 3. Set a timeout for the case where the extension never responds.
-    const timeoutId = setTimeout(() => {
-      // Check against the state variable which is only set on success
-      if (!extensionId && !isExtensionInstalled) {
-        console.log("Coogi Web App: Handshake timeout. Extension did not respond.");
+      
+      checkCount++;
+      if (checkCount >= maxChecks) {
+        clearInterval(interval);
+        console.log("Coogi Web App: Check finished. Extension not detected.");
         setIsExtensionInstalled(false);
       }
-    }, 2000);
+    }, 100); // Check every 100ms
 
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('coogi-extension-ready', handleExtensionReady);
-    };
-  }, [extensionId, isExtensionInstalled]); // Depend on state to prevent timeout from firing incorrectly
+    return () => clearInterval(interval);
+  }, []);
 
   // Effect for listening to status updates from the extension
   useEffect(() => {
