@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Coogi Extension",
-  "version": "1.2",
-  "description": "Finds contacts and enriches company data for the Coogi app.",
+  "name": "Coogi AI Extension",
+  "version": "1.1",
+  "description": "Enhances Coogi with LinkedIn integration.",
   "permissions": [
     "storage",
-    "scripting",
-    "alarms",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "https://*.linkedin.com/*"
@@ -18,21 +17,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["handshake.js"],
-      "run_at": "document_start"
+      "matches": [
+        "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+      ],
+      "js": [
+        "handshake.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
-  "web_accessible_resources": [
-    {
-      "resources": ["page-messenger.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
-  "action": {
-    "default_title": "Coogi Extension"
-  },
   "externally_connectable": {
-    "matches": ["https://dbtdplhlatnlzcvdvptn.dyad.sh/*"]
+    "matches": [
+      "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+    ]
+  },
+  "action": {
+    "default_title": "Coogi AI Extension"
   }
 }
