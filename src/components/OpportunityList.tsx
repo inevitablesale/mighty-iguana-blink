@@ -6,11 +6,12 @@ export interface OpportunityListProps {
   opportunities: Opportunity[];
   onApproveOutreach: (opportunity: Opportunity) => void;
   onEnrichCompany: (opportunity: Opportunity) => void;
+  onFindContacts: (opportunity: Opportunity) => void;
   processedOppIds: Set<string>;
   approvingId: string | null;
 }
 
-export function OpportunityList({ agent, opportunities, onApproveOutreach, onEnrichCompany, processedOppIds, approvingId }: OpportunityListProps) {
+export function OpportunityList({ agent, opportunities, onApproveOutreach, onEnrichCompany, onFindContacts, processedOppIds, approvingId }: OpportunityListProps) {
   return (
     <div className="space-y-6">
       <div className="coogi-gradient-bg p-4 rounded-lg">
@@ -24,6 +25,7 @@ export function OpportunityList({ agent, opportunities, onApproveOutreach, onEnr
             opportunity={opp}
             onApproveOutreach={onApproveOutreach}
             onEnrichCompany={onEnrichCompany}
+            onFindContacts={onFindContacts}
             isApproved={processedOppIds.has(opp.id)}
             isApproving={approvingId === opp.id}
           />

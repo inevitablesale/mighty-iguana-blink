@@ -82,6 +82,14 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     sendResponse(response);
     return true;
   }
+  if (message.type === "FIND_CONTACTS") {
+    const { companyName, role } = message.opportunity;
+    const searchQuery = `"${role}" at "${companyName}"`;
+    const targetUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(searchQuery)}`;
+    chrome.tabs.create({ url: targetUrl });
+    sendResponse({ status: "LinkedIn search tab opened." });
+    return true;
+  }
 });
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {

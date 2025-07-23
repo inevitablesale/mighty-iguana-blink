@@ -118,6 +118,29 @@ const Opportunities = () => {
     });
   };
 
+  const handleFindContacts = (opportunity: Opportunity) => {
+    if (!isExtensionInstalled || !extensionId) {
+      toast.info("Please install and connect the Coogi Chrome Extension to find contacts.");
+      return;
+    }
+    chrome.runtime.sendMessage(extensionId, {
+      type: "FIND_CONTACTS",
+      opportunity: {
+        companyName: opportunity.companyName,
+        role: opportunity.role,
+      },
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        toast.error("Could not communicate with the extension.");
+        console.error(chrome.runtime.lastError.message);
+      } else if (response?.error) {
+        toast.error(response.error);
+      } else {
+        toast.info("Opening LinkedIn to search for contacts...");
+      }
+    });
+  };
+
   const agentsWithOpps = agents.filter(agent => opportunitiesByAgent.has(agent.id));
 
   return (
@@ -137,6 +160,7 @@ const Opportunities = () => {
               opportunities={opportunitiesByAgent.get(agent.id) || []}
               onApproveOutreach={handleApprove}
               onEnrichCompany={handleEnrichCompany}
+              onFindContacts={handleFindContacts}
               processedOppIds={processedOppIds}
               approvingId={approvingId}
             />
