@@ -18,6 +18,8 @@
   "content_scripts": [
     {
       "matches": [
+        "http://localhost:*/*",
+        "https://coogi.netlify.app/*",
         "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
       ],
       "js": [
@@ -28,6 +30,8 @@
   ],
   "externally_connectable": {
     "matches": [
+      "http://localhost:*/*",
+      "https://coogi.netlify.app/*",
       "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
     ]
   },
