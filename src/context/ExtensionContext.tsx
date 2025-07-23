@@ -22,33 +22,39 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect for the initial handshake
   useEffect(() => {
+    console.log("Coogi Web App: Initializing handshake.");
+
     const handleExtensionReady = (event: Event) => {
       const customEvent = event as CustomEvent<{ extensionId: string }>;
       const id = customEvent.detail?.extensionId;
       if (id) {
-        console.log(`Coogi Web App: Handshake successful! Extension ID: ${id}`);
+        console.log(`Coogi Web App: Handshake complete! Extension ID: ${id}`);
         setIsExtensionInstalled(true);
         setExtensionId(id);
       }
     };
 
-    // Listen for the one-time handshake event from the extension.
+    // 1. Set up the listener for the extension's response.
     window.addEventListener('coogi-extension-ready', handleExtensionReady, { once: true });
 
-    // Set a timeout to determine if the extension is not installed.
+    // 2. Announce that the app is ready and listening.
+    console.log("Coogi Web App: Announcing readiness to extension.");
+    window.dispatchEvent(new CustomEvent('coogi-app-ready'));
+
+    // 3. Set a timeout for the case where the extension never responds.
     const timeoutId = setTimeout(() => {
-      // This check is important. If extensionId is already set, it means the handshake was successful.
-      if (!isExtensionInstalled) {
-        console.log("Coogi Web App: Handshake timeout. Extension not detected.");
+      // Check against the state variable which is only set on success
+      if (!extensionId && !isExtensionInstalled) {
+        console.log("Coogi Web App: Handshake timeout. Extension did not respond.");
         setIsExtensionInstalled(false);
       }
-    }, 2000); // 2-second timeout
+    }, 2000);
 
     return () => {
       clearTimeout(timeoutId);
       window.removeEventListener('coogi-extension-ready', handleExtensionReady);
     };
-  }, [isExtensionInstalled]); // Depend on isExtensionInstalled to avoid re-running the timeout logic after success.
+  }, [extensionId, isExtensionInstalled]); // Depend on state to prevent timeout from firing incorrectly
 
   // Effect for listening to status updates from the extension
   useEffect(() => {
