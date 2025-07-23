@@ -132,10 +132,12 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
 
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   if (message.type === "SET_TOKEN") {
+    console.log("Background: Received SET_TOKEN message.");
     userId = message.userId;
     await chrome.storage.local.set({ token: message.token, userId: message.userId });
     initSupabase(message.token);
     subscribeToTasks();
+    pollForPendingTasks();
     sendResponse({ status: "Token received and stored." });
     return true;
   }
@@ -317,11 +319,6 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) pollForPendingTasks();
-});
-
-// Listen for requests from the app to get the current status
-window.addEventListener('coogi-app-get-status', () => {
-  broadcastStatus(currentStatus.status, currentStatus.message);
 });
 
 initializeFromStorage();
