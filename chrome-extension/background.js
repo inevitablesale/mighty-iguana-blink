@@ -69,6 +69,37 @@ async function startCompanyEnrichmentFlow(opportunityId) {
   return { status: "Enrichment process initiated." };
 }
 
+async function startContactFindingFlow(opportunityId) {
+  if (!supabase) {
+    return { error: "Not authenticated. Please log in to the web app." };
+  }
+
+  const { data: opportunity, error } = await supabase.from('opportunities').select('linkedin_url_slug, company_name, role, location').eq('id', opportunityId).single();
+
+  if (error || !opportunity) {
+    return { error: `Could not find opportunity ${opportunityId}: ${error?.message}` };
+  }
+  
+  currentOpportunityContext = { id: opportunityId, company_name: opportunity.company_name, role: opportunity.role, location: opportunity.location, finalAction: 'navigateToPeople' };
+  
+  if (opportunity.linkedin_url_slug) {
+    const targetUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/people/`;
+    await chrome.tabs.create({ url: targetUrl, active: true });
+    return { status: "Navigating to contacts page." };
+  } else {
+    const searchUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
+    const tab = await chrome.tabs.create({ url: searchUrl, active: true });
+    const tabUpdateListener = async (tabId, info) => {
+      if (tabId === tab.id && info.status === 'complete') {
+        chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["company-search-content.js"] });
+      }
+    };
+    chrome.tabs.onUpdated.addListener(tabUpdateListener);
+    return { status: "Searching for company on LinkedIn..." };
+  }
+}
+
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   if (message.type === "SET_TOKEN") {
     userId = message.userId;
@@ -82,12 +113,9 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     sendResponse(response);
     return true;
   }
-  if (message.type === "FIND_CONTACTS") {
-    const { companyName, role } = message.opportunity;
-    const searchQuery = `"${role}" at "${companyName}"`;
-    const targetUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(searchQuery)}`;
-    chrome.tabs.create({ url: targetUrl });
-    sendResponse({ status: "LinkedIn search tab opened." });
+  if (message.type === "FIND_PEOPLE_FOR_OPPORTUNITY") {
+    const response = await startContactFindingFlow(message.opportunityId);
+    sendResponse(response);
     return true;
   }
 });
@@ -111,21 +139,28 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('select-linkedin-company', { body: { searchResults: message.results, opportunityContext } });
+      const { data, error } = await supabase.functions.invoke('select-linkedin-company', { body: { searchResults: message.results, opportunityContext: currentOpportunityContext } });
       if (error) throw new Error(error.message);
 
-      const destinationUrl = `${data.url.replace(/\/$/, '')}/posts/`;
-      const scriptToInject = "company-content.js";
-      
-      await chrome.tabs.update(sender.tab.id, { url: destinationUrl });
-      const tabUpdateListener = async (tabId, info) => {
-        if (tabId === sender.tab.id && info.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(tabUpdateListener);
-          await chrome.scripting.executeScript({ target: { tabId }, files: [scriptToInject] });
-          await chrome.tabs.sendMessage(tabId, { action: "startCompanyScrape", opportunityId: currentOpportunityContext.id });
-        }
-      };
-      chrome.tabs.onUpdated.addListener(tabUpdateListener);
+      let destinationUrl;
+      if (currentOpportunityContext.finalAction === 'navigateToPeople') {
+        destinationUrl = `${data.url.replace(/\/$/, '')}/people/`;
+        await chrome.tabs.update(sender.tab.id, { url: destinationUrl, active: true });
+        currentOpportunityContext = null;
+      } else {
+        destinationUrl = `${data.url.replace(/\/$/, '')}/posts/`;
+        const scriptToInject = "company-content.js";
+        
+        await chrome.tabs.update(sender.tab.id, { url: destinationUrl });
+        const tabUpdateListener = async (tabId, info) => {
+          if (tabId === sender.tab.id && info.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+            await chrome.scripting.executeScript({ target: { tabId }, files: [scriptToInject] });
+            await chrome.tabs.sendMessage(tabId, { action: "startCompanyScrape", opportunityId: currentOpportunityContext.id });
+          }
+        };
+        chrome.tabs.onUpdated.addListener(tabUpdateListener);
+      }
     } catch (e) { 
       console.error("Error in company selection flow:", e.message);
       if (sender.tab?.id) chrome.tabs.remove(sender.tab.id); 

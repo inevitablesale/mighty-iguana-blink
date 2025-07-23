@@ -123,12 +123,10 @@ const Opportunities = () => {
       toast.info("Please install and connect the Coogi Chrome Extension to find contacts.");
       return;
     }
+    toast.info("Starting process to find contacts...");
     chrome.runtime.sendMessage(extensionId, {
-      type: "FIND_CONTACTS",
-      opportunity: {
-        companyName: opportunity.companyName,
-        role: opportunity.role,
-      },
+      type: "FIND_PEOPLE_FOR_OPPORTUNITY",
+      opportunityId: opportunity.id,
     }, (response) => {
       if (chrome.runtime.lastError) {
         toast.error("Could not communicate with the extension.");
@@ -136,7 +134,7 @@ const Opportunities = () => {
       } else if (response?.error) {
         toast.error(response.error);
       } else {
-        toast.info("Opening LinkedIn to search for contacts...");
+        toast.success("Opening LinkedIn to find contacts.");
       }
     });
   };
