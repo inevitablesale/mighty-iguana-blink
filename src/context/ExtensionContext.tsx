@@ -37,7 +37,8 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
     // Set a timeout to determine if the extension is not installed.
     const timeoutId = setTimeout(() => {
-      if (!extensionId) { // Check against state which is updated in handleExtensionReady
+      // This check is important. If extensionId is already set, it means the handshake was successful.
+      if (!isExtensionInstalled) {
         console.log("Coogi Web App: Handshake timeout. Extension not detected.");
         setIsExtensionInstalled(false);
       }
@@ -47,7 +48,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(timeoutId);
       window.removeEventListener('coogi-extension-ready', handleExtensionReady);
     };
-  }, [extensionId]); // Dependency on extensionId ensures we don't run timeout logic unnecessarily
+  }, [isExtensionInstalled]); // Depend on isExtensionInstalled to avoid re-running the timeout logic after success.
 
   // Effect for listening to status updates from the extension
   useEffect(() => {
