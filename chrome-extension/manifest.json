@@ -1,48 +1,47 @@
 {
   "manifest_version": 3,
-  "name": "Coogi AI Recruiting Assistant",
-  "version": "1.0.0",
-  "description": "AI-powered assistant for recruiting tasks on LinkedIn.",
+  "name": "Coogi Contact Finder",
+  "version": "2.0",
+  "description": "Automatically enrich opportunities with LinkedIn contacts.",
   "permissions": [
     "storage",
     "tabs",
-    "alarms",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "host_permissions": [
-    "https://*.linkedin.com/*",
-    "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+    "https://*.linkedin.com/*"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "action": {
-    "default_title": "Coogi Assistant",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    }
-  },
-  "icons": {
-    "16": "images/icon16.png",
-    "48": "images/icon48.png",
-    "128": "images/icon128.png"
-  },
   "content_scripts": [
     {
-      "matches": ["https://dbtdplhlatnlzcvdvptn.dyad.sh/*"],
-      "js": ["handshake.js"]
+      "matches": [
+        "http://localhost:*/*",
+        "https://coogi.netlify.app/*",
+        "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+      ],
+      "js": [
+        "handshake.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:*/*",
+      "https://coogi.netlify.app/*",
+      "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+    ]
+  },
+  "action": {
+    "default_title": "Coogi AI Extension"
+  },
   "web_accessible_resources": [
     {
-      "resources": [
-        "content.js",
-        "company-content.js",
-        "company-search-content.js"
-      ],
+      "resources": ["content.js", "company-content.js", "company-search-content.js"],
       "matches": ["https://*.linkedin.com/*"]
     }
   ]
