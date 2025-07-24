@@ -16,7 +16,7 @@ const Opportunities = () => {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isExtensionInstalled, extensionId } = useExtension();
+  const { isExtensionInstalled } = useExtension();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -98,45 +98,57 @@ const Opportunities = () => {
   };
 
   const handleEnrichCompany = (opportunity: Opportunity) => {
-    if (!isExtensionInstalled || !extensionId) {
-      toast.info("Please install and connect the Coogi Chrome Extension to enrich company data.");
+    if (!isExtensionInstalled) {
+      toast.info("Please install the Coogi Chrome Extension to enrich company data.");
       return;
     }
-    toast.loading("Starting company enrichment via extension...");
-    chrome.runtime.sendMessage(extensionId, {
+    toast.loading("Sending enrichment task to extension...");
+    chrome.runtime.sendMessage(process.env.CHROME_EXTENSION_ID, {
       type: "SCRAPE_COMPANY_PAGE",
       opportunityId: opportunity.id,
     }, (response) => {
       if (chrome.runtime.lastError) {
         toast.error("Could not communicate with the extension.");
-        console.error(chrome.runtime.lastError.message);
       } else if (response?.error) {
         toast.error(response.error);
       } else {
-        toast.success("Company enrichment process started.");
+        toast.success("Enrichment process started by extension.");
       }
     });
   };
 
-  const handleFindContacts = (opportunity: Opportunity) => {
-    if (!isExtensionInstalled || !extensionId) {
-      toast.info("Please install and connect the Coogi Chrome Extension to find contacts.");
+  const handleFindContacts = async (opportunity: Opportunity) => {
+    if (!isExtensionInstalled) {
+      toast.info("Please install the Coogi Chrome Extension to find contacts.");
       return;
     }
-    toast.info("Starting process to find contacts...");
-    chrome.runtime.sendMessage(extensionId, {
-      type: "FIND_PEOPLE_FOR_OPPORTUNITY",
-      opportunityId: opportunity.id,
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        toast.error("Could not communicate with the extension.");
-        console.error(chrome.runtime.lastError.message);
-      } else if (response?.error) {
-        toast.error(response.error);
-      } else {
-        toast.success("Opening LinkedIn to find contacts.");
-      }
-    });
+
+    const toastId = toast.loading(`Queuing contact search for ${opportunity.companyName}...`);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be logged in.");
+
+      const { error } = await supabase
+        .from('contact_enrichment_tasks')
+        .insert({
+          user_id: user.id,
+          opportunity_id: opportunity.id,
+          company_name: opportunity.companyName,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast.success("Task created! The extension will now search for contacts in the background.", {
+        id: toastId,
+        description: "You can monitor its progress via the extension icon.",
+      });
+    } catch (e) {
+      const err = e as Error;
+      console.error("Error creating contact task:", err);
+      toast.error(`Failed to create task: ${err.message}`, { id: toastId });
+    }
   };
 
   const agentsWithOpps = agents.filter(agent => opportunitiesByAgent.has(agent.id));

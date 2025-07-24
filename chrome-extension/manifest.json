@@ -6,7 +6,8 @@
   "permissions": [
     "storage",
     "tabs",
-    "scripting"
+    "scripting",
+    "alarms"
   ],
   "host_permissions": [
     "https://*.linkedin.com/*"
@@ -37,5 +38,11 @@
   },
   "action": {
     "default_title": "Coogi AI Extension"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content.js", "company-content.js", "company-search-content.js"],
+      "matches": ["https://*.linkedin.com/*"]
+    }
+  ]
 }
