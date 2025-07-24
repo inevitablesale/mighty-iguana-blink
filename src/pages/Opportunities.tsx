@@ -16,7 +16,7 @@ const Opportunities = () => {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isExtensionInstalled } = useExtension();
+  const { isExtensionInstalled, extensionId } = useExtension();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -98,17 +98,17 @@ const Opportunities = () => {
   };
 
   const handleEnrichCompany = (opportunity: Opportunity) => {
-    if (!isExtensionInstalled) {
-      toast.info("Please install the Coogi Chrome Extension to enrich company data.");
+    if (!isExtensionInstalled || !extensionId) {
+      toast.info("Please install and connect the Coogi Chrome Extension to enrich company data.");
       return;
     }
     toast.loading("Sending enrichment task to extension...");
-    chrome.runtime.sendMessage(process.env.CHROME_EXTENSION_ID, {
+    chrome.runtime.sendMessage(extensionId, {
       type: "SCRAPE_COMPANY_PAGE",
       opportunityId: opportunity.id,
     }, (response) => {
       if (chrome.runtime.lastError) {
-        toast.error("Could not communicate with the extension.");
+        toast.error("Could not communicate with the extension. Please reload the page.");
       } else if (response?.error) {
         toast.error(response.error);
       } else {
