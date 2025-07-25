@@ -64,14 +64,14 @@ serve(async (req) => {
       \`\`\`
 
       **Instructions:**
-      1.  Analyze the provided HTML. Identify each distinct company listed in the search results.
-      2.  For each company, extract the following three pieces of information:
-          - "title": The full name of the company.
-          - "subtitle": The company's industry and location information.
-          - "url": The absolute URL to the company's LinkedIn page.
+      1.  Scan the HTML for list items or divs that represent a search result. These items will typically contain an \`<a>\` tag where the \`href\` attribute includes "/company/".
+      2.  For each of these search result items you find, extract the following three pieces of information:
+          - "title": The full name of the company, usually found within the main link or a heading tag like \`<h3>\` or \`<h4>\`.
+          - "subtitle": The descriptive text below the title, often containing the industry and location.
+          - "url": The absolute URL to the company's LinkedIn page, extracted from the \`href\` of the main \`<a>\` tag.
       3.  Return a single, valid JSON object with one key: "results".
       4.  The value of "results" should be an array of objects, where each object represents a company you found.
-      5.  If no companies are found, return an empty array for "results".
+      5.  If no such search result items are found, return an empty array for "results".
 
       **Example Output Format:**
       {
