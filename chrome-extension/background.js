@@ -192,16 +192,32 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
   }
   
   currentOpportunityContext = { id: opportunityId, company_name: opportunity.company_name, role: opportunity.role, location: opportunity.location, finalAction };
-  const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
+  
   let targetUrl;
+  let scriptToInject;
+  let messageToSend;
 
-  if (opportunity.linkedin_url_slug) {
-    const slug = opportunity.linkedin_url_slug;
-    broadcastStatus('active', `Found direct LinkedIn slug for ${opportunity.company_name}. Navigating to people page...`);
-    targetUrl = `https://www.linkedin.com/company/${slug}/people/?keywords=${encodeURIComponent(keywords)}`;
+  if (finalAction.type === 'find_contacts') {
+    const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
+    scriptToInject = "content.js";
+    messageToSend = { action: "scrapePage", taskId: finalAction.taskId, opportunityId };
+    if (opportunity.linkedin_url_slug) {
+      broadcastStatus('active', `Found direct LinkedIn slug for ${opportunity.company_name}. Navigating to people page...`);
+      targetUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/people/?keywords=${encodeURIComponent(keywords)}`;
+    } else {
+      broadcastStatus('active', `No direct URL for ${opportunity.company_name}. Starting LinkedIn search...`);
+      targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
+    }
+  } else if (finalAction.type === 'enrich_company') {
+    scriptToInject = "company-content.js";
+    messageToSend = { action: "startCompanyScrape", opportunityId };
+    if (opportunity.linkedin_url_slug) {
+      targetUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/`;
+    } else {
+      targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
+    }
   } else {
-    broadcastStatus('active', `No direct URL for ${opportunity.company_name}. Starting LinkedIn search...`);
-    targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
+    return { error: "Unknown final action type." };
   }
 
   const tab = await chrome.tabs.create({ url: targetUrl, active: false });
@@ -210,10 +226,10 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
       chrome.tabs.onUpdated.removeListener(tabUpdateListener);
       try {
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for page to settle
-        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-        await chrome.tabs.sendMessage(tab.id, { action: "scrapePage", taskId: finalAction.taskId, opportunityId });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [scriptToInject] });
+        await chrome.tabs.sendMessage(tab.id, messageToSend);
       } catch (e) {
-        console.error(`Failed to inject script 'content.js' into tab ${tab.id}:`, e);
+        console.error(`Failed to inject script '${scriptToInject}' into tab ${tab.id}:`, e);
         broadcastStatus('error', `Could not load script into page. Error: ${e.message}`);
         if (tab.id) chrome.tabs.remove(tab.id);
         if (finalAction.type === 'find_contacts') {
@@ -240,6 +256,14 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
     sendResponse({ status: "Token received and stored." });
     return true;
   }
+  if (message.type === "SCRAPE_COMPANY_PAGE") {
+    isTaskActive = true;
+    chrome.action.setBadgeText({ text: "RUN" });
+    broadcastStatus('active', `Starting company enrichment for opportunity ${message.opportunityId}...`);
+    startCompanyDiscoveryFlow(message.opportunityId, { type: 'enrich_company' });
+    sendResponse({ status: "Enrichment process initiated." });
+    return true;
+  }
 });
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
@@ -248,7 +272,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     broadcastStatus('error', 'CRITICAL: CAPTCHA detected. Aborting all tasks.');
     if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
     
-    // Clear queue and mark current task as failed
     const currentTask = currentOpportunityContext?.finalAction;
     if (currentTask?.type === 'find_contacts') {
         await updateTaskStatus(currentTask.taskId, "error", "CAPTCHA detected on page.");
@@ -256,9 +279,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     taskQueue.length = 0; // Empty the queue
     isTaskActive = false;
     
-    // Start a very long cooldown
     startCooldown(true, `CAPTCHA detected. Pausing for safety. Resumes in ~${CAPTCHA_COOLDOWN/60000} minutes.`);
-    cooldownState.until = Date.now() + CAPTCHA_COOLDOWN; // Override with extra long cooldown
+    cooldownState.until = Date.now() + CAPTCHA_COOLDOWN;
     return;
   }
 
@@ -294,16 +316,28 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
       broadcastStatus('active', `AI selected a match. Navigating to its people page...`);
       const finalAction = currentOpportunityContext.finalAction;
-      const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
-      const destinationUrl = `${data.url.replace(/\/$/, '')}/people/?keywords=${encodeURIComponent(keywords)}`;
-      
+      let destinationUrl;
+      let scriptToInject;
+      let messageToSend;
+
+      if (finalAction.type === 'find_contacts') {
+        const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
+        destinationUrl = `${data.url.replace(/\/$/, '')}/people/?keywords=${encodeURIComponent(keywords)}`;
+        scriptToInject = "content.js";
+        messageToSend = { action: "scrapePage", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id };
+      } else if (finalAction.type === 'enrich_company') {
+        destinationUrl = data.url;
+        scriptToInject = "company-content.js";
+        messageToSend = { action: "startCompanyScrape", opportunityId: currentOpportunityContext.id };
+      }
+
       await chrome.tabs.update(sender.tab.id, { url: destinationUrl });
       const tabUpdateListener = async (tabId, info) => {
         if (tabId === sender.tab.id && info.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(tabUpdateListener);
           await new Promise(resolve => setTimeout(resolve, 2000));
-          await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
-          await chrome.tabs.sendMessage(tabId, { action: "scrapePage", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id });
+          await chrome.scripting.executeScript({ target: { tabId }, files: [scriptToInject] });
+          await chrome.tabs.sendMessage(tabId, messageToSend);
         }
       };
       chrome.tabs.onUpdated.addListener(tabUpdateListener);
@@ -347,6 +381,29 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         const errorMessage = `AI contact identification failed: ${e.message}`;
         await updateTaskStatus(taskId, "error", errorMessage);
         broadcastStatus('error', errorMessage);
+      }
+    }
+    if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+    currentOpportunityContext = null;
+    handleTaskCompletion(!error);
+  }
+
+  if (message.action === "scrapedCompanyData") {
+    const { opportunityId, data, error } = message;
+    if (error) {
+      broadcastStatus('error', `Company enrichment failed: ${error}`);
+    } else {
+      try {
+        broadcastStatus('active', `Saving enriched data for ${data.name}...`);
+        const { error: updateError } = await supabase
+          .from('opportunities')
+          .update({ company_data_scraped: data })
+          .eq('id', opportunityId);
+        if (updateError) throw updateError;
+        broadcastStatus('idle', `Successfully enriched company data for ${data.name}.`);
+        await broadcastDataUpdate();
+      } catch (e) {
+        broadcastStatus('error', `Failed to save enriched data: ${e.message}`);
       }
     }
     if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
