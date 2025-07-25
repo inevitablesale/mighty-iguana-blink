@@ -64,25 +64,6 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
   // =======================
   // ✅ SCRAPING LOGIC
   // =======================
-  function scrapeCompanySearchResults() {
-    const companies = [];
-    const results = document.querySelectorAll('.reusable-search__result-container');
-    results.forEach(item => {
-      const linkElement = item.querySelector('a.app-aware-link');
-      const url = linkElement ? linkElement.href : null;
-      const titleElement = item.querySelector('.entity-result__title-text a');
-      const title = titleElement ? titleElement.innerText.trim() : null;
-      const subtitleElement = item.querySelector('.entity-result__primary-subtitle');
-      const subtitle = subtitleElement ? subtitleElement.innerText.trim() : null;
-
-      if (url && title) {
-        companies.push({ url, title, subtitle });
-      }
-    });
-    log('info', `Scraped ${companies.length} potential companies from search results.`);
-    return companies;
-  }
-
   function scrapeLinkedInSearchResults(opportunityId) {
     const contacts = [];
     const searchList = document.querySelector('ul[class*="search-results"], div[class*="search-results"]');
@@ -131,22 +112,16 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
   chrome.runtime.onMessage.addListener(async (message) => {
     if (message.action === "scrapeCompanySearchResults") {
       const { taskId, opportunityId } = message;
-      log('info', `Scraping company search results for task ${taskId}`);
-      await waitRandom(2000, 4000);
-      const companies = scrapeCompanySearchResults();
+      log('info', `Extracting HTML from company search results page for task ${taskId}`);
+      await waitRandom(2000, 4000); // Wait for page to be stable
       
-      if (companies.length > 0) {
-        chrome.runtime.sendMessage({ action: "companySearchResults", taskId, opportunityId, companies });
-      } else {
-        log('warn', 'No companies found with standard scraper. Sending HTML for AI analysis.');
-        chrome.runtime.sendMessage({ 
-          action: "companySearchResults", 
-          taskId, 
-          opportunityId, 
-          companies: [],
-          html: document.documentElement.outerHTML 
-        });
-      }
+      // Directly send the HTML for AI analysis, skipping the brittle scraper.
+      chrome.runtime.sendMessage({ 
+        action: "companySearchResults", 
+        taskId, 
+        opportunityId, 
+        html: document.documentElement.outerHTML 
+      });
     }
 
     if (message.action === "scrapeEmployees") {
