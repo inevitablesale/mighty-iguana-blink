@@ -321,7 +321,12 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           const tab = await getLinkedInTab();
           
           const tabUpdateListener = async (tabId, info) => {
-            if (tabId === tab.id && info.status === 'complete' && info.url?.includes(`/company/${companySlug}/people`)) {
+            if (tabId === tab.id) {
+              logger.log(`Tab update for our target tab: status=${info.status}, url=${info.url}`);
+            }
+            
+            if (tabId === tab.id && info.status === 'complete' && info.url?.includes(`/company/${companySlug}`)) {
+              logger.log(`Correct page loaded: ${info.url}. Proceeding with search.`);
               chrome.tabs.onUpdated.removeListener(tabUpdateListener);
               await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page to be stable
               await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
