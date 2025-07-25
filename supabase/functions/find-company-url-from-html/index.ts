@@ -64,10 +64,10 @@ serve(async (req) => {
       \`\`\`
 
       **Instructions:**
-      1.  First, locate the main container for the search results. This is likely a \`<div>\` or \`<ul>\` with a class name containing "search-results", "scaffold-results", or "results-list".
-      2.  Within that container, look for individual list items (\`<li>\`) or divs that represent a single company.
-      3.  Find the result item where the company name most closely matches "${opportunityContext.company_name}".
-      4.  Once you've found the correct company's result item, extract the absolute URL from the primary \`<a>\` tag's \`href\` attribute. The correct URL will always contain "/company/".
+      1.  First, identify all the individual search result containers. These are typically \`<li>\` elements or \`<div>\`s that repeat for each result. They often have a class like "reusable-search__result-container".
+      2.  Iterate through each container you've identified.
+      3.  Inside each container, find the text that represents the company's name. Check if it closely matches "${opportunityContext.company_name}".
+      4.  Once you find the correct company's container, extract the absolute URL from the primary \`<a>\` tag within it. The correct URL will always contain "/company/".
       5.  Return a single, valid JSON object with one key: "url".
       6.  If you cannot find a definitive match, return null for the "url" value.
 

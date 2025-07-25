@@ -64,8 +64,8 @@ serve(async (req) => {
       \`\`\`
 
       **Instructions:**
-      1.  Analyze the provided HTML. Identify each distinct person listed in the search results.
-      2.  For each person, extract the following three pieces of information:
+      1.  First, identify all the individual person result containers. These are typically \`<li>\` elements inside a main list.
+      2.  For each person's container, extract the following three pieces of information:
           - "title": The full name of the person.
           - "subtitle": The person's current job title and company.
           - "url": The absolute URL to the person's LinkedIn profile.
