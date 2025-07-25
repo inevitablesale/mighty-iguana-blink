@@ -45,6 +45,14 @@ serve(async (req) => {
 
   try {
     const { html, opportunityContext } = await req.json();
+    
+    // --- DEBUG LOGGING ---
+    console.log("--- Received Request Data ---");
+    console.log("Opportunity Context:", JSON.stringify(opportunityContext, null, 2));
+    console.log("HTML Snippet (first 500 chars):", html ? html.substring(0, 500) : "No HTML received");
+    console.log("--- End of Request Data ---");
+    // --- END DEBUG LOGGING ---
+
     if (!html || !opportunityContext) {
       throw new Error("HTML content and opportunity context are required.");
     }
