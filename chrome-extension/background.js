@@ -305,38 +305,48 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         
         const companyUrl = data.url;
         if (companyUrl) {
+          const companySlugMatch = companyUrl.match(/\/company\/([^/]+)/);
+          if (!companySlugMatch || !companySlugMatch[1]) {
+            throw new Error("Could not parse LinkedIn Company Slug from URL: " + companyUrl);
+          }
+          const companySlug = companySlugMatch[1];
+          logger.log(`Extracted Company Slug: ${companySlug}`);
+
+          const peoplePageUrl = `https://www.linkedin.com/company/${companySlug}/people/`;
           const searchKeywords = "recruiter OR \"talent acquisition\" OR \"hiring manager\"";
-          broadcastStatus('active', `Step 3: Navigating to company page for ${currentOpportunityContext.company_name}...`);
+
+          broadcastStatus('active', `Step 3: Navigating to people page for ${currentOpportunityContext.company_name}...`);
+          logger.log(`Navigating to people page: ${peoplePageUrl}`);
           
           const tab = await getLinkedInTab();
           
-          const tabUpdateListener = async (tabId, info, updatedTab) => {
-            if (tabId !== tab.id) return;
-
-            logger.log(`Tab update for tab ${tabId}: status='${info.status}', url='${updatedTab.url}'`);
-
-            // Wait for the main company page to load
-            if (info.status === 'complete' && updatedTab.url && updatedTab.url.startsWith(companyUrl)) {
-              logger.log(`SUCCESS: Company page has loaded. Removing listener.`);
-              chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+          const tabUpdateListener = async (tabId, changeInfo, tab) => {
+            // We only care about updates to our target tab when it's fully loaded.
+            if (tabId === tab.id && changeInfo.status === 'complete') {
+              logger.log(`Tab updated. ID: ${tabId}, Status: ${changeInfo.status}, URL: ${tab.url}`);
               
-              await new Promise(resolve => setTimeout(resolve, 4000));
-              
-              logger.log(`Injecting content script and sending 'clickPeopleTabAndSearch' message.`);
-              await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-              await chrome.tabs.sendMessage(tab.id, { 
-                  action: "clickPeopleTabAndSearch", 
-                  keywords: searchKeywords,
-                  taskId, 
-                  opportunityId 
-              });
+              // Check if the loaded URL is the people page we are expecting.
+              if (tab.url?.includes(`/company/${companySlug}/people`)) {
+                logger.log(`SUCCESS: People page loaded. Removing listener and proceeding to search.`);
+                chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+                
+                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page to be stable
+                
+                logger.log(`Injecting content script and sending 'searchWithinPeoplePage' message.`);
+                await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+                await chrome.tabs.sendMessage(tab.id, { 
+                    action: "searchWithinPeoplePage", 
+                    keywords: searchKeywords,
+                    taskId, 
+                    opportunityId 
+                });
+              } else {
+                logger.log(`Ignoring tab update for non-matching URL: ${tab.url}`);
+              }
             }
           };
-          
           chrome.tabs.onUpdated.addListener(tabUpdateListener);
-          
-          logger.log(`Navigating to company page: ${companyUrl}`);
-          await chrome.tabs.update(tab.id, { url: companyUrl });
+          await chrome.tabs.update(tab.id, { url: peoplePageUrl });
 
         } else {
           throw new Error("AI could not find a matching company URL on the page.");
