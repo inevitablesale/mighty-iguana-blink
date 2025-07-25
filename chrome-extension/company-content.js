@@ -67,6 +67,8 @@ async function scrapeCompanyPage(opportunityId) {
       opportunityId,
       data: companyData
     });
+    // Send completion message ONLY after successful scraping
+    chrome.runtime.sendMessage({ action: "scrapingComplete" });
 
   } catch (error) {
     console.error("Coogi Extension: Error scraping company page:", error);
@@ -75,8 +77,7 @@ async function scrapeCompanyPage(opportunityId) {
       opportunityId,
       error: error.message
     });
-  } finally {
-    // Let the background script know it's done, so it can close the tab.
+    // Also send completion message on error so the tab closes
     chrome.runtime.sendMessage({ action: "scrapingComplete" });
   }
 }
