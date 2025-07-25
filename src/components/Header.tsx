@@ -23,6 +23,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SweaterIcon } from "./SweaterIcon";
+import { useExtension } from "@/context/ExtensionContext";
+import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
 
 interface HeaderProps {
   title: string;
@@ -31,6 +33,7 @@ interface HeaderProps {
 export function Header({ title }: HeaderProps) {
   const navigate = useNavigate();
   const { profile, loading } = useUserProfile();
+  const { isExtensionInstalled, extensionStatus, extensionMessage } = useExtension();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -105,6 +108,11 @@ export function Header({ title }: HeaderProps) {
       <div className="w-full flex-1">
         <h1 className="text-lg font-semibold md:text-2xl">{title}</h1>
       </div>
+
+      {isExtensionInstalled && (
+        <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
+      )}
+
       {loading ? (
         <Skeleton className="h-10 w-10 rounded-full" />
       ) : (
