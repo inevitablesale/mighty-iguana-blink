@@ -56,14 +56,14 @@ function detectCaptchaOrRestriction() {
 
 // Scrapes a list of companies from a search results page
 async function scrapeCompanySearchResults() {
-  console.log("Coogi Extension: Scraping company search results...");
+  chrome.runtime.sendMessage({ action: "logMessage", message: "Scraping company search results page..." });
   
   await waitRandom(3000, 5000);
 
   const resultsContainer = document.querySelector('ul.reusable-search__results-container');
   
   if (resultsContainer) {
-    console.log("Coogi Extension: Results container found. Scraping items...");
+    chrome.runtime.sendMessage({ action: "logMessage", message: "Results container found. Scraping items..." });
     const results = [];
     const resultElements = document.querySelectorAll('li.reusable-search__result-container');
     resultElements.forEach(el => {
@@ -78,7 +78,7 @@ async function scrapeCompanySearchResults() {
         });
       }
     });
-    console.log(`Coogi Extension: Found ${results.length} company search results.`);
+    chrome.runtime.sendMessage({ action: "logMessage", message: `Found ${results.length} company search results.` });
     chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results });
     return;
   }
@@ -87,7 +87,7 @@ async function scrapeCompanySearchResults() {
   const pageText = document.body.innerText;
 
   if (noResultsElement || (pageText && pageText.toLowerCase().includes("no results found"))) {
-    console.log("Coogi Extension: 'No results' message detected. Sending empty array.");
+    chrome.runtime.sendMessage({ action: "logMessage", message: "'No results' message detected. Sending empty array." });
     chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results: [] });
     return;
   }
@@ -98,7 +98,7 @@ async function scrapeCompanySearchResults() {
 
 // Scrapes a list of employees from a company's "People" page
 async function scrapeEmployees(opportunityId) {
-  console.log(`🚀 Starting employee scrape for opportunity ${opportunityId}`);
+  chrome.runtime.sendMessage({ action: "logMessage", message: `🚀 Starting employee scrape for opportunity ${opportunityId}` });
   let allContacts = new Map();
   let currentPage = 1;
 
@@ -108,7 +108,7 @@ async function scrapeEmployees(opportunityId) {
       return;
     }
 
-    console.log(`📄 Scraping employee page ${currentPage}`);
+    chrome.runtime.sendMessage({ action: "logMessage", message: `📄 Scraping employee page ${currentPage}` });
     const scrollHeightBefore = document.body.scrollHeight;
     await humanScrollToBottom();
     await waitRandom(...ACTION_DELAY_RANGE);
@@ -124,11 +124,11 @@ async function scrapeEmployees(opportunityId) {
         allContacts.set(contact.profileUrl, contact);
       }
     });
-    console.log(`Total unique contacts found so far: ${allContacts.size}`);
+    chrome.runtime.sendMessage({ action: "logMessage", message: `Total unique contacts found so far: ${allContacts.size}` });
 
     const scrollHeightAfter = document.body.scrollHeight;
     if (scrollHeightAfter === scrollHeightBefore) {
-      console.log("Content Script: Reached end of infinite scroll for employees.");
+      chrome.runtime.sendMessage({ action: "logMessage", message: "Reached end of infinite scroll for employees." });
       break;
     }
     currentPage++;
