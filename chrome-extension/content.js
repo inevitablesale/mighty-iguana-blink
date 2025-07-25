@@ -57,28 +57,48 @@ function detectCaptchaOrRestriction() {
 // Scrapes a list of companies from a search results page
 async function scrapeCompanySearchResults() {
   console.log("Coogi Extension: Scraping company search results...");
-  const resultsContainer = document.querySelector('ul.reusable-search__results-container');
-  if (!resultsContainer) throw new Error("Search results container not found.");
   
-  await waitRandom(1000, 2000); // Wait for elements to render
+  // Wait for the page to potentially load content.
+  await waitRandom(3000, 5000);
 
-  const results = [];
-  const resultElements = document.querySelectorAll('li.reusable-search__result-container');
-  resultElements.forEach(el => {
-    const linkElement = el.querySelector('a.app-aware-link');
-    const titleElement = el.querySelector('.entity-result__title-text');
-    const subtitleElement = el.querySelector('.entity-result__primary-subtitle');
-    if (linkElement && titleElement && subtitleElement) {
-      results.push({
-        url: linkElement.href,
-        title: titleElement.innerText.trim(),
-        subtitle: subtitleElement.innerText.trim()
-      });
-    }
-  });
-  console.log(`Coogi Extension: Found ${results.length} company search results.`);
-  chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results });
+  const resultsContainer = document.querySelector('ul.reusable-search__results-container');
+  
+  // Case 1: Results container is found
+  if (resultsContainer) {
+    console.log("Coogi Extension: Results container found. Scraping items...");
+    const results = [];
+    const resultElements = document.querySelectorAll('li.reusable-search__result-container');
+    resultElements.forEach(el => {
+      const linkElement = el.querySelector('a.app-aware-link');
+      const titleElement = el.querySelector('.entity-result__title-text');
+      const subtitleElement = el.querySelector('.entity-result__primary-subtitle');
+      if (linkElement && titleElement && subtitleElement) {
+        results.push({
+          url: linkElement.href,
+          title: titleElement.innerText.trim(),
+          subtitle: subtitleElement.innerText.trim()
+        });
+      }
+    });
+    console.log(`Coogi Extension: Found ${results.length} company search results.`);
+    chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results });
+    return;
+  }
+
+  // Case 2: Results container is NOT found, check for "no results" message
+  const noResultsElement = document.querySelector('.search-no-results, .search-results__blank-state');
+  const pageText = document.body.innerText;
+
+  if (noResultsElement || (pageText && pageText.toLowerCase().includes("no results found"))) {
+    console.log("Coogi Extension: 'No results' message detected. Sending empty array.");
+    chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results: [] });
+    return;
+  }
+
+  // Case 3: Neither container nor "no results" message found. It's an error.
+  throw new Error("Search results container not found, and no 'no results' message was detected. LinkedIn page structure may have changed.");
 }
+
 
 // Scrapes a list of employees from a company's "People" page
 async function scrapeEmployees(opportunityId) {
