@@ -27,8 +27,6 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       if (id) {
         setIsExtensionInstalled(true);
         setExtensionId(id);
-        setExtensionStatus('idle');
-        setExtensionMessage('Extension connected.');
         clearInterval(interval);
         return;
       }
@@ -47,10 +45,11 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect for listening to status updates from the extension
   useEffect(() => {
+    console.log("Coogi Web App: Setting up extension status listener.");
     const handleStatusUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { status, message } = customEvent.detail;
-      console.log(`[Coogi Extension Status] ${status.toUpperCase()}: ${message}`);
+      console.log(`[Coogi Status Received] Status: ${status.toUpperCase()}, Message: ${message}`);
       setExtensionStatus(status);
       setExtensionMessage(message);
 
@@ -64,6 +63,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
     window.addEventListener('coogi-extension-status', handleStatusUpdate);
     return () => {
+      console.log("Coogi Web App: Cleaning up extension status listener.");
       window.removeEventListener('coogi-extension-status', handleStatusUpdate);
     };
   }, []);
