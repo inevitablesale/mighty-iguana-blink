@@ -45,11 +45,9 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect for listening to status updates from the extension
   useEffect(() => {
-    console.log("Coogi Web App: Setting up extension status listener.");
     const handleStatusUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { status, message } = customEvent.detail;
-      console.log(`[Coogi Status Received] Status: ${status.toUpperCase()}, Message: ${message}`);
       setExtensionStatus(status);
       setExtensionMessage(message);
 
@@ -63,8 +61,34 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
     window.addEventListener('coogi-extension-status', handleStatusUpdate);
     return () => {
-      console.log("Coogi Web App: Cleaning up extension status listener.");
       window.removeEventListener('coogi-extension-status', handleStatusUpdate);
+    };
+  }, []);
+
+  // Effect for listening to logs from the extension
+  useEffect(() => {
+    const handleLog = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { type, args } = customEvent.detail;
+      const prefix = `[Coogi Extension]`;
+      switch (type) {
+        case 'error':
+          console.error(prefix, ...args);
+          break;
+        case 'warn':
+          console.warn(prefix, ...args);
+          break;
+        case 'info':
+          console.info(prefix, ...args);
+          break;
+        default:
+          console.log(prefix, ...args);
+      }
+    };
+
+    window.addEventListener('coogi-extension-log', handleLog);
+    return () => {
+      window.removeEventListener('coogi-extension-log', handleLog);
     };
   }, []);
 
