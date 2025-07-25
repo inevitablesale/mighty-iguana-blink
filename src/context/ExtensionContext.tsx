@@ -53,6 +53,13 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       console.log(`[Coogi Extension Status] ${status.toUpperCase()}: ${message}`);
       setExtensionStatus(status);
       setExtensionMessage(message);
+
+      if (status === 'error') {
+        toast.error("Extension Error", {
+          description: message,
+          duration: 10000,
+        });
+      }
     };
 
     window.addEventListener('coogi-extension-status', handleStatusUpdate);

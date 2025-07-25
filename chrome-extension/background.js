@@ -39,6 +39,11 @@ async function broadcastStatus(status, message) {
   currentStatus = { status, message };
   try {
     const tabs = await chrome.tabs.query({ url: COOGI_APP_URL });
+    if (tabs.length === 0) {
+      console.log("[Broadcast] No Coogi web app tab found to send status to.");
+      return;
+    }
+    console.log(`[Broadcast] Found ${tabs.length} Coogi tab(s). Sending status...`);
     for (const tab of tabs) {
       try {
         await chrome.scripting.executeScript({
@@ -47,7 +52,10 @@ async function broadcastStatus(status, message) {
           args: [currentStatus],
           world: 'MAIN'
         });
-      } catch (e) { /* Tab might not be ready, ignore */ }
+        console.log(`[Broadcast] Successfully sent status to tab ${tab.id}`);
+      } catch (e) { 
+        console.error(`[Broadcast] Failed to send status to tab ${tab.id}:`, e.message);
+      }
     }
   } catch (e) { console.error("Error broadcasting status:", e.message); }
 }
