@@ -67,14 +67,20 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
   function scrapeLinkedInSearchResults(opportunityId) {
     const results = document.querySelectorAll('li.reusable-search__result-container');
     const contacts = [];
+    log('info', `Found ${results.length} potential result containers.`);
 
-    results.forEach(item => {
+    results.forEach((item, index) => {
       const entityResult = item.querySelector('.entity-result');
-      if (!entityResult) return;
+      if (!entityResult) {
+        log('warn', `Item #${index} has no .entity-result div.`);
+        return;
+      }
 
-      const titleElement = entityResult.querySelector('.entity-result__title-text a.app-aware-link');
-      const name = titleElement ? titleElement.innerText.trim().split('\n')[0] : null;
-      const profileUrl = titleElement ? titleElement.getAttribute('href') : null;
+      const titleElement = entityResult.querySelector('.entity-result__title-text a span[aria-hidden="true"]');
+      const name = titleElement ? titleElement.innerText.trim() : null;
+      
+      const linkElement = entityResult.querySelector('.entity-result__title-text a');
+      const profileUrl = linkElement ? linkElement.getAttribute('href') : null;
 
       const subtitleElement = entityResult.querySelector('.entity-result__primary-subtitle');
       const title = subtitleElement ? subtitleElement.innerText.trim() : null;
@@ -87,9 +93,11 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
           profileUrl,
           email: null
         });
+      } else {
+        log('warn', `Could not extract full details for item #${index}. Name: ${name}, URL: ${profileUrl}`);
       }
     });
-    log('info', `Content Script: Scraped ${contacts.length} contacts from the search page.`);
+    log('info', `Content Script: Successfully scraped ${contacts.length} contacts from the search page.`);
     return contacts;
   }
 
