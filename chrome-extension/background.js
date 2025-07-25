@@ -1,3 +1,5 @@
+console.log("Coogi Background Script Loaded at:", new Date().toLocaleTimeString());
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 // --- EXPLICIT LOGGER ---
