@@ -45,58 +45,39 @@ serve(async (req) => {
 
   try {
     const { html, opportunityContext } = await req.json();
-    
-    // --- DEBUG LOGGING ---
-    console.log("--- Received Request Data ---");
-    console.log("Opportunity Context:", JSON.stringify(opportunityContext, null, 2));
-    console.log("HTML Snippet (first 500 chars):", html ? html.substring(0, 500) : "No HTML received");
-    console.log("--- End of Request Data ---");
-    // --- END DEBUG LOGGING ---
-
     if (!html || !opportunityContext) {
       throw new Error("HTML content and opportunity context are required.");
     }
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const prompt = `
-      You are an expert data extraction bot. Your task is to parse the raw HTML of a LinkedIn **company** search results page and extract key information for each company listed.
+      You are an expert web scraper. Your task is to find the correct LinkedIn company URL from a raw HTML snippet.
 
       **Context:**
-      I am searching for the company "${opportunityContext.company_name}".
+      I am looking for the company named: "${opportunityContext.company_name}"
 
       **Raw HTML Snippet:**
       \`\`\`html
-      ${html.substring(0, 20000)}
+      ${html.substring(0, 25000)}
       \`\`\`
 
       **Instructions:**
-      1.  Scan the HTML for list items or divs that represent a search result. These items will typically contain an \`<a>\` tag where the \`href\` attribute includes "/company/".
-      2.  For each of these search result items you find, extract the following three pieces of information:
-          - "title": The full name of the company, usually found within the main link or a heading tag like \`<h3>\` or \`<h4>\`.
-          - "subtitle": The descriptive text below the title, often containing the industry and location.
-          - "url": The absolute URL to the company's LinkedIn page, extracted from the \`href\` of the main \`<a>\` tag.
-      3.  Return a single, valid JSON object with one key: "results".
-      4.  The value of "results" should be an array of objects, where each object represents a company you found.
-      5.  If no such search result items are found, return an empty array for "results".
+      1.  Carefully analyze the HTML to find the search result that most closely matches the company name "${opportunityContext.company_name}".
+      2.  Extract the absolute URL for that company's LinkedIn page. The URL will be in an \`<a>\` tag's \`href\` attribute and will contain "/company/".
+      3.  Return a single, valid JSON object with one key: "url".
+      4.  If you cannot find a definitive match, return null for the "url" value.
 
-      **Example Output Format:**
+      **Example Output:**
       {
-        "results": [
-          {
-            "title": "Acme Corporation",
-            "subtitle": "Software Development · San Francisco, California",
-            "url": "https://www.linkedin.com/company/acme-corporation/"
-          },
-          ...
-        ]
+        "url": "https://www.linkedin.com/company/the-correct-company/"
       }
     `;
 
     const result = await callGemini(prompt, GEMINI_API_KEY);
 
-    return new Response(JSON.stringify({ results: result.results || [] }), {
+    return new Response(JSON.stringify({ url: result.url || null }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
