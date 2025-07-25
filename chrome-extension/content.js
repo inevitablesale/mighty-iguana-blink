@@ -60,16 +60,19 @@ async function scrapeCompanySearchResults() {
   
   await waitRandom(3000, 5000);
 
-  const resultsContainer = document.querySelector('ul.reusable-search__results-container');
+  const results = [];
+  // LinkedIn is rolling out a new UI. We'll check for both old and new structures.
   
-  if (resultsContainer) {
-    chrome.runtime.sendMessage({ action: "logMessage", message: "Results container found. Scraping items..." });
-    const results = [];
-    const resultElements = document.querySelectorAll('li.reusable-search__result-container');
+  // OLD STRUCTURE
+  let resultElements = document.querySelectorAll('li.reusable-search__result-container');
+  
+  if (resultElements.length > 0) {
+    chrome.runtime.sendMessage({ action: "logMessage", message: `Detected OLD LinkedIn UI. Found ${resultElements.length} results.` });
     resultElements.forEach(el => {
       const linkElement = el.querySelector('a.app-aware-link');
       const titleElement = el.querySelector('.entity-result__title-text');
       const subtitleElement = el.querySelector('.entity-result__primary-subtitle');
+
       if (linkElement && titleElement && subtitleElement) {
         results.push({
           url: linkElement.href,
@@ -78,11 +81,34 @@ async function scrapeCompanySearchResults() {
         });
       }
     });
-    chrome.runtime.sendMessage({ action: "logMessage", message: `Found ${results.length} company search results.` });
+  } else {
+    // NEW STRUCTURE
+    resultElements = document.querySelectorAll('div[data-view-name="search-entity-result-universal-template"]');
+    chrome.runtime.sendMessage({ action: "logMessage", message: `Detected NEW LinkedIn UI. Found ${resultElements.length} results.` });
+    resultElements.forEach(el => {
+      const linkElement = el.querySelector('a[href*="/company/"]');
+      // The title is inside an 'a' tag, which is inside a span with a t-16 class (for text size)
+      const titleElement = el.querySelector('span[class*="t-16"] a, .entity-result__title-text a');
+      // The subtitle is in a div with a t-14 class
+      const subtitleElement = el.querySelector('div[class*="t-14"], .entity-result__primary-subtitle');
+
+      if (linkElement && titleElement && subtitleElement) {
+        results.push({
+          url: linkElement.href,
+          title: titleElement.innerText.trim(),
+          subtitle: subtitleElement.innerText.trim()
+        });
+      }
+    });
+  }
+
+  if (results.length > 0) {
+    chrome.runtime.sendMessage({ action: "logMessage", message: `Successfully scraped ${results.length} company search results.` });
     chrome.runtime.sendMessage({ action: "scrapedCompanySearchResults", results });
     return;
   }
 
+  // If we're here, no results were found with either structure. Check for "no results" message.
   const noResultsElement = document.querySelector('.search-no-results, .search-results__blank-state');
   const pageText = document.body.innerText;
 
