@@ -338,11 +338,11 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     return;
   }
 
-  if (message.action === "scrapedCompanySearchResults") {
+  if (message.action === "scrapedRawHTML") {
     if (!supabase || !currentOpportunityContext) return;
-    const taskId = currentOpportunityContext.finalAction.taskId;
+    const { html, taskId } = message;
 
-    if (!message.results || message.results.length === 0) {
+    if (!html) {
         const errorMsg = `Could not find any company results for "${currentOpportunityContext.company_name}".`;
         broadcastStatus('error', errorMsg);
         logToWebAppConsole(errorMsg);
@@ -353,11 +353,19 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return;
     }
 
-    const logMsg = `Found ${message.results.length} potential companies. Asking AI to select the best match...`;
+    const logMsg = `HTML received. Asking AI to parse search results...`;
     broadcastStatus('active', logMsg);
     logToWebAppConsole(logMsg);
     try {
-      const { data, error } = await supabase.functions.invoke('select-linkedin-company', { body: { searchResults: message.results, opportunityContext } });
+      const { data: aiParseData, error: aiParseError } = await supabase.functions.invoke('parse-linkedin-search-with-ai', { body: { html, opportunityContext: currentOpportunityContext } });
+      if (aiParseError) throw new Error(aiParseError.message);
+      
+      const searchResults = aiParseData.results;
+      if (!searchResults || searchResults.length === 0) {
+        throw new Error("AI failed to parse any companies from the HTML.");
+      }
+
+      const { data, error } = await supabase.functions.invoke('select-linkedin-company', { body: { searchResults, opportunityContext: currentOpportunityContext } });
       if (error) throw new Error(error.message);
 
       const aiLogMsg = `AI selected a match. Navigating to its people page...`;
@@ -365,20 +373,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       logToWebAppConsole(aiLogMsg);
 
       const finalAction = currentOpportunityContext.finalAction;
-      let destinationUrl;
-      let scriptToInject;
-      let messageToSend;
-
-      if (finalAction.type === 'find_contacts') {
-        const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
-        destinationUrl = `${data.url.replace(/\/$/, '')}/people/?keywords=${encodeURIComponent(keywords)}`;
-        scriptToInject = "content.js";
-        messageToSend = { action: "scrapePage", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id };
-      } else if (finalAction.type === 'enrich_company') {
-        destinationUrl = data.url;
-        scriptToInject = "company-content.js";
-        messageToSend = { action: "startCompanyScrape", opportunityId: currentOpportunityContext.id };
-      }
+      const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
+      const destinationUrl = `${data.url.replace(/\/$/, '')}/people/?keywords=${encodeURIComponent(keywords)}`;
+      const scriptToInject = "content.js";
+      const messageToSend = { action: "scrapePage", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id };
 
       await chrome.tabs.update(sender.tab.id, { url: destinationUrl });
       const tabUpdateListener = async (tabId, info) => {
@@ -391,7 +389,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       };
       chrome.tabs.onUpdated.addListener(tabUpdateListener);
     } catch (e) { 
-        const errorMsg = `AI selection failed: ${e.message}`;
+        const errorMsg = `AI parsing/selection failed: ${e.message}`;
         broadcastStatus('error', errorMsg);
         logToWebAppConsole(errorMsg);
         if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
