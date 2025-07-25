@@ -50,6 +50,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     const handleStatusUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { status, message } = customEvent.detail;
+      console.log(`[Coogi Extension Status] ${status.toUpperCase()}: ${message}`);
       setExtensionStatus(status);
       setExtensionMessage(message);
     };
