@@ -42,7 +42,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["content.js", "company-search-content.js", "company-content.js"],
+      "resources": ["content.js", "linkedin-company-search.js", "company-content.js"],
       "matches": ["https://*.linkedin.com/*"]
     }
   ]

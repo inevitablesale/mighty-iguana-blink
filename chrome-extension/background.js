@@ -203,7 +203,7 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
   } else {
     broadcastStatus('active', `No direct URL for ${opportunity.company_name}. Starting LinkedIn search...`);
     targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
-    scriptToInject = "company-search-content.js";
+    scriptToInject = "linkedin-company-search.js";
   }
 
   const tab = await chrome.tabs.create({ url: targetUrl, active: false });
