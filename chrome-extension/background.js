@@ -211,27 +211,41 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
 });
 
 async function processFoundContacts(taskId, opportunityId, contacts) {
-    broadcastStatus('active', `Found ${contacts.length} contacts. AI is identifying key contacts...`);
-    try {
-        const { data: aiData, error: aiError } = await supabase.functions.invoke('identify-key-contacts', {
-            body: { contacts, opportunityContext: currentOpportunityContext },
-        });
-        if (aiError) throw new Error(aiError.message);
-        
-        const recommendedContacts = aiData.recommended_contacts;
-        if (recommendedContacts && recommendedContacts.length > 0) {
-            await saveContacts(taskId, opportunityId, recommendedContacts);
-            await updateTaskStatus(taskId, "complete");
-            broadcastStatus('idle', `Successfully saved ${recommendedContacts.length} contacts.`);
-        } else {
-            await updateTaskStatus(taskId, "complete", "AI found no key contacts from the list.");
-            broadcastStatus('idle', `Task complete. AI found no key contacts.`);
-        }
-    } catch (e) {
-        const errorMessage = `AI contact identification failed: ${e.message}`;
-        await updateTaskStatus(taskId, "error", errorMessage);
-        broadcastStatus('error', errorMessage);
+  if (!contacts || contacts.length === 0) {
+    await updateTaskStatus(taskId, "complete", "No contacts were found.");
+    broadcastStatus('idle', `Task complete. No contacts found for ${currentOpportunityContext?.company_name}.`);
+    return;
+  }
+  broadcastStatus('active', `Found ${contacts.length} contacts. AI is identifying key contacts...`);
+  try {
+    const { data: aiData, error: aiError } = await supabase.functions.invoke('identify-key-contacts', {
+      body: { contacts, opportunityContext: currentOpportunityContext },
+    });
+    if (aiError) throw new Error(aiError.message);
+    
+    const recommendedContacts = aiData.recommended_contacts;
+    if (recommendedContacts && recommendedContacts.length > 0) {
+      await saveContacts(taskId, opportunityId, recommendedContacts);
+      await updateTaskStatus(taskId, "complete");
+      broadcastStatus('idle', `Successfully saved ${recommendedContacts.length} contacts.`);
+    } else {
+      await updateTaskStatus(taskId, "complete", "AI found no key contacts from the list.");
+      broadcastStatus('idle', `Task complete. AI found no key contacts.`);
     }
+  } catch (e) {
+    const errorMessage = `AI contact identification failed: ${e.message}`;
+    await updateTaskStatus(taskId, "error", errorMessage);
+    broadcastStatus('error', errorMessage);
+  }
+}
+
+function finalizeTask() {
+  if (chrome.action) {
+    chrome.action.setBadgeText({ text: "" });
+  }
+  isTaskActive = false;
+  startCooldown();
+  processQueue();
 }
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
@@ -241,51 +255,49 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   }
 
   if (message.action === "scrapedData") {
-    const { taskId, contacts, error, opportunityId, html } = message;
-
+    const { taskId, opportunityId, contacts, error } = message;
     if (error) {
-        await updateTaskStatus(taskId, "error", error);
-        broadcastStatus('error', `Scraping failed: ${error}`);
-    } else if (contacts && contacts.length > 0) {
-        await processFoundContacts(taskId, opportunityId, contacts);
-    } else if (html) {
-        broadcastStatus('active', `Scraping failed. Asking AI to analyze page layout...`);
-        try {
-            const { data: aiData, error: aiError } = await supabase.functions.invoke('parse-linkedin-search-with-ai', {
-                body: { html, opportunityContext: currentOpportunityContext },
-            });
-            if (aiError) throw new Error(aiError.message);
-            
-            const aiContacts = aiData.results.map(r => ({
-              opportunityId,
-              name: r.title,
-              title: r.subtitle,
-              profileUrl: r.url,
-              email: null
-            }));
-
-            if (aiContacts.length > 0) {
-                await processFoundContacts(taskId, opportunityId, aiContacts);
-            } else {
-                await updateTaskStatus(taskId, "complete", "AI could not find contacts on the page.");
-                broadcastStatus('idle', `Task complete. AI found no contacts for ${currentOpportunityContext?.company_name}.`);
-            }
-        } catch (e) {
-            const errorMessage = `AI page parsing failed: ${e.message}`;
-            await updateTaskStatus(taskId, "error", errorMessage);
-            broadcastStatus('error', errorMessage);
-        }
+      await updateTaskStatus(taskId, "error", error);
+      broadcastStatus('error', `Scraping failed: ${error}`);
     } else {
-        await updateTaskStatus(taskId, "complete", "No contacts found on page.");
-        broadcastStatus('idle', `Task complete. No contacts found for ${currentOpportunityContext?.company_name}.`);
+      await processFoundContacts(taskId, opportunityId, contacts);
     }
-    
-    if (chrome.action) {
-      chrome.action.setBadgeText({ text: "" });
+    finalizeTask();
+  }
+
+  else if (message.action === "scrapingFailed") {
+    const { taskId, opportunityId } = message;
+    broadcastStatus('active', `Scraping failed. Asking AI to analyze page layout...`);
+    try {
+      const tabId = sender.tab.id;
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => document.documentElement.outerHTML,
+      });
+      const html = results[0].result;
+      if (!html) throw new Error("Could not retrieve HTML from the page.");
+
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('parse-linkedin-search-with-ai', {
+        body: { html, opportunityContext: currentOpportunityContext },
+      });
+      if (aiError) throw new Error(aiError.message);
+
+      const aiContacts = aiData.results.map(r => ({
+        opportunityId,
+        name: r.title,
+        title: r.subtitle,
+        profileUrl: r.url,
+        email: null
+      }));
+
+      await processFoundContacts(taskId, opportunityId, aiContacts);
+
+    } catch (e) {
+      const errorMessage = `AI page parsing failed: ${e.message}`;
+      await updateTaskStatus(taskId, "error", errorMessage);
+      broadcastStatus('error', errorMessage);
     }
-    isTaskActive = false;
-    startCooldown();
-    processQueue();
+    finalizeTask();
   }
 });
 

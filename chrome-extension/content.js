@@ -202,13 +202,11 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
         
         const finalContacts = Array.from(allContacts.values());
         if (finalContacts.length === 0) {
-          log('warn', 'No contacts found with standard scraper. Triggering AI parser.');
+          log('warn', 'No contacts found with standard scraper. Requesting AI analysis.');
           chrome.runtime.sendMessage({ 
-            action: "scrapedData", 
+            action: "scrapingFailed", 
             taskId, 
-            opportunityId, 
-            contacts: [],
-            html: document.documentElement.outerHTML 
+            opportunityId,
           });
         } else {
           chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: finalContacts });
