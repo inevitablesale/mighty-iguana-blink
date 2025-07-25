@@ -14,6 +14,28 @@ let cooldownActive = false;
 const taskQueue = [];
 let currentOpportunityContext = null;
 let currentStatus = { status: 'disconnected', message: 'Initializing...' };
+let linkedInTabId = null;
+
+async function getLinkedInTab() {
+  if (linkedInTabId) {
+    try {
+      const tab = await chrome.tabs.get(linkedInTabId);
+      return tab;
+    } catch (e) {
+      linkedInTabId = null;
+    }
+  }
+
+  const existingTabs = await chrome.tabs.query({ url: "https://*.linkedin.com/*" });
+  if (existingTabs.length > 0) {
+    linkedInTabId = existingTabs[0].id;
+    return existingTabs[0];
+  }
+
+  const newTab = await chrome.tabs.create({ url: "https://www.linkedin.com/feed/", active: false });
+  linkedInTabId = newTab.id;
+  return newTab;
+}
 
 async function broadcastStatus(status, message) {
   currentStatus = { status, message };
@@ -99,7 +121,9 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
   const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
   let targetUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(opportunity.company_name + ' ' + keywords)}`;
 
-  const tab = await chrome.tabs.create({ url: targetUrl, active: false });
+  const tab = await getLinkedInTab();
+  await chrome.tabs.update(tab.id, { url: targetUrl });
+
   const tabUpdateListener = async (tabId, info) => {
     if (tabId === tab.id && info.status === 'complete') {
       chrome.tabs.onUpdated.removeListener(tabUpdateListener);
@@ -155,7 +179,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         broadcastStatus('error', errorMessage);
       }
     }
-    if (sender.tab?.id) chrome.tabs.remove(sender.tab.id);
+    // The tab is no longer removed here
     isTaskActive = false;
     startCooldown();
     processQueue();
