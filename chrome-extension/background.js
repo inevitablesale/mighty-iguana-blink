@@ -333,22 +333,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
   }
 
-  if (message.action === "scrapedData") {
-    logger.log(`[BACKGROUND] Received 'scrapedData'.`);
-    const { taskId, opportunityId, contacts, error } = message;
-    if (error) {
-      await updateTaskStatus(taskId, "error", error);
-      broadcastStatus('error', `Scraping failed: ${error}`);
-    } else {
-      await processFoundContacts(taskId, opportunityId, contacts);
-    }
-    finalizeTask();
-  }
-
-  else if (message.action === "scrapingFailed") {
-    logger.log(`[BACKGROUND] Received 'scrapingFailed'.`);
+  if (message.action === "peopleSearchResults") {
+    logger.log(`[BACKGROUND] Received 'peopleSearchResults'.`);
     const { taskId, opportunityId, html } = message;
-    broadcastStatus('active', `Scraping failed. Asking AI to analyze page layout...`);
+    broadcastStatus('active', `AI is analyzing page layout to find contacts...`);
     try {
       if (!html) throw new Error("Could not retrieve HTML from the page.");
 
