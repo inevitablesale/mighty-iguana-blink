@@ -53,21 +53,23 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const prompt = `
-      You are an expert web scraper. Your task is to find the correct LinkedIn company URL from a raw HTML snippet.
+      You are an expert web scraper. Your task is to find the correct LinkedIn company URL from a raw HTML snippet of a search results page.
 
       **Context:**
       I am looking for the company named: "${opportunityContext.company_name}"
 
-      **Raw HTML Snippet:**
+      **Raw HTML Snippet (partial):**
       \`\`\`html
-      ${html.substring(0, 25000)}
+      ${html.substring(0, 30000)}
       \`\`\`
 
       **Instructions:**
-      1.  Carefully analyze the HTML to find the search result that most closely matches the company name "${opportunityContext.company_name}".
-      2.  Extract the absolute URL for that company's LinkedIn page. The URL will be in an \`<a>\` tag's \`href\` attribute and will contain "/company/".
-      3.  Return a single, valid JSON object with one key: "url".
-      4.  If you cannot find a definitive match, return null for the "url" value.
+      1.  First, locate the main container for the search results. This is likely a \`<div>\` or \`<ul>\` with a class name containing "search-results", "scaffold-results", or "results-list".
+      2.  Within that container, look for individual list items (\`<li>\`) or divs that represent a single company.
+      3.  Find the result item where the company name most closely matches "${opportunityContext.company_name}".
+      4.  Once you've found the correct company's result item, extract the absolute URL from the primary \`<a>\` tag's \`href\` attribute. The correct URL will always contain "/company/".
+      5.  Return a single, valid JSON object with one key: "url".
+      6.  If you cannot find a definitive match, return null for the "url" value.
 
       **Example Output:**
       {
