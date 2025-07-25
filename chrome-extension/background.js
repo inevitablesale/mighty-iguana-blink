@@ -335,6 +335,18 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
   if (message.action === "peopleSearchResults") {
     logger.log(`[BACKGROUND] Received 'peopleSearchResults'.`);
+    if (!currentOpportunityContext) {
+        const data = await chrome.storage.session.get('currentOpportunityContext');
+        if (data.currentOpportunityContext) {
+            currentOpportunityContext = data.currentOpportunityContext;
+            logger.log("Restored opportunity context from session storage for people search.");
+        } else {
+            logger.error("FATAL: Opportunity context lost during people search. Aborting task.");
+            finalizeTask();
+            return;
+        }
+    }
+
     const { taskId, opportunityId, html } = message;
     broadcastStatus('active', `AI is analyzing page layout to find contacts...`);
     try {
