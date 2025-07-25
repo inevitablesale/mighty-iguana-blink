@@ -346,11 +346,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       if (aiError) throw new Error(aiError.message);
 
       const aiContacts = aiData.results.map(r => ({
-        opportunityId,
         name: r.title,
-        title: r.subtitle,
-        profileUrl: r.url,
-        email: null
+        job_title: r.subtitle,
+        linkedin_profile_url: r.url,
       }));
 
       await processFoundContacts(taskId, opportunityId, aiContacts);
@@ -421,7 +419,14 @@ async function updateTaskStatus(taskId, status, errorMessage = null) {
 async function saveContacts(taskId, opportunityId, contacts) {
   if (!supabase || contacts.length === 0) return;
   try {
-    const contactsToInsert = contacts.map((c) => ({ task_id: taskId, opportunity_id: opportunityId, user_id: userId, name: c.name, job_title: c.title, linkedin_profile_url: c.profileUrl }));
+    const contactsToInsert = contacts.map((c) => ({ 
+      task_id: taskId, 
+      opportunity_id: opportunityId, 
+      user_id: userId, 
+      name: c.name, 
+      job_title: c.job_title, 
+      linkedin_profile_url: c.linkedin_profile_url 
+    }));
     const { error } = await supabase.from("contacts").insert(contactsToInsert);
     if (error) throw error;
   } catch (err) {
