@@ -193,17 +193,15 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
   
   currentOpportunityContext = { id: opportunityId, company_name: opportunity.company_name, role: opportunity.role, location: opportunity.location, finalAction };
   const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
-  let targetUrl, scriptToInject;
+  let targetUrl;
 
   if (opportunity.linkedin_url_slug) {
     const slug = opportunity.linkedin_url_slug;
     broadcastStatus('active', `Found direct LinkedIn slug for ${opportunity.company_name}. Navigating to people page...`);
     targetUrl = `https://www.linkedin.com/company/${slug}/people/?keywords=${encodeURIComponent(keywords)}`;
-    scriptToInject = "content.js";
   } else {
     broadcastStatus('active', `No direct URL for ${opportunity.company_name}. Starting LinkedIn search...`);
     targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
-    scriptToInject = "linkedin-company-search.js";
   }
 
   const tab = await chrome.tabs.create({ url: targetUrl, active: false });
@@ -212,13 +210,10 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
       chrome.tabs.onUpdated.removeListener(tabUpdateListener);
       try {
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for page to settle
-        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [scriptToInject] });
-        
-        if (scriptToInject === "content.js") {
-          await chrome.tabs.sendMessage(tab.id, { action: "scrapeEmployees", taskId: finalAction.taskId, opportunityId });
-        }
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+        await chrome.tabs.sendMessage(tab.id, { action: "scrapePage", taskId: finalAction.taskId, opportunityId });
       } catch (e) {
-        console.error(`Failed to inject script '${scriptToInject}' into tab ${tab.id}:`, e);
+        console.error(`Failed to inject script 'content.js' into tab ${tab.id}:`, e);
         broadcastStatus('error', `Could not load script into page. Error: ${e.message}`);
         if (tab.id) chrome.tabs.remove(tab.id);
         if (finalAction.type === 'find_contacts') {
@@ -308,7 +303,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           chrome.tabs.onUpdated.removeListener(tabUpdateListener);
           await new Promise(resolve => setTimeout(resolve, 2000));
           await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
-          await chrome.tabs.sendMessage(tabId, { action: "scrapeEmployees", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id });
+          await chrome.tabs.sendMessage(tabId, { action: "scrapePage", taskId: finalAction.taskId, opportunityId: currentOpportunityContext.id });
         }
       };
       chrome.tabs.onUpdated.addListener(tabUpdateListener);
