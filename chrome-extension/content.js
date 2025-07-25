@@ -199,8 +199,21 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
           currentPage++;
           retries = 0;
         }
+        
+        const finalContacts = Array.from(allContacts.values());
+        if (finalContacts.length === 0) {
+          log('warn', 'No contacts found with standard scraper. Triggering AI parser.');
+          chrome.runtime.sendMessage({ 
+            action: "scrapedData", 
+            taskId, 
+            opportunityId, 
+            contacts: [],
+            html: document.documentElement.outerHTML 
+          });
+        } else {
+          chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: finalContacts });
+        }
 
-        chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: Array.from(allContacts.values()) });
       } catch (error) {
         chrome.runtime.sendMessage({ action: "scrapedData", taskId, opportunityId, contacts: [], error: error.message });
       }
