@@ -123,9 +123,11 @@ function initSupabase(token) {
 function subscribeToTasks() {
   if (!supabase || !userId || (supabaseChannel && supabaseChannel.state === 'joined')) return;
   if (supabaseChannel) supabase.removeChannel(supabaseChannel);
+  console.log("Attempting to subscribe to Supabase Realtime for tasks...");
   supabaseChannel = supabase
     .channel("contact_enrichment_tasks")
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "contact_enrichment_tasks", filter: `user_id=eq.${userId}` }, (payload) => {
+      console.log("Received new task via Realtime:", payload.new);
       const task = payload.new;
       if (task.status === "pending" && task.user_id === userId) enqueueTask(task);
     })
@@ -135,6 +137,8 @@ function subscribeToTasks() {
         broadcastStatus('idle', 'Ready and waiting for tasks.');
       }
       if (err) console.error("❌ Supabase subscription error:", err);
+      if (status === 'CHANNEL_ERROR') console.error("❌ Realtime channel error.");
+      if (status === 'TIMED_OUT') console.error("❌ Realtime subscription timed out.");
     });
 }
 
@@ -190,8 +194,10 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
 
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   if (message.type === "SET_TOKEN") {
+    console.log("Received SET_TOKEN message from web app.");
     userId = message.userId;
     await chrome.storage.local.set({ token: message.token, userId: message.userId });
+    console.log("User ID and token stored. Initializing Supabase, subscriptions, and polling...");
     initSupabase(message.token);
     subscribeToTasks();
     pollForPendingTasks();
@@ -244,13 +250,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
 function enqueueTask(task) {
   if (!taskQueue.some(t => t.id === task.id)) {
+    console.log(`Enqueuing task for ${task.company_name} (ID: ${task.id})`);
     taskQueue.push(task);
     broadcastStatus('idle', `New task for ${task.company_name} added to queue.`);
     processQueue();
+  } else {
+    console.log(`Task for ${task.company_name} is already in the queue.`);
   }
 }
 
 function processQueue() {
+  console.log(`Processing queue. Active: ${isTaskActive}, Cooldown: ${cooldownActive}, Queue size: ${taskQueue.length}`);
   if (isTaskActive || cooldownActive || taskQueue.length === 0) {
     if (!isTaskActive && !cooldownActive) {
       broadcastStatus('idle', 'All tasks complete. Waiting for new tasks.');
@@ -258,10 +268,12 @@ function processQueue() {
     return;
   }
   const nextTask = taskQueue.shift();
+  console.log(`Dequeued task: ${nextTask.id}`);
   handleTask(nextTask);
 }
 
 async function handleTask(task) {
+  console.log(`Handling task ID: ${task.id} for company: ${task.company_name}`);
   isTaskActive = true;
   if (chrome.action) {
     chrome.action.setBadgeText({ text: "RUN" });
@@ -273,10 +285,15 @@ async function handleTask(task) {
 
 async function pollForPendingTasks() {
   if (!supabase || !userId) return;
+  console.log("Polling for any pending tasks...");
   const { data, error } = await supabase.from('contact_enrichment_tasks').select('*').eq('user_id', userId).eq('status', 'pending');
-  if (error) console.error("Error polling for tasks:", error);
-  else if (data && data.length > 0) {
+  if (error) {
+    console.error("Error polling for tasks:", error);
+  } else if (data && data.length > 0) {
+    console.log(`Found ${data.length} pending tasks from polling.`);
     data.forEach(task => enqueueTask(task));
+  } else {
+    console.log("No pending tasks found during poll.");
   }
 }
 
