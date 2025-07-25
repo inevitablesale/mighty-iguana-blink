@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Coogi AI Recruiter",
-  "version": "1.2",
+  "version": "2.1",
   "description": "AI-powered recruiting assistant to find opportunities and contacts.",
   "permissions": [
     "storage",
@@ -10,7 +10,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://*.linkedin.com/*"
+    "https://*.linkedin.com/*",
+    "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -18,15 +19,25 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.linkedin.com/*"],
-      "js": ["handshake.js"],
+      "matches": [
+        "http://localhost:*/*",
+        "https://coogi.netlify.app/*",
+        "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+      ],
+      "js": [
+        "handshake.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "action": {
-    "default_title": "Coogi AI"
-  },
   "externally_connectable": {
-    "matches": ["https://dbtdplhlatnlzcvdvptn.dyad.sh/*"]
+    "matches": [
+      "http://localhost:*/*",
+      "https://coogi.netlify.app/*",
+      "https://dbtdplhlatnlzcvdvptn.dyad.sh/*"
+    ]
+  },
+  "action": {
+    "default_title": "Coogi AI Extension"
   }
 }
