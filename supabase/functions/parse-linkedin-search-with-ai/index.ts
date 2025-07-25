@@ -53,10 +53,10 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
     const prompt = `
-      You are an expert data extraction bot. Your task is to parse the raw HTML of a LinkedIn company search results page and extract the key information for each result.
+      You are an expert data extraction bot. Your task is to parse the raw HTML of a LinkedIn **people** search results page and extract key information for each person listed.
 
       **Context:**
-      I am searching for the company: "${opportunityContext.company_name}"
+      I am searching for potential contacts at the company "${opportunityContext.company_name}" for the role "${opportunityContext.role}".
 
       **Raw HTML Snippet:**
       \`\`\`html
@@ -64,22 +64,22 @@ serve(async (req) => {
       \`\`\`
 
       **Instructions:**
-      1.  Analyze the provided HTML. Identify each distinct company listed in the search results.
-      2.  For each company, extract the following three pieces of information:
-          - "title": The name of the company.
-          - "subtitle": The line of text describing the company (e.g., industry and location).
-          - "url": The absolute URL to the company's main LinkedIn page.
+      1.  Analyze the provided HTML. Identify each distinct person listed in the search results.
+      2.  For each person, extract the following three pieces of information:
+          - "title": The full name of the person.
+          - "subtitle": The person's current job title and company.
+          - "url": The absolute URL to the person's LinkedIn profile.
       3.  Return a single, valid JSON object with one key: "results".
-      4.  The value of "results" should be an array of objects, where each object represents a company you found.
-      5.  If no companies are found, return an empty array for "results".
+      4.  The value of "results" should be an array of objects, where each object represents a person you found.
+      5.  If no people are found, return an empty array for "results".
 
       **Example Output Format:**
       {
         "results": [
           {
-            "title": "Example Company Inc.",
-            "subtitle": "Software Development • San Francisco, California",
-            "url": "https://www.linkedin.com/company/example-company/"
+            "title": "Jane Doe",
+            "subtitle": "Director of Talent Acquisition at Example Inc.",
+            "url": "https://www.linkedin.com/in/janedoe123/"
           },
           ...
         ]
