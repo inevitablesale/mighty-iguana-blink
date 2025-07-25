@@ -64,6 +64,25 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
   // =======================
   // ✅ SCRAPING LOGIC
   // =======================
+  function scrapeCompanySearchResults() {
+    const companies = [];
+    const results = document.querySelectorAll('.reusable-search__result-container');
+    results.forEach(item => {
+      const linkElement = item.querySelector('a.app-aware-link');
+      const url = linkElement ? linkElement.href : null;
+      const titleElement = item.querySelector('.entity-result__title-text a');
+      const title = titleElement ? titleElement.innerText.trim() : null;
+      const subtitleElement = item.querySelector('.entity-result__primary-subtitle');
+      const subtitle = subtitleElement ? subtitleElement.innerText.trim() : null;
+
+      if (url && title) {
+        companies.push({ url, title, subtitle });
+      }
+    });
+    log('info', `Scraped ${companies.length} potential companies from search results.`);
+    return companies;
+  }
+
   function scrapeLinkedInSearchResults(opportunityId) {
     const contacts = [];
     // A more generic selector for the list of results.
@@ -145,6 +164,14 @@ if (typeof window.coogiContentScriptLoaded === 'undefined') {
   // ✅ MAIN HANDLER
   // =======================
   chrome.runtime.onMessage.addListener(async (message) => {
+    if (message.action === "scrapeCompanySearchResults") {
+      const { taskId, opportunityId } = message;
+      log('info', `Scraping company search results for task ${taskId}`);
+      await waitRandom(2000, 4000);
+      const companies = scrapeCompanySearchResults();
+      chrome.runtime.sendMessage({ action: "companySearchResults", taskId, opportunityId, companies });
+    }
+
     if (message.action === "scrapeEmployees") {
       const { taskId, opportunityId } = message;
       log('info', `🚀 Starting scrape for task ${taskId}`);

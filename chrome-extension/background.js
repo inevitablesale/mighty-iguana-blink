@@ -167,7 +167,7 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
     return { error: "Not authenticated." };
   }
 
-  const { data: opportunity, error } = await supabase.from('opportunities').select('linkedin_url_slug, company_name, role, location').eq('id', opportunityId).single();
+  const { data: opportunity, error } = await supabase.from('opportunities').select('company_name, role, location').eq('id', opportunityId).single();
 
   if (error || !opportunity) {
     const errorMessage = `Could not find opportunity ${opportunityId}: ${error?.message}`;
@@ -176,11 +176,10 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
     return { error: errorMessage };
   }
   
-  broadcastStatus('active', `Starting discovery for ${opportunity.company_name}...`);
+  broadcastStatus('active', `Step 1: Searching for company page for ${opportunity.company_name}...`);
   currentOpportunityContext = { id: opportunityId, company_name: opportunity.company_name, role: opportunity.role, location: opportunity.location, finalAction };
   
-  const keywords = "human resources OR talent acquisition OR recruiter OR hiring";
-  let targetUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(opportunity.company_name + ' ' + keywords)}`;
+  const targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
 
   const tab = await getLinkedInTab();
   await chrome.tabs.update(tab.id, { url: targetUrl });
@@ -189,11 +188,11 @@ async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
     if (tabId === tab.id && info.status === 'complete') {
       chrome.tabs.onUpdated.removeListener(tabUpdateListener);
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-      await chrome.tabs.sendMessage(tab.id, { action: "scrapeEmployees", taskId: finalAction.taskId, opportunityId });
+      await chrome.tabs.sendMessage(tab.id, { action: "scrapeCompanySearchResults", taskId: finalAction.taskId, opportunityId });
     }
   };
   chrome.tabs.onUpdated.addListener(tabUpdateListener);
-  return { status: "Discovery process initiated." };
+  return { status: "Company search initiated." };
 }
 
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
@@ -252,6 +251,45 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.type === 'log') {
     logger[message.level](...message.args);
     return;
+  }
+
+  if (message.action === "companySearchResults") {
+    const { taskId, opportunityId, companies } = message;
+    if (!companies || companies.length === 0) {
+      await updateTaskStatus(taskId, "error", "Could not find any matching companies on LinkedIn.");
+      finalizeTask();
+      return;
+    }
+    
+    broadcastStatus('active', `Step 2: AI is selecting the correct company page...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('select-linkedin-company', {
+        body: { searchResults: companies, opportunityContext: currentOpportunityContext },
+      });
+      if (error) throw new Error(error.message);
+
+      const companyUrl = data.url;
+      const peopleUrl = `${companyUrl.split('?')[0]}/people/`;
+      
+      broadcastStatus('active', `Step 3: Navigating to people page and scraping contacts...`);
+      const tab = await getLinkedInTab();
+      await chrome.tabs.update(tab.id, { url: peopleUrl });
+
+      const tabUpdateListener = async (tabId, info) => {
+        if (tabId === tab.id && info.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+          await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+          await chrome.tabs.sendMessage(tab.id, { action: "scrapeEmployees", taskId, opportunityId });
+        }
+      };
+      chrome.tabs.onUpdated.addListener(tabUpdateListener);
+
+    } catch (e) {
+      const errorMessage = `AI company selection failed: ${e.message}`;
+      await updateTaskStatus(taskId, "error", errorMessage);
+      broadcastStatus('error', errorMessage);
+      finalizeTask();
+    }
   }
 
   if (message.action === "scrapedData") {
@@ -332,7 +370,6 @@ async function handleTask(task) {
     chrome.action.setBadgeText({ text: "RUN" });
   }
   await updateTaskStatus(task.id, "processing");
-  broadcastStatus('active', `Starting search for ${task.company_name}...`);
   await startCompanyDiscoveryFlow(task.opportunity_id, { type: 'find_contacts', taskId: task.id });
 }
 
