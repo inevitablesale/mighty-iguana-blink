@@ -1,6 +1,6 @@
 console.log("Coogi Background Script Loaded at:", new Date().toLocaleTimeString());
 
-import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
 // --- EXPLICIT LOGGER ---
 const nativeConsole = {

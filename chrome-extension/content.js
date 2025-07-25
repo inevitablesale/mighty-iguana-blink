@@ -1,6 +1,3 @@
-// This attribute is the handshake that lets the web app know the extension is installed.
-document.body.setAttribute('data-coogi-extension-id', chrome.runtime.id);
-
 if (typeof window.coogiContentScriptLoaded === 'undefined') {
   window.coogiContentScriptLoaded = true;
 
