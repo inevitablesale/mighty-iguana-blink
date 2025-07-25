@@ -67,6 +67,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect for listening to logs from the extension
   useEffect(() => {
+    console.log("Coogi Web App: Attaching 'coogi-extension-log' listener.");
     const handleLog = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { type, args } = customEvent.detail;
