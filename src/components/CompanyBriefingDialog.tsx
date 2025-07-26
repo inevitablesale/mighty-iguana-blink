@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CompanyBriefing } from "@/types/index";
+import { CompanyBriefing, NewsItem } from "@/types/index";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,22 @@ export function CompanyBriefingDialog({ companyName, children }: CompanyBriefing
         setLoading(false);
       }
     }
+  };
+
+  const renderNewsList = (newsItems: NewsItem[]) => {
+    if (!newsItems || newsItems.length === 0) {
+      return <p>No recent significant news found in the last 6 months.</p>;
+    }
+    return (
+      <ul className="space-y-3">
+        {newsItems.map((item, index) => (
+          <li key={index}>
+            <p className="font-medium">{item.title}</p>
+            <p className="text-xs text-muted-foreground">{item.source} &bull; {item.date}</p>
+          </li>
+        ))}
+      </ul>
+    );
   };
 
   const renderBulletedList = (text: string) => {
@@ -94,7 +110,7 @@ export function CompanyBriefingDialog({ companyName, children }: CompanyBriefing
             <Separator />
             <div>
               <h4 className="font-semibold mb-2 text-primary">Recent News</h4>
-              <div className="text-sm text-muted-foreground">{renderBulletedList(briefing.recentNews)}</div>
+              <div className="text-sm text-muted-foreground">{renderNewsList(briefing.recentNews)}</div>
             </div>
             <Separator />
             <div>

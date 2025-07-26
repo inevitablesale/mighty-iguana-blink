@@ -81,9 +81,15 @@ export interface Placement {
   }
 }
 
+export interface NewsItem {
+  title: string;
+  source: string;
+  date: string;
+}
+
 export interface CompanyBriefing {
   overview: string;
-  recentNews: string;
+  recentNews: NewsItem[];
   keyPersonnel: string;
   techStack: string;
   hiringAnalysis: string;

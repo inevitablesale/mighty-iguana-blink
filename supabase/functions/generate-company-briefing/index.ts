@@ -29,17 +29,20 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an AI research analyst with access to a vast knowledge base of public information about real-world companies.
-Your task is to generate a concise, factual briefing for the company: "${companyName}".
+You are an AI research analyst. Your task is to generate a concise, factual briefing for the company: "${companyName}".
+Your primary goal is accuracy and reliability. Do not invent or embellish information.
 
-**Crucially, do not invent, embellish, or fictionalize any information.** Your primary goal is accuracy and reliability. If you cannot find specific details for a section (e.g., recent news or key personnel), you must explicitly state that the information is not readily available, rather than creating something.
+**Instructions:**
+1.  **Perform a targeted search for information about the company, focusing on the last 6 months.**
+2.  Generate a JSON object with the keys defined below.
+3.  If you cannot find specific details for a section, you must explicitly state that the information is not readily available or return an empty array where appropriate.
 
-Generate a JSON object with the following keys:
+**JSON Structure:**
 - "overview": A factual summary of what the company does.
-- "recentNews": A bulleted list (as a single string with '\\n- ' separators) of recent, significant news items or milestones. If none are found, state "No recent significant news found."
+- "recentNews": An array of objects, where each object has "title" (the news headline), "source" (the publication name, e.g., 'TechCrunch'), and "date" (e.g., 'YYYY-MM-DD'). If no news is found in the last 6 months, return an empty array.
 - "keyPersonnel": A bulleted list (as a single string with '\\n- ' separators) of key executives. If not found, state "Key personnel information not readily available."
-- "techStack": A comma-separated string of technologies the company is known to use, based on public data like job postings or tech blogs. If unknown, state "Tech stack not publicly specified."
-- "hiringAnalysis": A brief analysis of their likely hiring needs based *only* on the factual information you have gathered.
+- "techStack": A comma-separated string of technologies the company is known to use. If unknown, state "Tech stack not publicly specified."
+- "hiringAnalysis": A brief analysis of their likely hiring needs based on the factual information gathered.
 
 The entire output must be a single valid JSON object.
 **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
