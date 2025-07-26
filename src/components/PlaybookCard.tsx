@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Play, Clock, Edit } from "lucide-react";
+import { Trash2, Play, Clock, Edit, MoreHorizontal } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +13,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Playbook } from "@/types/index";
 import { formatDistanceToNow } from 'date-fns';
 import { EditPlaybookDialog } from "./EditPlaybookDialog";
@@ -57,39 +65,51 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
             <span>Never run</span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm">
             <Play className="mr-2 h-4 w-4" />
             {isRunning ? 'Running...' : 'Run Playbook'}
           </Button>
-          <EditPlaybookDialog playbook={playbook} onPlaybookUpdated={onPlaybookUpdated}>
-            <Button variant="outline" size="icon">
-              <Edit className="h-4 w-4" />
-              <span className="sr-only">Edit Playbook</span>
-            </Button>
-          </EditPlaybookDialog>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="icon">
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete Playbook</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">More actions</span>
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete the "{playbook.name}" playbook. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(playbook.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <EditPlaybookDialog playbook={playbook} onPlaybookUpdated={onPlaybookUpdated}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              </EditPlaybookDialog>
+              <DropdownMenuSeparator />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete the "{playbook.name}" playbook. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(playbook.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardFooter>
     </Card>
