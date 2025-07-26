@@ -369,10 +369,32 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         await updateTaskStatus(taskId, "complete", "No contacts were found after AI page parsing.");
         broadcastStatus('idle', `Task complete. No contacts found for ${currentOpportunityContext?.company_name}.`);
       } else {
-        logger.log(`AI parsed ${aiContacts.length} contacts. Saving all to DB.`);
-        await saveContacts(taskId, opportunityId, aiContacts);
-        await updateTaskStatus(taskId, "complete");
-        broadcastStatus('idle', `Successfully saved ${aiContacts.length} contacts.`);
+        logger.log(`Processing ${aiContacts.length} found contacts.`);
+        try {
+            logger.log("Invoking 'identify-key-contacts' function.");
+            const { data: recommendedData, error: recommendError } = await supabase.functions.invoke('identify-key-contacts', {
+                body: { contacts: aiContacts, opportunityContext: currentOpportunityContext },
+            });
+            if (recommendError) throw new Error(recommendError.message);
+            logger.log("'identify-key-contacts' returned. Processing recommendations.");
+
+            const recommendedContacts = recommendedData.recommended_contacts;
+            if (!recommendedContacts || recommendedContacts.length === 0) {
+                await updateTaskStatus(taskId, "complete", "AI found contacts but none were deemed relevant.");
+                broadcastStatus('idle', `Task complete. No key contacts identified for ${currentOpportunityContext?.company_name}.`);
+            } else {
+                logger.log(`AI recommended ${recommendedContacts.length} contacts. Saving to DB.`);
+                await saveContacts(taskId, opportunityId, recommendedContacts);
+                await updateTaskStatus(taskId, "complete");
+                broadcastStatus('idle', `Successfully saved ${recommendedContacts.length} key contacts.`);
+            }
+        } catch (e) {
+            const errorMessage = `AI contact identification failed: ${e.message}`;
+            logger.error(errorMessage);
+            await updateTaskStatus(taskId, "error", errorMessage);
+            broadcastStatus('error', errorMessage);
+        }
+        logger.log("Finished processing found contacts.");
       }
 
     } catch (e) {
