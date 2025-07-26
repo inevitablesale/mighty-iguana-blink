@@ -80,31 +80,33 @@ export function CampaignCard({ campaign, onCampaignUpdated, onDelete, onUpdateSt
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between">
-        <div>
-          <CardTitle>{campaign.company_name}</CardTitle>
-          <CardDescription>{campaign.role}</CardDescription>
-        </div>
-        <Badge 
-          variant={getStatusBadgeVariant(campaign.status)}
-          className={`${campaign.status === 'interviewing' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'hired' ? 'bg-green-600 text-white' : ''}`}
-        >
-          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
-        </Badge>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Contact: <span className="font-medium text-foreground">{campaign.contact_name || "N/A"}</span>
-        </p>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
+    <Card className="flex flex-col justify-between h-full">
+      <div>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div className="flex-1 overflow-hidden">
+            <CardTitle>{campaign.company_name}</CardTitle>
+            <CardDescription className="truncate" title={campaign.role}>{campaign.role}</CardDescription>
+          </div>
+          <Badge 
+            variant={getStatusBadgeVariant(campaign.status)}
+            className={`ml-4 shrink-0 ${campaign.status === 'interviewing' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'hired' ? 'bg-green-600 text-white' : ''}`}
+          >
+            {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Contact: <span className="font-medium text-foreground">{campaign.contact_name || "N/A"}</span>
+          </p>
+        </CardContent>
+      </div>
+      <CardFooter className="flex justify-between items-center bg-muted/50 p-3">
         <div className="flex gap-2">
           {renderPrimaryActions()}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
