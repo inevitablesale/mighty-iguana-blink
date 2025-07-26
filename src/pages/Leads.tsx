@@ -73,21 +73,9 @@ const Leads = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const handleNewContact = (payload: any) => {
-        const newContact = payload.new as Contact;
-        const opportunity = opportunities.find(opp => opp.id === newContact.opportunity_id);
-        if (opportunity) {
-          toast.success(`New contact found for ${opportunity.company_name}.`);
-          setContactsByCompany(prevMap => {
-            const newMap = new Map(prevMap);
-            const companyName = opportunity.company_name;
-            const existingContacts = newMap.get(companyName) || [];
-            if (!existingContacts.some(c => c.id === newContact.id)) {
-              newMap.set(companyName, [...existingContacts, newContact]);
-            }
-            return newMap;
-          });
-        }
+      const handleNewContact = () => {
+        toast.info("New contacts found, updating list...");
+        fetchData();
       };
 
       channel = supabase
@@ -108,7 +96,7 @@ const Leads = () => {
         supabase.removeChannel(channel);
       }
     };
-  }, [opportunities]);
+  }, [fetchData]);
 
   const handleGenerateCampaignForContact = async (contact: Contact) => {
     setGeneratingCampaignForContactId(contact.id);
