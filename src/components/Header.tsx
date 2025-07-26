@@ -23,6 +23,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { SweaterIcon } from "./SweaterIcon";
+import { useExtension } from "@/context/ExtensionContext";
+import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
 
 interface HeaderProps {
   title: string;
@@ -31,6 +33,7 @@ interface HeaderProps {
 export function Header({ title }: HeaderProps) {
   const navigate = useNavigate();
   const { profile, loading } = useUserProfile();
+  const { extensionStatus, extensionMessage } = useExtension();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -98,6 +101,9 @@ export function Header({ title }: HeaderProps) {
                 Proposals
               </NavLink>
             </nav>
+            <div className="mt-auto p-4 border-t">
+              <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
+            </div>
           </SheetContent>
         </Sheet>
       </div>

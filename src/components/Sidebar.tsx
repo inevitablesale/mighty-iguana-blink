@@ -1,12 +1,16 @@
 import { Home, Target, Briefcase, Bot, Award, FileText } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { SweaterIcon } from "./SweaterIcon";
+import { useExtension } from "@/context/ExtensionContext";
+import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
 
 export function Sidebar(): JSX.Element {
   const getLinkClassName = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? "flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-primary-foreground transition-all"
       : "flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground/80 transition-all hover:bg-white/10 hover:text-sidebar-foreground";
+
+  const { extensionStatus, extensionMessage } = useExtension();
 
   return (
     <div className="hidden border-r border-sidebar-border text-sidebar-foreground md:block sidebar-gradient">
@@ -44,6 +48,11 @@ export function Sidebar(): JSX.Element {
               Proposals
             </NavLink>
           </nav>
+        </div>
+        <div className="mt-auto p-4 border-t border-sidebar-border">
+          <div className="text-sidebar-foreground/80">
+            <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
+          </div>
         </div>
       </div>
     </div>

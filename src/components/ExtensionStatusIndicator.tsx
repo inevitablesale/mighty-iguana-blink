@@ -22,7 +22,7 @@ export function ExtensionStatusIndicator({ status, message }: ExtensionStatusInd
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm">
             <Icon className={`h-4 w-4 ${color} ${status === 'active' ? 'animate-spin' : ''}`} />
             <span className="hidden md:inline-block truncate max-w-[200px]">{message}</span>
           </div>
