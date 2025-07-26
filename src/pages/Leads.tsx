@@ -53,6 +53,48 @@ const Leads = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    let channel: any;
+
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const handleNewContact = (payload: any) => {
+        const newContact = payload.new as Contact;
+        const opportunity = opportunities.find(opp => opp.id === newContact.opportunity_id);
+        toast.success(`New contact found for ${opportunity?.company_name || 'an opportunity'}.`);
+        
+        setContactsByOppId(prevMap => {
+          const newMap = new Map(prevMap);
+          const existingContacts = newMap.get(newContact.opportunity_id) || [];
+          if (!existingContacts.some(c => c.id === newContact.id)) {
+            newMap.set(newContact.opportunity_id, [...existingContacts, newContact]);
+          }
+          return newMap;
+        });
+      };
+
+      channel = supabase
+        .channel('contacts-insert-channel')
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'contacts',
+            filter: `user_id=eq.${user.id}`
+        }, handleNewContact)
+        .subscribe();
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [opportunities]);
+
   const handleGenerateCampaignForContact = async (contact: Contact) => {
     setGeneratingCampaignForContactId(contact.id);
     const toastId = toast.loading(`Drafting email for ${contact.name}...`);
