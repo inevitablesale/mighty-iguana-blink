@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Header } from "@/components/Header";
-import { Target, MoreHorizontal, Eye, Users, MessageSquare } from "lucide-react";
+import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,12 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useExtension } from "@/context/ExtensionContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LeadAnalysisDialog } from "@/components/LeadAnalysisDialog";
-import { ViewContactsDialog } from "@/components/ViewContactsDialog";
+import { LeadCard } from "@/components/LeadCard";
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -23,7 +18,7 @@ const Leads = () => {
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
-  const { isExtensionInstalled, extensionId } = useExtension();
+  const { isExtensionInstalled } = useExtension();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -58,12 +53,12 @@ const Leads = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleGenerateCampaignForContact = async (opportunity: Opportunity, contact: Contact) => {
+  const handleGenerateCampaignForContact = async (contact: Contact) => {
     setGeneratingCampaignForContactId(contact.id);
     const toastId = toast.loading(`Drafting email for ${contact.name}...`);
     try {
       const { error } = await supabase.functions.invoke('generate-outreach-for-opportunity', {
-        body: { opportunityId: opportunity.id, contact },
+        body: { opportunityId: contact.opportunity_id, contact },
       });
       if (error) throw error;
       toast.success("Draft created!", {
@@ -130,71 +125,26 @@ const Leads = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
               </div>
             ) : filteredOpportunities.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Match Score</TableHead>
-                    <TableHead><span className="sr-only">Actions</span></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOpportunities.map((opp) => {
-                    const contacts = contactsByOppId.get(opp.id) || [];
-                    return (
-                      <TableRow key={opp.id}>
-                        <TableCell className="font-medium">{opp.company_name}</TableCell>
-                        <TableCell>{opp.role}</TableCell>
-                        <TableCell className="text-muted-foreground">{opp.location}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={opp.match_score * 10} className="h-2 w-24" />
-                            <span>{opp.match_score}/10</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <LeadAnalysisDialog opportunity={opp}>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Eye className="mr-2 h-4 w-4" /> View Analysis
-                                </DropdownMenuItem>
-                              </LeadAnalysisDialog>
-                              <DropdownMenuItem onClick={() => handleFindContacts(opp)}>
-                                <Users className="mr-2 h-4 w-4" /> Find Contacts
-                              </DropdownMenuItem>
-                              {contacts.length > 0 && (
-                                <ViewContactsDialog
-                                  opportunity={opp}
-                                  contacts={contacts}
-                                  onGenerateCampaign={contact => handleGenerateCampaignForContact(opp, contact)}
-                                  isGenerating={!!generatingCampaignForContactId}
-                                  generatingContactId={generatingCampaignForContactId}
-                                >
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({contacts.length})
-                                  </DropdownMenuItem>
-                                </ViewContactsDialog>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredOpportunities.map((opp) => {
+                  const contacts = contactsByOppId.get(opp.id) || [];
+                  return (
+                    <LeadCard
+                      key={opp.id}
+                      opportunity={opp}
+                      contacts={contacts}
+                      onFindContacts={handleFindContacts}
+                      onGenerateCampaign={handleGenerateCampaignForContact}
+                      isGeneratingCampaign={!!generatingCampaignForContactId}
+                      generatingContactId={generatingCampaignForContactId}
+                    />
+                  );
+                })}
+              </div>
             ) : (
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                 <div className="flex flex-col items-center gap-1 text-center">
