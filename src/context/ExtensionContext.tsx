@@ -116,7 +116,9 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           console.log("Coogi Web App: Extension acknowledged token receipt.", response);
-          // The background script will now send an 'idle' status update.
+          // Optimistically update the status. The background script will send a definitive status shortly.
+          setExtensionStatus('idle');
+          setExtensionMessage('Ready and waiting for tasks.');
         }
       });
     };
