@@ -44,35 +44,35 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
   };
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="coogi-gradient-bg rounded-t-lg">
+    <Card className="flex flex-col overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardHeader className="coogi-gradient-bg p-6">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-primary-foreground">{playbook.name}</CardTitle>
-          <Badge variant="secondary" className="text-xs">{getAutonomyLabel(playbook.autonomy_level)}</Badge>
+          <CardTitle className="text-lg font-bold text-primary-foreground">{playbook.name}</CardTitle>
+          <Badge variant="default" className="bg-white/20 text-primary-foreground border-none text-xs font-medium backdrop-blur-sm">
+            {getAutonomyLabel(playbook.autonomy_level)}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-6 flex-grow">
-        <p className="text-sm text-muted-foreground">{playbook.prompt}</p>
+      <CardContent className="p-6 flex-grow">
+        <p className="text-sm text-muted-foreground h-12">{playbook.prompt}</p>
       </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <div className="text-xs text-muted-foreground flex items-center gap-1">
+      <CardFooter className="bg-muted/50 p-4 flex justify-between items-center">
+        <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Clock size={14} />
           {playbook.last_run_at ? (
-            <>
-              <Clock size={12} />
-              <span>Last run: {formatDistanceToNow(new Date(playbook.last_run_at), { addSuffix: true })}</span>
-            </>
+            <span className="truncate">Last run: {formatDistanceToNow(new Date(playbook.last_run_at), { addSuffix: true })}</span>
           ) : (
             <span>Never run</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm">
+          <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
             <Play className="mr-2 h-4 w-4" />
-            {isRunning ? 'Running...' : 'Run Playbook'}
+            {isRunning ? 'Running...' : 'Run'}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <MoreHorizontal className="h-4 w-4" />
                 <span className="sr-only">More actions</span>
               </Button>
