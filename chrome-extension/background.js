@@ -93,6 +93,7 @@ async function getLinkedInTab() {
 
 async function broadcastStatus(status, message) {
   currentStatus = { status, message };
+  logger.info(`Status: ${status} - ${message}`);
   try {
     const prodTabs = await chrome.tabs.query({ url: COOGI_APP_URL });
     const localTabs = await chrome.tabs.query({ url: "http://localhost:*/*" });
