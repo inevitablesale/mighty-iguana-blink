@@ -1,9 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Opportunity, Contact } from "@/types/index";
-import { MoreHorizontal, Users, MessageSquare, Quote, Briefcase, Target, TrendingUp, AlertTriangle, Lightbulb } from "lucide-react";
+import { Users, MessageSquare, Quote, Briefcase, Target, TrendingUp, AlertTriangle, Lightbulb } from "lucide-react";
 import { ViewContactsDialog } from "@/components/ViewContactsDialog";
 import {
   Accordion,
@@ -11,6 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 
 interface LeadCardProps {
   opportunity: Opportunity;
@@ -49,29 +49,12 @@ export function LeadCard({ opportunity, contacts, onFindContacts, onGenerateCamp
             <CardTitle className="text-base">{opportunity.company_name}</CardTitle>
             <CardDescription>{opportunity.role}</CardDescription>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onFindContacts(opportunity)}>
-                <Users className="mr-2 h-4 w-4" /> Find Contacts
-              </DropdownMenuItem>
-              {contacts.length > 0 && (
-                <ViewContactsDialog
-                  opportunity={opportunity}
-                  contacts={contacts}
-                  onGenerateCampaign={onGenerateCampaign}
-                  isGenerating={isGeneratingCampaign}
-                  generatingContactId={generatingContactId}
-                >
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({contacts.length})
-                  </DropdownMenuItem>
-                </ViewContactsDialog>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+           <CompanyBriefingDialog companyName={opportunity.company_name}>
+              <Button variant="ghost" size="icon">
+                <Briefcase className="h-4 w-4" />
+                 <span className="sr-only">Company Briefing</span>
+              </Button>
+            </CompanyBriefingDialog>
         </div>
       </CardHeader>
       <CardContent className="flex-grow space-y-4">
@@ -113,8 +96,27 @@ export function LeadCard({ opportunity, contacts, onFindContacts, onGenerateCamp
           </AccordionItem>
         </Accordion>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex justify-between items-center bg-muted/50 p-3">
         <p className="text-xs text-muted-foreground">{opportunity.location}</p>
+        <div className="flex gap-2">
+          {contacts.length > 0 ? (
+            <ViewContactsDialog
+              opportunity={opportunity}
+              contacts={contacts}
+              onGenerateCampaign={onGenerateCampaign}
+              isGenerating={isGeneratingCampaign}
+              generatingContactId={generatingContactId}
+            >
+              <Button size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({contacts.length})
+              </Button>
+            </ViewContactsDialog>
+          ) : (
+            <Button size="sm" onClick={() => onFindContacts(opportunity)} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+              <Users className="mr-2 h-4 w-4" /> Find Contacts
+            </Button>
+          )}
+        </div>
       </CardFooter>
     </Card>
   );
