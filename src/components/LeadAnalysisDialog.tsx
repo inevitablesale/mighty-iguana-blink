@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Opportunity } from "@/types/index";
 import { Briefcase, Target, TrendingUp, AlertTriangle, Lightbulb, MessageSquare } from "lucide-react";
 
-interface OpportunityAnalysisDialogProps {
+interface LeadAnalysisDialogProps {
   opportunity: Opportunity;
   children: React.ReactNode;
 }
@@ -35,7 +35,7 @@ const renderBulletedList = (text: string) => {
   );
 };
 
-export function OpportunityAnalysisDialog({ opportunity, children }: OpportunityAnalysisDialogProps) {
+export function LeadAnalysisDialog({ opportunity, children }: LeadAnalysisDialogProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>

@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Campaign, CampaignStatus } from "@/types/index";
 
-const Campaigns = () => {
+const Pipeline = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -115,12 +115,12 @@ const Campaigns = () => {
 
   return (
     <div className="flex flex-col">
-      <Header title="Campaigns" />
+      <Header title="Pipeline" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
         <Card>
           <CardHeader>
-            <CardTitle>All Campaigns</CardTitle>
-            <CardDescription>Manage your outreach campaigns and track their status.</CardDescription>
+            <CardTitle>Outreach Pipeline</CardTitle>
+            <CardDescription>Manage your outreach campaigns and track their status from draft to placement.</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -237,7 +237,7 @@ const Campaigns = () => {
                 <div className="flex flex-col items-center gap-1 text-center">
                   <Bell className="h-10 w-10 text-muted-foreground" />
                   <h3 className="text-2xl font-bold tracking-tight">No Campaigns Yet</h3>
-                  <p className="text-sm text-muted-foreground">Approve an opportunity to generate your first outreach campaign.</p>
+                  <p className="text-sm text-muted-foreground">Draft an email from the Leads page to start a campaign.</p>
                 </div>
               </div>
             )}
@@ -248,4 +248,4 @@ const Campaigns = () => {
   );
 };
 
-export default Campaigns;
+export default Pipeline;
