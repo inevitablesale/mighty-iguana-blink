@@ -84,7 +84,7 @@ export function CampaignCard({ campaign, onCampaignUpdated, onDelete, onUpdateSt
       <div>
         <CardHeader className="flex flex-row items-start justify-between">
           <div className="flex-1 overflow-hidden">
-            <CardTitle>{campaign.company_name}</CardTitle>
+            <CardTitle className="truncate" title={campaign.company_name}>{campaign.company_name}</CardTitle>
             <CardDescription className="truncate" title={campaign.role}>{campaign.role}</CardDescription>
           </div>
           <Badge 
@@ -101,12 +101,12 @@ export function CampaignCard({ campaign, onCampaignUpdated, onDelete, onUpdateSt
         </CardContent>
       </div>
       <CardFooter className="flex justify-between items-center bg-muted/50 p-3">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {renderPrimaryActions()}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
