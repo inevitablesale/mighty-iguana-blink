@@ -56,20 +56,16 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
       <CardContent className="p-4 flex-grow">
         <p className="text-sm text-foreground/80 h-12">{playbook.prompt}</p>
       </CardContent>
-      <CardFooter className="border-t p-4 flex justify-between items-center">
-        <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <Clock size={14} />
-          {playbook.last_run_at ? (
-            <span className="truncate">Last run: {formatDistanceToNow(new Date(playbook.last_run_at), { addSuffix: true })}</span>
-          ) : (
-            <span>Never run</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-            <Play className="mr-2 h-4 w-4" />
-            {isRunning ? 'Running...' : 'Run'}
-          </Button>
+      <CardFooter className="border-t p-4 flex flex-col gap-3">
+        <div className="w-full flex justify-between items-center">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Clock size={14} />
+            {playbook.last_run_at ? (
+              <span className="truncate">Last run: {formatDistanceToNow(new Date(playbook.last_run_at), { addSuffix: true })}</span>
+            ) : (
+              <span>Never run</span>
+            )}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -111,6 +107,10 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm" className="w-full coogi-gradient-bg text-primary-foreground hover:opacity-90">
+          <Play className="mr-2 h-4 w-4" />
+          {isRunning ? 'Running...' : 'Run'}
+        </Button>
       </CardFooter>
     </Card>
   );
