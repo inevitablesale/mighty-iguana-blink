@@ -60,7 +60,7 @@ export function CompanyLeadGroup({
               generatingContactId={generatingContactId}
             >
               <Button className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({companyContacts.length})
+                <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})
               </Button>
             </ViewContactsDialog>
           ) : (
