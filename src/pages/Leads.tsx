@@ -105,8 +105,8 @@ const Leads = () => {
       if (error) throw error;
       toast.success("Draft created!", {
         id: toastId,
-        description: "You can now view it in the Pipeline.",
-        action: { label: "View Pipeline", onClick: () => navigate('/pipeline') },
+        description: "You can now view it in the Campaigns page.",
+        action: { label: "View Campaigns", onClick: () => navigate('/campaigns') },
       });
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });

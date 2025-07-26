@@ -67,8 +67,8 @@ const Agents = () => {
         id: toastId,
         description: "You can review the results on the relevant pages.",
         action: {
-          label: "View Pipeline",
-          onClick: () => navigate('/pipeline'),
+          label: "View Campaigns",
+          onClick: () => navigate('/campaigns'),
         },
       });
       fetchAgents(); // Refresh to get new last_run_at time

@@ -84,9 +84,9 @@ export function Header({ title }: HeaderProps) {
                 <Target className="h-5 w-5" />
                 Leads
               </NavLink>
-              <NavLink to="/pipeline" className={getMobileLinkClassName}>
+              <NavLink to="/campaigns" className={getMobileLinkClassName}>
                 <Briefcase className="h-5 w-5" />
-                Pipeline
+                Campaigns
               </NavLink>
               <NavLink to="/agents" className={getMobileLinkClassName}>
                 <Users className="h-5 w-5" />

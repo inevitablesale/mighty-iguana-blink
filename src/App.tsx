@@ -12,7 +12,7 @@ import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
-import Pipeline from "./pages/Pipeline";
+import Campaigns from "./pages/Campaigns";
 import Agents from "./pages/Agents";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
@@ -60,7 +60,7 @@ const App = () => {
               >
                 <Route index element={<Index />} />
                 <Route path="leads" element={<Leads />} />
-                <Route path="pipeline" element={<Pipeline />} />
+                <Route path="campaigns" element={<Campaigns />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="placements" element={<Placements />} />

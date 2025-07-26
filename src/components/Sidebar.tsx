@@ -27,9 +27,9 @@ export function Sidebar(): JSX.Element {
               <Target className="h-4 w-4" />
               Leads
             </NavLink>
-            <NavLink to="/pipeline" className={getLinkClassName}>
+            <NavLink to="/campaigns" className={getLinkClassName}>
               <Briefcase className="h-4 w-4" />
-              Pipeline
+              Campaigns
             </NavLink>
             <NavLink to="/agents" className={getLinkClassName}>
               <Users className="h-4 w-4" />
