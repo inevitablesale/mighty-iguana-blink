@@ -5,7 +5,8 @@ import { OpportunityRow } from "./OpportunityRow";
 import { Separator } from "./ui/separator";
 import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 import { Button } from "./ui/button";
-import { Briefcase, ChevronDown, ChevronUp } from "lucide-react";
+import { Briefcase, ChevronDown, ChevronUp, Users, MessageSquare } from "lucide-react";
+import { ViewContactsDialog } from "./ViewContactsDialog";
 
 interface CompanyLeadGroupProps {
   companyName: string;
@@ -41,25 +42,39 @@ export function CompanyLeadGroup({
           <CardTitle>{companyName}</CardTitle>
           <CardDescription>{opportunities.length} open role{opportunities.length > 1 ? 's' : ''} found</CardDescription>
         </div>
-        <CompanyBriefingDialog companyName={companyName}>
-          <Button variant="outline">
-            <Briefcase className="mr-2 h-4 w-4" />
-            Company Briefing
-          </Button>
-        </CompanyBriefingDialog>
+        <div className="flex items-center gap-2">
+          <CompanyBriefingDialog companyName={companyName}>
+            <Button variant="outline">
+              <Briefcase className="mr-2 h-4 w-4" />
+              Company Briefing
+            </Button>
+          </CompanyBriefingDialog>
+          
+          {companyContacts.length > 0 ? (
+            <ViewContactsDialog
+              companyName={companyName}
+              opportunities={opportunities}
+              contacts={companyContacts}
+              onGenerateCampaign={onGenerateCampaign}
+              isGenerating={isGeneratingCampaign}
+              generatingContactId={generatingContactId}
+            >
+              <Button className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+                <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({companyContacts.length})
+              </Button>
+            </ViewContactsDialog>
+          ) : (
+            <Button onClick={() => onFindContacts(opportunities[0])} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+              <Users className="mr-2 h-4 w-4" /> Find Contacts
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="flex flex-col">
           {displayedOpportunities.map((opp, index) => (
             <div key={opp.id}>
-              <OpportunityRow
-                opportunity={opp}
-                contacts={companyContacts}
-                onFindContacts={onFindContacts}
-                onGenerateCampaign={onGenerateCampaign}
-                isGeneratingCampaign={isGeneratingCampaign}
-                generatingContactId={generatingContactId}
-              />
+              <OpportunityRow opportunity={opp} />
               {index < displayedOpportunities.length - 1 && <Separator />}
             </div>
           ))}
