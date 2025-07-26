@@ -44,8 +44,8 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
   };
 
   return (
-    <Card className="flex flex-col overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-      <CardHeader className="coogi-gradient-bg p-6">
+    <Card className="flex flex-col overflow-hidden rounded-xl border bg-muted">
+      <CardHeader className="coogi-gradient-bg p-4">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-bold text-primary-foreground">{playbook.name}</CardTitle>
           <Badge variant="default" className="bg-white/20 text-primary-foreground border-none text-xs font-medium backdrop-blur-sm">
@@ -53,10 +53,10 @@ export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpd
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="p-6 flex-grow">
-        <p className="text-sm text-muted-foreground h-12">{playbook.prompt}</p>
+      <CardContent className="p-4 flex-grow">
+        <p className="text-sm text-foreground/80 h-12">{playbook.prompt}</p>
       </CardContent>
-      <CardFooter className="bg-muted/50 p-4 flex justify-between items-center">
+      <CardFooter className="border-t p-4 flex justify-between items-center">
         <div className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Clock size={14} />
           {playbook.last_run_at ? (
