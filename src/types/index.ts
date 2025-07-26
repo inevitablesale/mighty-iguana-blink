@@ -1,10 +1,10 @@
 export interface Opportunity {
   id: string;
   agent_id: string;
-  companyName: string;
+  company_name: string; // Changed from companyName
   role: string;
   location: string;
-  matchScore: number;
+  match_score: number; // Changed from matchScore
   company_overview: string;
   contract_value_assessment: string;
   hiring_urgency: string;
@@ -12,6 +12,17 @@ export interface Opportunity {
   recruiter_angle: string;
   key_signal_for_outreach: string;
   linkedin_url_slug?: string | null;
+}
+
+export interface Contact {
+  id: string;
+  task_id: string;
+  opportunity_id: string;
+  user_id: string;
+  name: string | null;
+  job_title: string | null;
+  linkedin_profile_url: string | null;
+  created_at: string;
 }
 
 export interface SearchCriteria {

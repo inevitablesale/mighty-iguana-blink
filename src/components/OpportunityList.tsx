@@ -1,17 +1,17 @@
 import { OpportunityCard } from "./OpportunityCard";
-import { Opportunity, Agent } from "@/types/index";
+import { Opportunity, Agent, Contact } from "@/types/index";
 
 export interface OpportunityListProps {
   agent: Agent;
   opportunities: Opportunity[];
-  onApproveOutreach: (opportunity: Opportunity) => void;
+  contactsByOppId: Map<string, Contact[]>;
+  onGenerateCampaignForContact: (opportunity: Opportunity, contact: Contact) => void;
   onEnrichCompany: (opportunity: Opportunity) => void;
   onFindContacts: (opportunity: Opportunity) => void;
-  processedOppIds: Set<string>;
-  approvingId: string | null;
+  generatingCampaignForContactId: string | null;
 }
 
-export function OpportunityList({ agent, opportunities, onApproveOutreach, onEnrichCompany, onFindContacts, processedOppIds, approvingId }: OpportunityListProps) {
+export function OpportunityList({ agent, opportunities, contactsByOppId, onGenerateCampaignForContact, onEnrichCompany, onFindContacts, generatingCampaignForContactId }: OpportunityListProps) {
   return (
     <div className="space-y-6">
       <div className="coogi-gradient-bg p-4 rounded-lg">
@@ -23,11 +23,11 @@ export function OpportunityList({ agent, opportunities, onApproveOutreach, onEnr
           <OpportunityCard
             key={opp.id}
             opportunity={opp}
-            onApproveOutreach={onApproveOutreach}
+            contacts={contactsByOppId.get(opp.id) || []}
+            onGenerateCampaignForContact={onGenerateCampaignForContact}
             onEnrichCompany={onEnrichCompany}
             onFindContacts={onFindContacts}
-            isApproved={processedOppIds.has(opp.id)}
-            isApproving={approvingId === opp.id}
+            generatingCampaignForContactId={generatingCampaignForContactId}
           />
         ))}
       </div>

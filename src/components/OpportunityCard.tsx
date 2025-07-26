@@ -9,20 +9,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, Eye, Building, Users } from "lucide-react";
-import { Opportunity } from "@/types/index";
+import { Eye, Users, MessageSquare } from "lucide-react";
+import { Opportunity, Contact } from "@/types/index";
 import { OpportunityAnalysisDialog } from "./OpportunityAnalysisDialog";
+import { ViewContactsDialog } from "./ViewContactsDialog";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
-  onApproveOutreach: (opportunity: Opportunity) => void;
+  contacts: Contact[];
+  onGenerateCampaignForContact: (opportunity: Opportunity, contact: Contact) => void;
   onEnrichCompany: (opportunity: Opportunity) => void;
   onFindContacts: (opportunity: Opportunity) => void;
-  isApproved: boolean;
-  isApproving: boolean;
+  generatingCampaignForContactId: string | null;
 }
 
-export function OpportunityCard({ opportunity, onApproveOutreach, onEnrichCompany, onFindContacts, isApproved, isApproving }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, contacts, onGenerateCampaignForContact, onEnrichCompany, onFindContacts, generatingCampaignForContactId }: OpportunityCardProps) {
   const getBadgeVariant = (value: string) => {
     if (!value) return "outline";
     const lowerValue = value.toLowerCase();
@@ -36,10 +37,12 @@ export function OpportunityCard({ opportunity, onApproveOutreach, onEnrichCompan
     return assessment.split(' - ')[0];
   }
 
+  const isGenerating = !!generatingCampaignForContactId;
+
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <CardTitle>{opportunity.companyName}</CardTitle>
+        <CardTitle>{opportunity.company_name}</CardTitle>
         <CardDescription>{opportunity.role}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
@@ -57,9 +60,9 @@ export function OpportunityCard({ opportunity, onApproveOutreach, onEnrichCompan
             <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="font-medium">Match Score</span>
-                <span className="font-bold">{opportunity.matchScore}/10</span>
+                <span className="font-bold">{opportunity.match_score}/10</span>
               </div>
-              <Progress value={opportunity.matchScore * 10} className="h-2" />
+              <Progress value={opportunity.match_score * 10} className="h-2" />
             </div>
           </div>
         </div>
@@ -68,23 +71,25 @@ export function OpportunityCard({ opportunity, onApproveOutreach, onEnrichCompan
         <OpportunityAnalysisDialog opportunity={opportunity}>
           <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" />Analysis</Button>
         </OpportunityAnalysisDialog>
-        <Button variant="outline" size="sm" onClick={() => onEnrichCompany(opportunity)}>
-          <Building className="mr-2 h-4 w-4" />
-          Enrich
-        </Button>
+        
         <Button variant="outline" size="sm" onClick={() => onFindContacts(opportunity)}>
           <Users className="mr-2 h-4 w-4" />
-          Contacts
+          Find Contacts
         </Button>
-        {isApproved ? (
-          <Button size="sm" disabled>
-            <Check className="mr-2 h-4 w-4" />
-            Drafted
-          </Button>
-        ) : (
-          <Button size="sm" onClick={() => onApproveOutreach(opportunity)} disabled={isApproving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-            {isApproving ? 'Approving...' : 'Approve'}
-          </Button>
+
+        {contacts.length > 0 && (
+          <ViewContactsDialog
+            opportunity={opportunity}
+            contacts={contacts}
+            onGenerateCampaign={contact => onGenerateCampaignForContact(opportunity, contact)}
+            isGenerating={isGenerating}
+            generatingContactId={generatingCampaignForContactId}
+          >
+            <Button size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              View Contacts ({contacts.length})
+            </Button>
+          </ViewContactsDialog>
         )}
       </CardFooter>
     </Card>

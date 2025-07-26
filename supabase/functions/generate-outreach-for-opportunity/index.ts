@@ -15,8 +15,8 @@ serve(async (req) => {
   }
 
   try {
-    const { opportunityId } = await req.json();
-    if (!opportunityId) throw new Error("Opportunity ID is required.");
+    const { opportunityId, contact } = await req.json();
+    if (!opportunityId || !contact) throw new Error("Opportunity ID and Contact are required.");
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -43,7 +43,11 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const outreachPrompt = `
-      You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized cold email based on detailed analysis.
+      You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized cold email based on detailed analysis, addressed to a specific person.
+
+      **Recipient:**
+      - Name: ${contact.name}
+      - Title: ${contact.job_title}
 
       **Recruiter Profile:**
       - Name: ${profile?.first_name || 'your partner at Coogi'}
@@ -60,7 +64,7 @@ serve(async (req) => {
       - Calendly Link: ${profile?.calendly_url || '(not provided)'}
 
       **Instructions:**
-      1.  Write a professional, concise email (2-3 short paragraphs).
+      1.  Write a professional, concise email (2-3 short paragraphs) addressed directly to ${contact.name}.
       2.  Use the "Key Signal for Outreach" as your opening hook.
       3.  Subtly address the "Client's Likely Pain Points" in the body of the email.
       4.  Incorporate the "Recommended Recruiter Angle" to position the recruiter as the perfect solution.
@@ -95,6 +99,7 @@ serve(async (req) => {
       subject: outreachResult.subject,
       body: outreachResult.body,
       status: 'draft',
+      contact_name: contact.name,
     });
 
     if (insertError) throw new Error(`Failed to save campaign draft: ${insertError.message}`);

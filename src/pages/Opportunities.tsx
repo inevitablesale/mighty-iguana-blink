@@ -4,7 +4,7 @@ import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Opportunity, Agent } from "@/types/index";
+import { Opportunity, Agent, Contact } from "@/types/index";
 import { OpportunityList } from "@/components/OpportunityList";
 import { useNavigate } from "react-router-dom";
 import { useExtension } from "@/context/ExtensionContext";
@@ -12,9 +12,9 @@ import { useExtension } from "@/context/ExtensionContext";
 const Opportunities = () => {
   const [opportunitiesByAgent, setOpportunitiesByAgent] = useState<Map<string, Opportunity[]>>(new Map());
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [processedOppIds, setProcessedOppIds] = useState<Set<string>>(new Set());
+  const [contactsByOppId, setContactsByOppId] = useState<Map<string, Contact[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isExtensionInstalled, extensionId } = useExtension();
 
@@ -26,47 +26,35 @@ const Opportunities = () => {
       return;
     }
 
-    const [oppsRes, campaignsRes, agentsRes] = await Promise.all([
+    const [oppsRes, agentsRes, contactsRes] = await Promise.all([
       supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('campaigns').select('opportunity_id').eq('user_id', user.id),
-      supabase.from('agents').select('*').eq('user_id', user.id)
+      supabase.from('agents').select('*').eq('user_id', user.id),
+      supabase.from('contacts').select('*').eq('user_id', user.id)
     ]);
 
-    if (oppsRes.error || agentsRes.error) {
+    if (oppsRes.error || agentsRes.error || contactsRes.error) {
       toast.error("Failed to load data.");
     } else {
-      const formattedOpps = oppsRes.data.map((o: any) => ({
-        id: o.id,
-        agent_id: o.agent_id,
-        companyName: o.company_name,
-        role: o.role,
-        location: o.location || 'N/A',
-        matchScore: o.match_score || 0,
-        company_overview: o.company_overview || 'N/A',
-        contract_value_assessment: o.contract_value_assessment || 'N/A',
-        hiring_urgency: o.hiring_urgency || 'N/A',
-        pain_points: o.pain_points || 'N/A',
-        recruiter_angle: o.recruiter_angle || 'N/A',
-        key_signal_for_outreach: o.key_signal_for_outreach || 'N/A',
-        linkedin_url_slug: o.linkedin_url_slug,
-      }));
-
       const groupedOpps = new Map<string, Opportunity[]>();
-      formattedOpps.forEach(opp => {
+      (oppsRes.data as Opportunity[]).forEach(opp => {
         if (opp.agent_id) {
           const agentOpps = groupedOpps.get(opp.agent_id) || [];
           agentOpps.push(opp);
-          agentOpps.sort((a, b) => b.matchScore - a.matchScore);
+          agentOpps.sort((a, b) => b.match_score - a.match_score);
           groupedOpps.set(opp.agent_id, agentOpps);
         }
       });
       
       setAgents(agentsRes.data || []);
       setOpportunitiesByAgent(groupedOpps);
-    }
 
-    if (campaignsRes.data) {
-      setProcessedOppIds(new Set(campaignsRes.data.map(c => c.opportunity_id).filter(id => id)));
+      const groupedContacts = new Map<string, Contact[]>();
+      (contactsRes.data as Contact[]).forEach(contact => {
+        const oppContacts = groupedContacts.get(contact.opportunity_id) || [];
+        oppContacts.push(contact);
+        groupedContacts.set(contact.opportunity_id, oppContacts);
+      });
+      setContactsByOppId(groupedContacts);
     }
     
     setLoading(false);
@@ -76,12 +64,12 @@ const Opportunities = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleApprove = async (opportunity: Opportunity) => {
-    setApprovingId(opportunity.id);
-    const toastId = toast.loading("Generating outreach draft...");
+  const handleGenerateCampaignForContact = async (opportunity: Opportunity, contact: Contact) => {
+    setGeneratingCampaignForContactId(contact.id);
+    const toastId = toast.loading(`Drafting email for ${contact.name}...`);
     try {
       const { error } = await supabase.functions.invoke('generate-outreach-for-opportunity', {
-        body: { opportunityId: opportunity.id },
+        body: { opportunityId: opportunity.id, contact },
       });
       if (error) throw error;
       toast.success("Draft created!", {
@@ -89,11 +77,10 @@ const Opportunities = () => {
         description: "You can now view it in Campaigns.",
         action: { label: "View Campaigns", onClick: () => navigate('/campaigns') },
       });
-      fetchData();
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });
     } finally {
-      setApprovingId(null);
+      setGeneratingCampaignForContactId(null);
     }
   };
 
@@ -123,7 +110,7 @@ const Opportunities = () => {
       return;
     }
 
-    const toastId = toast.loading(`Queuing contact search for ${opportunity.companyName}...`);
+    const toastId = toast.loading(`Queuing contact search for ${opportunity.company_name}...`);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -134,7 +121,7 @@ const Opportunities = () => {
         .insert({
           user_id: user.id,
           opportunity_id: opportunity.id,
-          company_name: opportunity.companyName,
+          company_name: opportunity.company_name,
           status: 'pending'
         });
 
@@ -168,11 +155,11 @@ const Opportunities = () => {
               key={agent.id}
               agent={agent}
               opportunities={opportunitiesByAgent.get(agent.id) || []}
-              onApproveOutreach={handleApprove}
+              contactsByOppId={contactsByOppId}
+              onGenerateCampaignForContact={handleGenerateCampaignForContact}
               onEnrichCompany={handleEnrichCompany}
               onFindContacts={handleFindContacts}
-              processedOppIds={processedOppIds}
-              approvingId={approvingId}
+              generatingCampaignForContactId={generatingCampaignForContactId}
             />
           ))
         ) : (
