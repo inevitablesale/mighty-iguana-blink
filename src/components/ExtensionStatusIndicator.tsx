@@ -6,7 +6,7 @@ interface ExtensionStatusIndicatorProps {
 }
 
 const statusConfig: { [key: string]: { color: string; pulse: boolean } } = {
-  'idle': { color: 'bg-green-500', pulse: false },
+  'idle': { color: 'bg-yellow-500', pulse: false },
   'connected': { color: 'bg-green-500', pulse: false },
   'active': { color: 'bg-yellow-500', pulse: true },
   'cooldown': { color: 'bg-yellow-500', pulse: false },

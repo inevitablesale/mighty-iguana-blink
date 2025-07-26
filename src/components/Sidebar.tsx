@@ -50,7 +50,7 @@ export function Sidebar(): JSX.Element {
           </nav>
         </div>
         <div className="mt-auto p-4 border-t border-sidebar-border space-y-2">
-          <h4 className="px-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">Extension Status</h4>
+          <h4 className="px-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">Chrome Extension Status</h4>
           <div className="text-sidebar-foreground/80">
             <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
           </div>
