@@ -2,11 +2,18 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface LogEntry {
+  type: 'log' | 'info' | 'warn' | 'error';
+  args: any[];
+  timestamp: string;
+}
+
 interface ExtensionContextType {
   isExtensionInstalled: boolean;
   extensionId: string | null;
   extensionStatus: string;
   extensionMessage: string;
+  logs: LogEntry[];
 }
 
 const ExtensionContext = createContext<ExtensionContextType | undefined>(undefined);
@@ -16,6 +23,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
   const [extensionId, setExtensionId] = useState<string | null>(null);
   const [extensionStatus, setExtensionStatus] = useState('disconnected');
   const [extensionMessage, setExtensionMessage] = useState('Initializing...');
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   // Effect for the initial handshake
   useEffect(() => {
@@ -74,6 +82,14 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     const handleLog = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { type, args } = customEvent.detail;
+      
+      const newLog: LogEntry = {
+        type,
+        args,
+        timestamp: new Date().toISOString(),
+      };
+      setLogs(prevLogs => [newLog, ...prevLogs].slice(0, 100));
+
       const prefix = `[Coogi Extension]`;
       switch (type) {
         case 'error':
@@ -116,7 +132,6 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
           }
         } else {
           console.log("Coogi Web App: Extension acknowledged token receipt.", response);
-          // Optimistically update the status. The background script will send a definitive status shortly.
           setExtensionStatus('idle');
           setExtensionMessage('Ready and waiting for tasks.');
         }
@@ -138,7 +153,7 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [extensionId]);
 
-  const value = { isExtensionInstalled, extensionId, extensionStatus, extensionMessage };
+  const value = { isExtensionInstalled, extensionId, extensionStatus, extensionMessage, logs };
 
   return (
     <ExtensionContext.Provider value={value}>

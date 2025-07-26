@@ -25,6 +25,7 @@ import {
 import { SweaterIcon } from "./SweaterIcon";
 import { useExtension } from "@/context/ExtensionContext";
 import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
+import { ExtensionLogDialog } from "./ExtensionLogDialog";
 
 interface HeaderProps {
   title: string;
@@ -102,7 +103,10 @@ export function Header({ title }: HeaderProps) {
               </NavLink>
             </nav>
             <div className="mt-auto p-4 border-t space-y-2">
-              <h4 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chrome Extension Status</h4>
+              <div className="flex items-center justify-between px-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chrome Extension Status</h4>
+                <ExtensionLogDialog />
+              </div>
               <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
             </div>
           </SheetContent>

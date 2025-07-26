@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { SweaterIcon } from "./SweaterIcon";
 import { useExtension } from "@/context/ExtensionContext";
 import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
+import { ExtensionLogDialog } from "./ExtensionLogDialog";
 
 export function Sidebar(): JSX.Element {
   const getLinkClassName = ({ isActive }: { isActive: boolean }) =>
@@ -50,7 +51,10 @@ export function Sidebar(): JSX.Element {
           </nav>
         </div>
         <div className="mt-auto p-4 border-t border-sidebar-border space-y-2">
-          <h4 className="px-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">Chrome Extension Status</h4>
+          <div className="flex items-center justify-between px-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">Chrome Extension Status</h4>
+            <ExtensionLogDialog />
+          </div>
           <div className="text-sidebar-foreground/80">
             <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
           </div>
