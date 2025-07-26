@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare } from "lucide-react";
+import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -178,12 +178,18 @@ const Pipeline = () => {
                               </DropdownMenuItem>
                             </ViewCampaignEmailDialog>
                             {campaign.status === 'draft' && (
-                              <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Draft
+                              <>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'contacted')}>
+                                  <Send className="mr-2 h-4 w-4" />
+                                  Send Email
                                 </DropdownMenuItem>
-                              </EditCampaignDialog>
+                                <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Draft
+                                  </DropdownMenuItem>
+                                </EditCampaignDialog>
+                              </>
                             )}
                              {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
                               <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
