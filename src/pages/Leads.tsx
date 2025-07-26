@@ -13,7 +13,7 @@ import { CompanyLeadGroup } from "@/components/CompanyLeadGroup";
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [contactsByOppId, setContactsByOppId] = useState<Map<string, Contact[]>>(new Map());
+  const [contactsByCompany, setContactsByCompany] = useState<Map<string, Contact[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -36,14 +36,27 @@ const Leads = () => {
     if (oppsRes.error || contactsRes.error) {
       toast.error("Failed to load data.");
     } else {
-      setOpportunities(oppsRes.data as Opportunity[]);
-      const groupedContacts = new Map<string, Contact[]>();
-      (contactsRes.data as Contact[]).forEach(contact => {
-        const oppContacts = groupedContacts.get(contact.opportunity_id) || [];
-        oppContacts.push(contact);
-        groupedContacts.set(contact.opportunity_id, oppContacts);
+      const allOpportunities = oppsRes.data as Opportunity[];
+      const allContacts = contactsRes.data as Contact[];
+      setOpportunities(allOpportunities);
+
+      const oppIdToCompanyName = new Map<string, string>();
+      allOpportunities.forEach(opp => {
+        oppIdToCompanyName.set(opp.id, opp.company_name);
       });
-      setContactsByOppId(groupedContacts);
+
+      const groupedByCompany = new Map<string, Contact[]>();
+      allContacts.forEach(contact => {
+        const companyName = oppIdToCompanyName.get(contact.opportunity_id);
+        if (companyName) {
+          const companyContacts = groupedByCompany.get(companyName) || [];
+          if (!companyContacts.some(c => c.id === contact.id)) {
+            companyContacts.push(contact);
+          }
+          groupedByCompany.set(companyName, companyContacts);
+        }
+      });
+      setContactsByCompany(groupedByCompany);
     }
     
     setLoading(false);
@@ -63,16 +76,18 @@ const Leads = () => {
       const handleNewContact = (payload: any) => {
         const newContact = payload.new as Contact;
         const opportunity = opportunities.find(opp => opp.id === newContact.opportunity_id);
-        toast.success(`New contact found for ${opportunity?.company_name || 'an opportunity'}.`);
-        
-        setContactsByOppId(prevMap => {
-          const newMap = new Map(prevMap);
-          const existingContacts = newMap.get(newContact.opportunity_id) || [];
-          if (!existingContacts.some(c => c.id === newContact.id)) {
-            newMap.set(newContact.opportunity_id, [...existingContacts, newContact]);
-          }
-          return newMap;
-        });
+        if (opportunity) {
+          toast.success(`New contact found for ${opportunity.company_name}.`);
+          setContactsByCompany(prevMap => {
+            const newMap = new Map(prevMap);
+            const companyName = opportunity.company_name;
+            const existingContacts = newMap.get(companyName) || [];
+            if (!existingContacts.some(c => c.id === newContact.id)) {
+              newMap.set(companyName, [...existingContacts, newContact]);
+            }
+            return newMap;
+          });
+        }
       };
 
       channel = supabase
@@ -120,6 +135,23 @@ const Leads = () => {
       toast.info("Please install the Coogi Chrome Extension to find contacts.");
       return;
     }
+
+    const { data: existingTasks, error: taskError } = await supabase
+      .from('contact_enrichment_tasks')
+      .select('id, status')
+      .eq('company_name', opportunity.company_name)
+      .in('status', ['pending', 'processing', 'complete']);
+
+    if (taskError) {
+      toast.error("Could not check for existing tasks.");
+      return;
+    }
+
+    if (existingTasks && existingTasks.length > 0) {
+      toast.info(`A contact search for ${opportunity.company_name} has already been run or is in progress.`);
+      return;
+    }
+
     const toastId = toast.loading(`Queuing contact search for ${opportunity.company_name}...`);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -190,7 +222,7 @@ const Leads = () => {
                     key={group.companyName}
                     companyName={group.companyName}
                     opportunities={group.opportunities}
-                    contactsByOppId={contactsByOppId}
+                    companyContacts={contactsByCompany.get(group.companyName) || []}
                     onFindContacts={handleFindContacts}
                     onGenerateCampaign={handleGenerateCampaignForContact}
                     isGeneratingCampaign={!!generatingCampaignForContactId}

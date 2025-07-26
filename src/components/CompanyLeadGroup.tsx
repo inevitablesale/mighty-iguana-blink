@@ -10,7 +10,7 @@ import { Briefcase, ChevronDown, ChevronUp } from "lucide-react";
 interface CompanyLeadGroupProps {
   companyName: string;
   opportunities: Opportunity[];
-  contactsByOppId: Map<string, Contact[]>;
+  companyContacts: Contact[];
   onFindContacts: (opportunity: Opportunity) => void;
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
@@ -20,7 +20,7 @@ interface CompanyLeadGroupProps {
 export function CompanyLeadGroup({
   companyName,
   opportunities,
-  contactsByOppId,
+  companyContacts,
   onFindContacts,
   onGenerateCampaign,
   isGeneratingCampaign,
@@ -54,7 +54,7 @@ export function CompanyLeadGroup({
             <div key={opp.id}>
               <OpportunityRow
                 opportunity={opp}
-                contacts={contactsByOppId.get(opp.id) || []}
+                contacts={companyContacts}
                 onFindContacts={onFindContacts}
                 onGenerateCampaign={onGenerateCampaign}
                 isGeneratingCampaign={isGeneratingCampaign}
