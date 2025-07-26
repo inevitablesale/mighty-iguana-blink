@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useExtension } from "@/context/ExtensionContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { LeadCard } from "@/components/LeadCard";
+import { CompanyLeadGroup } from "@/components/CompanyLeadGroup";
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -137,12 +137,25 @@ const Leads = () => {
     }
   };
 
-  const filteredOpportunities = useMemo(() => {
-    if (!filter) return opportunities;
-    return opportunities.filter(opp => 
-      opp.company_name.toLowerCase().includes(filter.toLowerCase()) ||
-      opp.role.toLowerCase().includes(filter.toLowerCase())
-    );
+  const groupedOpportunities = useMemo(() => {
+    const filtered = filter
+      ? opportunities.filter(opp =>
+          opp.company_name.toLowerCase().includes(filter.toLowerCase()) ||
+          opp.role.toLowerCase().includes(filter.toLowerCase())
+        )
+      : opportunities;
+
+    const companyMap = new Map<string, Opportunity[]>();
+    filtered.forEach(opp => {
+      const companyOpps = companyMap.get(opp.company_name) || [];
+      companyOpps.push(opp);
+      companyMap.set(opp.company_name, companyOpps);
+    });
+
+    return Array.from(companyMap.entries()).map(([companyName, opportunities]) => ({
+      companyName,
+      opportunities,
+    })).sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [opportunities, filter]);
 
   return (
@@ -154,7 +167,7 @@ const Leads = () => {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>All Leads</CardTitle>
-                <CardDescription>All potential opportunities found by your agents.</CardDescription>
+                <CardDescription>All potential opportunities found by your agents, grouped by company.</CardDescription>
               </div>
               <div className="w-full max-w-sm">
                 <Input 
@@ -167,25 +180,23 @@ const Leads = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
+              <div className="space-y-4">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
               </div>
-            ) : filteredOpportunities.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredOpportunities.map((opp) => {
-                  const contacts = contactsByOppId.get(opp.id) || [];
-                  return (
-                    <LeadCard
-                      key={opp.id}
-                      opportunity={opp}
-                      contacts={contacts}
-                      onFindContacts={handleFindContacts}
-                      onGenerateCampaign={handleGenerateCampaignForContact}
-                      isGeneratingCampaign={!!generatingCampaignForContactId}
-                      generatingContactId={generatingCampaignForContactId}
-                    />
-                  );
-                })}
+            ) : groupedOpportunities.length > 0 ? (
+              <div className="space-y-4">
+                {groupedOpportunities.map((group) => (
+                  <CompanyLeadGroup
+                    key={group.companyName}
+                    companyName={group.companyName}
+                    opportunities={group.opportunities}
+                    contactsByOppId={contactsByOppId}
+                    onFindContacts={handleFindContacts}
+                    onGenerateCampaign={handleGenerateCampaignForContact}
+                    isGeneratingCampaign={!!generatingCampaignForContactId}
+                    generatingContactId={generatingCampaignForContactId}
+                  />
+                ))}
               </div>
             ) : (
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
