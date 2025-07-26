@@ -27,6 +27,9 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       if (id) {
         setIsExtensionInstalled(true);
         setExtensionId(id);
+        // Update status immediately upon detection
+        setExtensionStatus('connected');
+        setExtensionMessage('Extension connected, authenticating...');
         clearInterval(interval);
         return;
       }
@@ -105,8 +108,15 @@ export const ExtensionProvider = ({ children }: { children: ReactNode }) => {
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("Coogi Web App: Error sending token:", chrome.runtime.lastError.message);
+          setExtensionStatus('error');
+          if (chrome.runtime.lastError.message?.includes("Could not establish connection")) {
+            setExtensionMessage('Connection lost. Please refresh the extension.');
+          } else {
+            setExtensionMessage('Error sending auth to extension.');
+          }
         } else {
           console.log("Coogi Web App: Extension acknowledged token receipt.", response);
+          // The background script will now send an 'idle' status update.
         }
       });
     };

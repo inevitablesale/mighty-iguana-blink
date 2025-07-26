@@ -12,6 +12,7 @@ const statusConfig: { [key: string]: { icon: React.ElementType, color: string } 
   'cooldown': { icon: Clock, color: 'text-yellow-500' },
   'error': { icon: AlertTriangle, color: 'text-red-500' },
   'disconnected': { icon: XCircle, color: 'text-muted-foreground' },
+  'connected': { icon: CheckCircle, color: 'text-blue-500' },
   'default': { icon: Circle, color: 'text-muted-foreground' },
 };
 
