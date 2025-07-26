@@ -58,7 +58,7 @@ export function CreatePlacementDialog({ campaign, onPlacementCreated, children }
     
     const { error: campaignError } = await supabase
       .from('campaigns')
-      .update({ status: 'placed' })
+      .update({ status: 'hired' })
       .eq('id', campaign.id);
 
     setIsSaving(false);

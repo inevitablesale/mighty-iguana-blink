@@ -38,7 +38,7 @@ export interface ProcessedCommand {
   opportunities: Opportunity[];
 }
 
-export type CampaignStatus = 'draft' | 'sent' | 'replied' | 'meeting' | 'closed' | 'placed';
+export type CampaignStatus = 'draft' | 'contacted' | 'replied' | 'sourcing' | 'interviewing' | 'hired' | 'archived';
 
 export interface Campaign {
   id: string;

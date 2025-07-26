@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare, Send } from "lucide-react";
+import { Bell, Trash2, MoreHorizontal, Award, Edit, FileText, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,16 +102,27 @@ const Pipeline = () => {
 
   const getStatusBadgeVariant = (status: CampaignStatus): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'sent': return 'default';
-      case 'placed': return 'default';
+      case 'contacted': return 'default';
+      case 'hired': return 'default';
       case 'replied': return 'secondary';
-      case 'meeting': return 'destructive';
-      case 'closed': return 'outline';
+      case 'interviewing': return 'secondary';
+      case 'sourcing': return 'secondary';
+      case 'archived': return 'destructive';
       case 'draft':
       default:
-        return 'secondary';
+        return 'outline';
     }
   };
+
+  const statusOptions: { value: CampaignStatus; label: string }[] = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'contacted', label: 'Contacted' },
+    { value: 'replied', label: 'Replied' },
+    { value: 'sourcing', label: 'Sourcing' },
+    { value: 'interviewing', label: 'Interviewing' },
+    { value: 'hired', label: 'Hired' },
+    { value: 'archived', label: 'Archived' },
+  ];
 
   return (
     <div className="flex flex-col">
@@ -148,9 +159,9 @@ const Pipeline = () => {
                       <TableCell>
                         <Badge 
                           variant={getStatusBadgeVariant(campaign.status)}
-                          className={`${campaign.status === 'meeting' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'placed' ? 'bg-green-600 text-white' : ''}`}
+                          className={`${campaign.status === 'interviewing' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'hired' ? 'bg-green-600 text-white' : ''}`}
                         >
-                          {campaign.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -174,7 +185,7 @@ const Pipeline = () => {
                                 </DropdownMenuItem>
                               </EditCampaignDialog>
                             )}
-                             {['replied', 'meeting', 'sent'].includes(campaign.status) && (
+                             {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
                               <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <FileText className="mr-2 h-4 w-4" />
@@ -182,11 +193,11 @@ const Pipeline = () => {
                                 </DropdownMenuItem>
                               </GenerateProposalDialog>
                             )}
-                            {['replied', 'meeting', 'sent'].includes(campaign.status) && (
+                            {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
                               <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
                                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                   <Award className="mr-2 h-4 w-4" />
-                                  Mark as Placed
+                                  Mark as Hired
                                 </DropdownMenuItem>
                               </CreatePlacementDialog>
                             )}
@@ -197,12 +208,11 @@ const Pipeline = () => {
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'sent')} disabled={campaign.status !== 'draft'}>Sent</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'replied')} disabled={!['sent'].includes(campaign.status)}>Replied</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'meeting')} disabled={!['replied'].includes(campaign.status)}>Meeting Booked</DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'closed')} disabled={['closed', 'placed'].includes(campaign.status)}>Closed</DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'draft')}>Revert to Draft</DropdownMenuItem>
+                                  {statusOptions.map(option => (
+                                    <DropdownMenuItem key={option.value} onClick={() => handleUpdateStatus(campaign.id, option.value)}>
+                                      {option.label}
+                                    </DropdownMenuItem>
+                                  ))}
                                 </DropdownMenuSubContent>
                               </DropdownMenuPortal>
                             </DropdownMenuSub>
