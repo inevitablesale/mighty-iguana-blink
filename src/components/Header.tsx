@@ -101,7 +101,8 @@ export function Header({ title }: HeaderProps) {
                 Proposals
               </NavLink>
             </nav>
-            <div className="mt-auto p-4 border-t">
+            <div className="mt-auto p-4 border-t space-y-2">
+              <h4 className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Extension Status</h4>
               <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
             </div>
           </SheetContent>
