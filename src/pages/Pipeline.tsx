@@ -43,6 +43,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Campaign, CampaignStatus } from "@/types/index";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PipelineKanbanView } from "@/components/PipelineKanbanView";
 
 const Pipeline = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -124,141 +126,164 @@ const Pipeline = () => {
     { value: 'archived', label: 'Archived' },
   ];
 
+  const renderTableView = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Outreach Pipeline</CardTitle>
+        <CardDescription>Manage your outreach campaigns and track their status from draft to placement.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="space-y-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+        ) : campaigns.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Company</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead><span className="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {campaigns.map((campaign) => (
+                <TableRow key={campaign.id}>
+                  <TableCell className="font-medium">{campaign.company_name}</TableCell>
+                  <TableCell>{campaign.role}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{campaign.contact_name || "N/A"}</div>
+                    <div className="text-sm text-muted-foreground">{campaign.contact_email || "N/A"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={getStatusBadgeVariant(campaign.status)}
+                      className={`${campaign.status === 'interviewing' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'hired' ? 'bg-green-600 text-white' : ''}`}
+                    >
+                      {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <ViewCampaignEmailDialog campaign={campaign}>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            View Email
+                          </DropdownMenuItem>
+                        </ViewCampaignEmailDialog>
+                        {campaign.status === 'draft' && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'contacted')}>
+                              <Send className="mr-2 h-4 w-4" />
+                              Send Email
+                            </DropdownMenuItem>
+                            <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Draft
+                              </DropdownMenuItem>
+                            </EditCampaignDialog>
+                          </>
+                        )}
+                         {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
+                          <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Generate Proposal
+                            </DropdownMenuItem>
+                          </GenerateProposalDialog>
+                        )}
+                        {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
+                          <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Award className="mr-2 h-4 w-4" />
+                              Mark as Hired
+                            </DropdownMenuItem>
+                          </CreatePlacementDialog>
+                        )}
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            <CheckSquare className="mr-2 h-4 w-4" />
+                            <span>Update Status</span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                              {statusOptions.map(option => (
+                                <DropdownMenuItem key={option.value} onClick={() => handleUpdateStatus(campaign.id, option.value)}>
+                                  {option.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(campaign.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <Bell className="h-10 w-10 text-muted-foreground" />
+              <h3 className="text-2xl font-bold tracking-tight">No Campaigns Yet</h3>
+              <p className="text-sm text-muted-foreground">Draft an email from the Leads page to start a campaign.</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="flex flex-col">
       <Header title="Pipeline" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Outreach Pipeline</CardTitle>
-            <CardDescription>Manage your outreach campaigns and track their status from draft to placement.</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Tabs defaultValue="kanban" className="w-full">
+          <TabsList>
+            <TabsTrigger value="kanban">Kanban</TabsTrigger>
+            <TabsTrigger value="table">Table</TabsTrigger>
+          </TabsList>
+          <TabsContent value="kanban" className="pt-4">
             {loading ? (
-              <div className="space-y-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-            ) : campaigns.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead><span className="sr-only">Actions</span></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {campaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
-                      <TableCell className="font-medium">{campaign.company_name}</TableCell>
-                      <TableCell>{campaign.role}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{campaign.contact_name || "N/A"}</div>
-                        <div className="text-sm text-muted-foreground">{campaign.contact_email || "N/A"}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={getStatusBadgeVariant(campaign.status)}
-                          className={`${campaign.status === 'interviewing' ? 'bg-accent text-accent-foreground' : ''} ${campaign.status === 'hired' ? 'bg-green-600 text-white' : ''}`}
-                        >
-                          {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <ViewCampaignEmailDialog campaign={campaign}>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                View Email
-                              </DropdownMenuItem>
-                            </ViewCampaignEmailDialog>
-                            {campaign.status === 'draft' && (
-                              <>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(campaign.id, 'contacted')}>
-                                  <Send className="mr-2 h-4 w-4" />
-                                  Send Email
-                                </DropdownMenuItem>
-                                <EditCampaignDialog campaign={campaign} onCampaignUpdated={fetchCampaigns}>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit Draft
-                                  </DropdownMenuItem>
-                                </EditCampaignDialog>
-                              </>
-                            )}
-                             {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
-                              <GenerateProposalDialog campaign={campaign} onProposalCreated={fetchCampaigns}>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Generate Proposal
-                                </DropdownMenuItem>
-                              </GenerateProposalDialog>
-                            )}
-                            {['replied', 'sourcing', 'interviewing'].includes(campaign.status) && (
-                              <CreatePlacementDialog campaign={campaign} onPlacementCreated={fetchCampaigns}>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Award className="mr-2 h-4 w-4" />
-                                  Mark as Hired
-                                </DropdownMenuItem>
-                              </CreatePlacementDialog>
-                            )}
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger>
-                                <CheckSquare className="mr-2 h-4 w-4" />
-                                <span>Update Status</span>
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                                  {statusOptions.map(option => (
-                                    <DropdownMenuItem key={option.value} onClick={() => handleUpdateStatus(campaign.id, option.value)}>
-                                      {option.label}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuSubContent>
-                              </DropdownMenuPortal>
-                            </DropdownMenuSub>
-                            <DropdownMenuSeparator />
-                             <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(campaign.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <Bell className="h-10 w-10 text-muted-foreground" />
-                  <h3 className="text-2xl font-bold tracking-tight">No Campaigns Yet</h3>
-                  <p className="text-sm text-muted-foreground">Draft an email from the Leads page to start a campaign.</p>
-                </div>
+              <div className="flex gap-4">
+                <Skeleton className="h-96 w-72" />
+                <Skeleton className="h-96 w-72" />
+                <Skeleton className="h-96 w-72" />
               </div>
+            ) : (
+              <PipelineKanbanView campaigns={campaigns} onStatusChange={fetchCampaigns} />
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+          <TabsContent value="table" className="pt-4">
+            {renderTableView()}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
