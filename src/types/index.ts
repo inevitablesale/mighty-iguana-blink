@@ -53,7 +53,7 @@ export interface Campaign {
 
 export type AutonomyLevel = 'manual' | 'semi-automatic' | 'automatic';
 
-export interface Agent {
+export interface Playbook {
   id: string;
   name: string;
   prompt: string;

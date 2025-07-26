@@ -13,7 +13,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import Campaigns from "./pages/Campaigns";
-import Agents from "./pages/Agents";
+import Playbooks from "./pages/Playbooks";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Placements from "./pages/Placements";
@@ -61,7 +61,7 @@ const App = () => {
                 <Route index element={<Index />} />
                 <Route path="leads" element={<Leads />} />
                 <Route path="campaigns" element={<Campaigns />} />
-                <Route path="agents" element={<Agents />} />
+                <Route path="playbooks" element={<Playbooks />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="placements" element={<Placements />} />
                 <Route path="proposals" element={<Proposals />} />

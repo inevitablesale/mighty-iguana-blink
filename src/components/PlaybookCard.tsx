@@ -13,19 +13,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Agent } from "@/types/index";
+import { Playbook } from "@/types/index";
 import { formatDistanceToNow } from 'date-fns';
-import { EditAgentDialog } from "./EditAgentDialog";
+import { EditPlaybookDialog } from "./EditPlaybookDialog";
 
-interface AgentCardProps {
-  agent: Agent;
-  onDelete: (agentId: string) => void;
-  onRunDiscovery: (agentId: string) => void;
-  onAgentUpdated: () => void;
+interface PlaybookCardProps {
+  playbook: Playbook;
+  onDelete: (playbookId: string) => void;
+  onRunDiscovery: (playbookId: string) => void;
+  onPlaybookUpdated: () => void;
   isRunning: boolean;
 }
 
-export function AgentCard({ agent, onDelete, onRunDiscovery, onAgentUpdated, isRunning }: AgentCardProps) {
+export function PlaybookCard({ playbook, onDelete, onRunDiscovery, onPlaybookUpdated, isRunning }: PlaybookCardProps) {
   const getAutonomyLabel = (level: string) => {
     switch (level) {
       case 'manual': return 'Manual';
@@ -39,52 +39,52 @@ export function AgentCard({ agent, onDelete, onRunDiscovery, onAgentUpdated, isR
     <Card className="flex flex-col">
       <CardHeader className="coogi-gradient-bg rounded-t-lg">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-primary-foreground">{agent.name}</CardTitle>
-          <Badge variant="secondary" className="text-xs">{getAutonomyLabel(agent.autonomy_level)}</Badge>
+          <CardTitle className="text-primary-foreground">{playbook.name}</CardTitle>
+          <Badge variant="secondary" className="text-xs">{getAutonomyLabel(playbook.autonomy_level)}</Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-6 flex-grow">
-        <p className="text-sm text-muted-foreground">{agent.prompt}</p>
+        <p className="text-sm text-muted-foreground">{playbook.prompt}</p>
       </CardContent>
       <CardFooter className="flex justify-between items-center">
         <div className="text-xs text-muted-foreground flex items-center gap-1">
-          {agent.last_run_at ? (
+          {playbook.last_run_at ? (
             <>
               <Clock size={12} />
-              <span>Last run: {formatDistanceToNow(new Date(agent.last_run_at), { addSuffix: true })}</span>
+              <span>Last run: {formatDistanceToNow(new Date(playbook.last_run_at), { addSuffix: true })}</span>
             </>
           ) : (
             <span>Never run</span>
           )}
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => onRunDiscovery(agent.id)} disabled={isRunning} size="sm">
+          <Button onClick={() => onRunDiscovery(playbook.id)} disabled={isRunning} size="sm">
             <Play className="mr-2 h-4 w-4" />
             {isRunning ? 'Running...' : 'Run Playbook'}
           </Button>
-          <EditAgentDialog agent={agent} onAgentUpdated={onAgentUpdated}>
+          <EditPlaybookDialog playbook={playbook} onPlaybookUpdated={onPlaybookUpdated}>
             <Button variant="outline" size="icon">
               <Edit className="h-4 w-4" />
-              <span className="sr-only">Edit Agent</span>
+              <span className="sr-only">Edit Playbook</span>
             </Button>
-          </EditAgentDialog>
+          </EditPlaybookDialog>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="icon">
                 <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Delete Agent</span>
+                <span className="sr-only">Delete Playbook</span>
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete the "{agent.name}" agent. This action cannot be undone.
+                  This will permanently delete the "{playbook.name}" playbook. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(agent.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <AlertDialogAction onClick={() => onDelete(playbook.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,15 +17,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PlusCircle } from "lucide-react";
-import { AutonomyLevel } from "@/types/index";
+import { Playbook, AutonomyLevel } from "@/types/index";
 import { supportedCountries } from "@/lib/countries";
+import { Badge } from "@/components/ui/badge";
 
-interface AddAgentDialogProps {
-  onAgentCreated: () => void;
+interface EditPlaybookDialogProps {
+  playbook: Playbook;
+  onPlaybookUpdated: () => void;
+  children: React.ReactNode;
 }
 
-export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
+export function EditPlaybookDialog({ playbook, onPlaybookUpdated, children }: EditPlaybookDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -36,92 +38,100 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
   const [isRemote, setIsRemote] = useState(false);
   const [country, setCountry] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [outreachChannel, setOutreachChannel] = useState("email");
+
+  useEffect(() => {
+    if (playbook) {
+      setName(playbook.name);
+      setPrompt(playbook.prompt);
+      setAutonomyLevel(playbook.autonomy_level);
+      setSearchLookbackHours(playbook.search_lookback_hours.toString());
+      setMaxResults(playbook.max_results.toString());
+      setJobType(playbook.job_type || "");
+      setIsRemote(playbook.is_remote || false);
+      setCountry(playbook.country || "");
+    }
+  }, [playbook]);
 
   const handleSave = async () => {
     if (!name.trim() || !prompt.trim()) {
-      toast.error("Please provide a name and a specialty prompt for your agent.");
+      toast.error("Name and specialty prompt cannot be empty.");
       return;
     }
     setIsSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("You must be logged in to create an agent.");
-      setIsSaving(false);
-      return;
-    }
 
-    const { error } = await supabase.from("agents").insert({
-      user_id: user.id,
-      name,
-      prompt,
-      autonomy_level: autonomyLevel,
-      search_lookback_hours: parseInt(searchLookbackHours, 10),
-      max_results: parseInt(maxResults, 10),
-      job_type: jobType || null,
-      is_remote: isRemote,
-      country: country || null,
-    });
+    const { error } = await supabase
+      .from("agents")
+      .update({
+        name,
+        prompt,
+        autonomy_level: autonomyLevel,
+        search_lookback_hours: parseInt(searchLookbackHours, 10),
+        max_results: parseInt(maxResults, 10),
+        job_type: jobType || null,
+        is_remote: isRemote,
+        country: country || null,
+      })
+      .eq("id", playbook.id);
 
     setIsSaving(false);
     if (error) {
-      console.error("Error creating agent:", error);
-      toast.error("Failed to create agent.");
+      console.error("Error updating playbook:", error);
+      toast.error("Failed to update playbook.");
     } else {
-      toast.success(`Agent "${name}" created successfully!`);
-      onAgentCreated();
-      setName("");
-      setPrompt("");
-      setAutonomyLevel("semi-automatic");
-      setSearchLookbackHours("720");
-      setMaxResults("20");
-      setJobType("");
-      setIsRemote(false);
-      setCountry("");
+      toast.success("Playbook updated successfully!");
+      onPlaybookUpdated();
       setOpen(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Agent
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Agent</DialogTitle>
+          <DialogTitle>Edit Playbook: {playbook.name}</DialogTitle>
           <DialogDescription>
-            Define a new agent to proactively search for and contact new leads.
+            Update the playbook's properties and autonomy level.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., 'Fintech Sales Agent'"
-            />
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="prompt">Specialty & Location</Label>
-            <Textarea
-              id="prompt"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g., 'I specialize in placing VPs of Sales in the New York City area...'"
-              rows={3}
-            />
-             <p className="text-xs text-muted-foreground">The AI will extract the job title and city/state from this prompt.</p>
+            <Textarea id="prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+            <p className="text-xs text-muted-foreground">The AI will extract the job title and city/state from this prompt.</p>
+          </div>
+          <div className="space-y-3">
+            <Label>Outreach Channel</Label>
+            <RadioGroup value={outreachChannel} onValueChange={setOutreachChannel}>
+              <div className="flex items-start space-x-3 rounded-md border p-3">
+                <RadioGroupItem value="email" id="edit-channel-email" />
+                <Label htmlFor="edit-channel-email" className="font-normal">
+                  <span className="font-semibold">Email</span>
+                  <p className="text-sm text-muted-foreground">The playbook will generate and send outreach emails.</p>
+                </Label>
+              </div>
+              <div className="flex items-start space-x-3 rounded-md border p-3 has-[:disabled]:opacity-50">
+                <RadioGroupItem value="linkedin" id="edit-channel-linkedin" disabled />
+                <Label htmlFor="edit-channel-linkedin" className="font-normal">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">LinkedIn</span>
+                    <Badge variant="outline">Coming Soon</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">The playbook will send connection requests and messages on LinkedIn.</p>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
+              <Label htmlFor="edit-country">Country</Label>
               <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger id="country">
+                <SelectTrigger id="edit-country">
                   <SelectValue placeholder="Select Country (for Indeed/Glassdoor)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -129,10 +139,10 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-             <div className="space-y-2">
-              <Label htmlFor="job-type">Job Type</Label>
+            <div className="space-y-2">
+              <Label htmlFor="edit-job-type">Job Type</Label>
               <Select value={jobType} onValueChange={setJobType}>
-                <SelectTrigger id="job-type">
+                <SelectTrigger id="edit-job-type">
                   <SelectValue placeholder="Any" />
                 </SelectTrigger>
                 <SelectContent>
@@ -144,11 +154,11 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
               </Select>
             </div>
           </div>
-           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
-              <Label htmlFor="lookback">Search Lookback</Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-lookback">Search Lookback</Label>
               <Select value={searchLookbackHours} onValueChange={setSearchLookbackHours}>
-                <SelectTrigger id="lookback">
+                <SelectTrigger id="edit-lookback">
                   <SelectValue placeholder="Select lookback period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,9 +169,9 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="max-results">Max Results</Label>
+              <Label htmlFor="edit-max-results">Max Results</Label>
               <Input
-                id="max-results"
+                id="edit-max-results"
                 type="number"
                 value={maxResults}
                 onChange={(e) => setMaxResults(e.target.value)}
@@ -170,31 +180,31 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Switch id="is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
-            <Label htmlFor="is-remote">Remote Only</Label>
+            <Switch id="edit-is-remote" checked={isRemote} onCheckedChange={setIsRemote} />
+            <Label htmlFor="edit-is-remote">Remote Only</Label>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>
             <RadioGroup value={autonomyLevel} onValueChange={(value: AutonomyLevel) => setAutonomyLevel(value)}>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="manual" id="manual" />
-                <Label htmlFor="manual" className="font-normal">
+                <RadioGroupItem value="manual" id="edit-manual" />
+                <Label htmlFor="edit-manual" className="font-normal">
                   <span className="font-semibold">Manual</span>
-                  <p className="text-sm text-muted-foreground">Agent finds opportunities. I will manually approve them to draft outreach.</p>
+                  <p className="text-sm text-muted-foreground">Playbook finds opportunities. I will manually approve them to draft outreach.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="semi-automatic" id="semi-automatic" />
-                <Label htmlFor="semi-automatic" className="font-normal">
+                <RadioGroupItem value="semi-automatic" id="edit-semi-automatic" />
+                <Label htmlFor="edit-semi-automatic" className="font-normal">
                   <span className="font-semibold">Semi-Automatic</span>
-                  <p className="text-sm text-muted-foreground">Agent finds opportunities and drafts outreach. I will review and send emails.</p>
+                  <p className="text-sm text-muted-foreground">Playbook finds opportunities and drafts outreach. I will review and send emails.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
-                <RadioGroupItem value="automatic" id="automatic" />
+                <RadioGroupItem value="automatic" id="edit-automatic" />
                 <Label htmlFor="automatic" className="font-normal">
                   <span className="font-semibold">Automatic</span>
-                  <p className="text-sm text-muted-foreground">Agent finds opportunities, drafts outreach, and sends emails automatically.</p>
+                  <p className="text-sm text-muted-foreground">Playbook finds opportunities, drafts outreach, and sends emails automatically.</p>
                 </Label>
               </div>
             </RadioGroup>
@@ -202,7 +212,7 @@ export function AddAgentDialog({ onAgentCreated }: AddAgentDialogProps) {
         </div>
         <DialogFooter>
           <Button type="submit" onClick={handleSave} disabled={isSaving} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-            {isSaving ? "Saving..." : "Save Agent"}
+            {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
