@@ -130,31 +130,23 @@ serve(async (req) => {
             You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's stated specialty.
             Recruiter's specialty: "${recruiter_specialty}"
             Job Posting: ${JSON.stringify(job)}
-            Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "min_salary", "max_salary", "qualitative_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
             
-            **"match_score"**: MUST be an integer between 1 and 10.
-            **"min_salary"**: An integer of the minimum salary if found, otherwise null.
-            **"max_salary"**: An integer of the maximum salary if found, otherwise null.
-            **"qualitative_value_assessment"**: A string, either 'High Value' or 'Medium Value', to be used ONLY if salary is not found.
-            **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
-            **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
-            **"recruiter_angle"**: A concise sentence describing the best way for a staffing agency to position their value.
+            Your task is to return a single, valid JSON object with the following keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
+
+            **Instructions for "contract_value_assessment":**
+            1.  First, check the job posting data for an explicit salary range (e.g., min/max salary).
+            2.  **If a salary range is found:** Calculate the average salary. The estimated placement fee is 20% of this average. Return a string formatted as "Est. Fee: $XX,XXX".
+            3.  **If no salary range is found:** You MUST estimate a realistic market-rate salary range for the given role, location, and company profile. Then, perform the same calculation (20% of the average of your estimated range) and return the formatted string.
+            4.  **Do NOT return "High Value" or other qualitative labels.** The output for this key must always be a dollar amount string.
+
+            **Other Key Instructions:**
+            - "match_score": MUST be an integer between 1 and 10.
+            - "placement_difficulty": MUST be one of 'Low', 'Medium', or 'High'.
+            - "hiring_urgency": MUST be one of 'Low', 'Medium', or 'High'.
+            - "recruiter_angle": A concise sentence describing the best way for a staffing agency to position their value.
           `;
           const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
           
-          // **CODE-BASED CALCULATION**
-          let contractValue = analysisData.qualitative_value_assessment || 'Medium Value';
-          if (analysisData.min_salary && analysisData.max_salary) {
-              const min = Number(analysisData.min_salary);
-              const max = Number(analysisData.max_salary);
-              if (!isNaN(min) && !isNaN(max) && min > 0 && max > 0) {
-                  const avg = (min + max) / 2;
-                  const fee = avg * 0.20;
-                  contractValue = `Est. Fee: $${fee.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-              }
-          }
-          analysisData.contract_value_assessment = contractValue;
-
           analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
           analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
 
