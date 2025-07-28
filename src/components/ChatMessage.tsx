@@ -30,10 +30,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
       )}
       <div
         className={cn(
-          "max-w-xl rounded-lg p-3",
+          "max-w-xl rounded-lg p-3 text-white backdrop-blur-sm border border-white/10",
           isAssistant
-            ? "bg-muted"
-            : "bg-primary text-primary-foreground"
+            ? "bg-black/20"
+            : "bg-white/10"
         )}
       >
         {isLoading ? (
@@ -44,7 +44,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         ) : (
           <>
             {text && (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown>{text}</ReactMarkdown>
               </div>
             )}

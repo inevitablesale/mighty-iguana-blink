@@ -82,12 +82,12 @@ export default function Index() {
           ))}
         </div>
       </div>
-      <div className="border-t bg-background px-4 py-3">
+      <div className="bg-black/10 backdrop-blur-sm border-t border-white/10 px-4 py-3">
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSendMessage} className="relative">
             <Textarea
               placeholder="e.g., Find me Series A companies in SF hiring for a Head of Sales..."
-              className="min-h-[48px] rounded-2xl resize-none p-4 pr-16"
+              className="min-h-[48px] rounded-2xl resize-none p-4 pr-16 bg-transparent text-white placeholder:text-white/60 focus-visible:ring-white"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -98,13 +98,13 @@ export default function Index() {
               disabled={isLoading}
             />
             <div className="absolute top-1/2 right-3 transform -translate-y-1/2 flex items-center">
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+              <Button type="submit" size="icon" variant="ghost" className="hover:bg-white/20 text-white" disabled={isLoading || !input.trim()}>
                 <Send className="h-5 w-5" />
                 <span className="sr-only">Send</span>
               </Button>
             </div>
           </form>
-          <p className="text-xs text-center text-muted-foreground mt-2">
+          <p className="text-xs text-center text-white/50 mt-2">
             Press <CornerDownLeft className="h-3 w-3 inline-block" /> to send, Shift + <CornerDownLeft className="h-3 w-3 inline-block" /> for a new line.
           </p>
         </div>

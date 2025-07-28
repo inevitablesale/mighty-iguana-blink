@@ -45,9 +45,9 @@ export function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-      <a href="/" className="flex items-center gap-2 font-semibold">
-        <SweaterIcon className="h-6 w-6 text-primary" />
+    <header className="flex h-14 items-center gap-4 px-4 lg:h-[60px] lg:px-6 bg-black/10 backdrop-blur-sm border-b border-white/10">
+      <a href="/" className="flex items-center gap-2 font-semibold text-white">
+        <SweaterIcon className="h-6 w-6" />
         <span className="text-lg">{title}</span>
       </a>
 
@@ -60,10 +60,10 @@ export function Header({ title }: HeaderProps) {
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/10 border border-white/20">
               <Avatar>
                 <AvatarImage src="" alt="User avatar" />
-                <AvatarFallback>{getInitials()}</AvatarFallback>
+                <AvatarFallback className="bg-transparent text-white">{getInitials()}</AvatarFallback>
               </Avatar>
               <span className="sr-only">Toggle user menu</span>
             </Button>
