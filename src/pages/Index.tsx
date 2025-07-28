@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/components/ChatMessage';
-import { ExamplePrompts } from '@/components/ExamplePrompts';
+import { FeaturedOpportunities } from '@/components/FeaturedOpportunities';
 import { MarketRadar } from '@/components/MarketRadar';
 
 export default function Index() {
@@ -80,10 +80,6 @@ export default function Index() {
     setInput('');
   };
 
-  const handlePromptClick = (prompt: string) => {
-    submitQuery(prompt);
-  };
-
   return (
     <div className="flex flex-col h-[calc(100vh-60px)]">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -93,10 +89,7 @@ export default function Index() {
             <ChatMessage key={message.id} message={message} />
           ))}
           {messages.length === 1 && !isLoading && (
-            <div className="pt-8">
-              <h2 className="text-center text-lg font-medium text-white/80 mb-4">Or try one of these examples</h2>
-              <ExamplePrompts onPromptClick={handlePromptClick} />
-            </div>
+            <FeaturedOpportunities />
           )}
         </div>
       </div>
