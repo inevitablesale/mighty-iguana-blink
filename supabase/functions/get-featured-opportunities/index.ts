@@ -47,32 +47,24 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
-    // Fetch top 4 highest-scored proactive opportunities, regardless of user
+    // Fetch top 4 highest-scored proactive opportunities that are reviewed and unassigned
     const { data: topProactive, error: fetchError } = await supabaseAdmin
       .from('proactive_opportunities')
       .select('job_data, relevance_score')
-      .not('relevance_score', 'is', null)
+      .eq('status', 'reviewed')
+      .is('user_id', null)
       .order('relevance_score', { ascending: false })
       .limit(4);
 
     if (fetchError) throw new Error(`Failed to fetch featured opportunities: ${fetchError.message}`);
     
-    let opportunitiesToEnrich = [];
-    let sourceIsProactive = false;
-
-    if (topProactive && topProactive.length > 0) {
-        console.log(`[get-featured-opportunities] Found ${topProactive.length} pre-scored proactive opportunities.`);
-        opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
-        sourceIsProactive = true;
-    } else {
-        console.log("[get-featured-opportunities] No pre-scored opportunities found. Returning empty array.");
+    if (!topProactive || topProactive.length === 0) {
+        console.log("[get-featured-opportunities] No reviewed, unassigned opportunities found. Returning empty array.");
         return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
-
-    if (opportunitiesToEnrich.length === 0) {
-      console.log("[get-featured-opportunities] No opportunities to enrich. Returning empty array.");
-      return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
-    }
+    
+    console.log(`[get-featured-opportunities] Found ${topProactive.length} pre-scored proactive opportunities.`);
+    const opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
 
     // Enrich each one to match the `Opportunity` type for the UI card
     const enrichmentPromises = opportunitiesToEnrich.map(async (item) => {
@@ -102,7 +94,7 @@ serve(async (req) => {
       return {
         id: crypto.randomUUID(), // Generate a temp ID for the key prop
         ...analysisData,
-        match_score: sourceIsProactive ? item.score : 8, // Assign a default high score for featured jobs
+        match_score: item.score,
       };
     });
 

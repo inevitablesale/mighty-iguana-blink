@@ -66,49 +66,29 @@ serve(async (req) => {
     }
     console.log(`[score-proactive-opportunities] Found ${opportunities.length} new opportunities to score.`);
 
-    const { data: profiles, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, intent_profile')
-      .not('intent_profile', 'is', null);
-
-    if (profileError) throw new Error(`Failed to fetch user profiles: ${profileError.message}`);
-
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
-    let profilesForScoring = [];
-    const hasUserProfiles = profiles && profiles.length > 0;
-
-    if (hasUserProfiles) {
-      console.log(`[score-proactive-opportunities] Found ${profiles.length} user profiles with intent. Scoring against user profiles.`);
-      profilesForScoring = profiles.map(p => ({ userId: p.id, profile: p.intent_profile.summary }));
-    } else {
-      console.log(`[score-proactive-opportunities] No user profiles with intent found. Using a generic profile for scoring.`);
-      profilesForScoring = [{
-        userId: 'generic', // A placeholder for the prompt
-        profile: "A top-tier, generalist recruiter focused on identifying high-value, high-growth opportunities in the tech sector across North America. They are interested in roles with clear hiring signals, significant contract value, and strong company fundamentals."
-      }];
-    }
-
+    const genericRecruiterProfile = "A top-tier, generalist recruiter focused on identifying high-value, high-growth opportunities in the tech sector across North America. They are interested in roles with clear hiring signals, significant contract value, and strong company fundamentals.";
+    
     let scoredCount = 0;
-    console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against ${profilesForScoring.length} profile(s).`);
+    console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against the generic profile.`);
 
     for (const opportunity of opportunities) {
       const scoringPrompt = `
-        You are an AI-powered recruitment matchmaker. Your task is to find the single best recruiter for a given job opportunity from a list of recruiter profiles.
+        You are an AI-powered recruitment analyst. Your task is to score a job opportunity based on its relevance to a generic, high-performing recruiter profile.
+
+        **Generic Recruiter Profile:**
+        "${genericRecruiterProfile}"
 
         **Job Opportunity:**
         ${JSON.stringify(opportunity.job_data, null, 2)}
 
-        **Recruiter Profiles:**
-        ${JSON.stringify(profilesForScoring, null, 2)}
-
         **Instructions:**
         1.  Analyze the job opportunity carefully.
-        2.  Compare it against each recruiter's profile.
-        3.  Identify the single BEST match. The best match is a recruiter who would see this as a high-value, must-win opportunity.
-        4.  If you find a good match, return a JSON object with "userId", "relevance_score" (an integer 1-10), and "relevance_reasoning" (a concise explanation of why it's a great match).
-        5.  If NO recruiter is a good fit (i.e., the best possible score would be 4 or less), you MUST return a JSON object with "userId": null.
+        2.  Compare it against the generic recruiter's profile.
+        3.  If the job is a good fit (a high-value role in the tech sector), return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation of why it's a good opportunity).
+        4.  If the job is NOT a good fit (e.g., low-paying, non-tech, outside North America), you MUST return a JSON object with "relevance_score": 4 or less.
 
         Return ONLY a single, valid JSON object.
       `;
@@ -116,29 +96,14 @@ serve(async (req) => {
       try {
         const result = await callGemini(scoringPrompt, GEMINI_API_KEY);
 
-        let updatePayload = {};
-        let shouldDismiss = false;
-
         if (result && result.relevance_score >= 5) {
-          updatePayload = {
-            relevance_score: result.relevance_score,
-            relevance_reasoning: result.relevance_reasoning,
-            status: 'reviewed'
-          };
-          // Only assign a user if we are NOT in generic mode and a user was matched
-          if (hasUserProfiles && result.userId && result.userId !== 'generic') {
-            updatePayload.user_id = result.userId;
-          }
-        } else {
-          shouldDismiss = true;
-        }
-
-        if (shouldDismiss) {
-          await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
-        } else {
           const { error: updateError } = await supabaseAdmin
             .from('proactive_opportunities')
-            .update(updatePayload)
+            .update({
+              relevance_score: result.relevance_score,
+              relevance_reasoning: result.relevance_reasoning,
+              status: 'reviewed'
+            })
             .eq('id', opportunity.id);
 
           if (updateError) {
@@ -146,6 +111,9 @@ serve(async (req) => {
           } else {
             scoredCount++;
           }
+        } else {
+          // No good match found, mark as dismissed to avoid re-processing
+          await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
         }
       } catch (e) {
         console.error(`Error scoring opportunity ${opportunity.id}:`, e.message);
@@ -153,7 +121,7 @@ serve(async (req) => {
       }
     }
 
-    const finalMessage = `Scoring complete. Matched ${scoredCount} of ${opportunities.length} opportunities.`;
+    const finalMessage = `Scoring complete. Reviewed ${scoredCount} of ${opportunities.length} opportunities for the general Market Radar.`;
     console.log(`[score-proactive-opportunities] ${finalMessage}`);
     return new Response(JSON.stringify({ message: finalMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
