@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useExtension } from "@/context/ExtensionContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CompanyLeadGroup } from "@/components/CompanyLeadGroup";
+import { LeadsTable } from "@/components/LeadsTable";
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -128,7 +128,7 @@ const Leads = () => {
       } else {
         toast.error('An unexpected response was received from the enrichment service.', { id: toastId });
       }
-      fetchData(); // Refetch to get the latest state
+      fetchData();
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });
     } finally {
@@ -179,26 +179,26 @@ const Leads = () => {
     }
   };
 
-  const groupedOpportunities = useMemo(() => {
+  const sortedAndFilteredOpportunities = useMemo(() => {
     const filtered = filter
       ? opportunities.filter(opp =>
           opp.company_name.toLowerCase().includes(filter.toLowerCase()) ||
           opp.role.toLowerCase().includes(filter.toLowerCase())
         )
       : opportunities;
+    
+    return filtered.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+  }, [opportunities, filter]);
 
+  const opportunitiesByCompany = useMemo(() => {
     const companyMap = new Map<string, Opportunity[]>();
-    filtered.forEach(opp => {
+    opportunities.forEach(opp => {
       const companyOpps = companyMap.get(opp.company_name) || [];
       companyOpps.push(opp);
       companyMap.set(opp.company_name, companyOpps);
     });
-
-    return Array.from(companyMap.entries()).map(([companyName, opportunities]) => ({
-      companyName,
-      opportunities,
-    })).sort((a, b) => a.companyName.localeCompare(b.companyName));
-  }, [opportunities, filter]);
+    return companyMap;
+  }, [opportunities]);
 
   return (
     <div className="flex flex-col">
@@ -209,7 +209,7 @@ const Leads = () => {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>All Leads</CardTitle>
-                <CardDescription>All potential opportunities found by your agents, grouped by company.</CardDescription>
+                <CardDescription>Your best leads, sorted by match score. Found by your playbooks.</CardDescription>
               </div>
               <div className="w-full max-w-sm">
                 <Input 
@@ -222,33 +222,28 @@ const Leads = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="space-y-4">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
+              <div className="space-y-2">
+                {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
-            ) : groupedOpportunities.length > 0 ? (
-              <div className="space-y-4">
-                {groupedOpportunities.map((group) => (
-                  <CompanyLeadGroup
-                    key={group.companyName}
-                    companyName={group.companyName}
-                    opportunities={group.opportunities}
-                    companyContacts={contactsByCompany.get(group.companyName) || []}
-                    task={tasksByCompany.get(group.companyName)}
-                    onFindContacts={handleFindContacts}
-                    onGenerateCampaign={handleGenerateCampaignForContact}
-                    isGeneratingCampaign={!!generatingCampaignForContactId}
-                    generatingContactId={generatingCampaignForContactId}
-                    onEnrichContact={handleEnrichContact}
-                    enrichingContactId={enrichingContactId}
-                  />
-                ))}
-              </div>
+            ) : sortedAndFilteredOpportunities.length > 0 ? (
+              <LeadsTable
+                opportunities={sortedAndFilteredOpportunities}
+                opportunitiesByCompany={opportunitiesByCompany}
+                contactsByCompany={contactsByCompany}
+                tasksByCompany={tasksByCompany}
+                onFindContacts={handleFindContacts}
+                onGenerateCampaign={handleGenerateCampaignForContact}
+                isGeneratingCampaign={!!generatingCampaignForContactId}
+                generatingContactId={generatingCampaignForContactId}
+                onEnrichContact={handleEnrichContact}
+                enrichingContactId={enrichingContactId}
+              />
             ) : (
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                 <div className="flex flex-col items-center gap-1 text-center">
                   <Target className="h-10 w-10 text-muted-foreground" />
                   <h3 className="text-2xl font-bold tracking-tight">No Leads Found Yet</h3>
-                  <p className="text-sm text-muted-foreground">Run an agent from the Agents page to find your first lead.</p>
+                  <p className="text-sm text-muted-foreground">Run a playbook to find your first lead.</p>
                 </div>
               </div>
             )}
