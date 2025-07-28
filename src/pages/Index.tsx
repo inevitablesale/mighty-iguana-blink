@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/components/ChatMessage';
-import { FeaturedOpportunities } from '@/components/FeaturedOpportunities';
 import { MarketRadar } from '@/components/MarketRadar';
 
 export default function Index() {
@@ -83,14 +82,11 @@ export default function Index() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)]">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
-        <MarketRadar />
         <div className="max-w-3xl mx-auto space-y-6">
+          {messages.length === 1 && !isLoading && <MarketRadar />}
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
-          {messages.length === 1 && !isLoading && (
-            <FeaturedOpportunities />
-          )}
         </div>
       </div>
       <div className="bg-black/10 backdrop-blur-sm border-t border-white/10 px-4 py-3">

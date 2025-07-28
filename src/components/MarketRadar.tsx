@@ -1,24 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ProactiveOpportunity } from '@/types';
+import { ProactiveOpportunity, Opportunity } from '@/types';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProactiveOpportunityCard } from './ProactiveOpportunityCard';
-import { Radar } from 'lucide-react';
+import { OpportunityCard } from './OpportunityCard';
+import { Radar, Sparkles } from 'lucide-react';
 
 export function MarketRadar() {
-  const [opportunities, setOpportunities] = useState<ProactiveOpportunity[]>([]);
+  const [proactiveOpportunities, setProactiveOpportunities] = useState<ProactiveOpportunity[]>([]);
+  const [featuredOpportunities, setFeaturedOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'accept' | 'dismiss' | null>(null);
 
   const fetchOpportunities = useCallback(async () => {
     setLoading(true);
+    setProactiveOpportunities([]);
+    setFeaturedOpportunities([]);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        const { data: featuredData, error: featuredError } = await supabase.functions.invoke('get-featured-opportunities');
+        if (featuredError) throw featuredError;
+        if (featuredData.opportunities) setFeaturedOpportunities(featuredData.opportunities);
+        return;
+      }
 
-      const { data, error } = await supabase
+      const { data: proactiveData, error: proactiveError } = await supabase
         .from('proactive_opportunities')
         .select('id, relevance_reasoning, relevance_score, job_data, user_id')
         .eq('user_id', user.id)
@@ -26,10 +35,20 @@ export function MarketRadar() {
         .order('relevance_score', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
-      setOpportunities(data as ProactiveOpportunity[]);
+      if (proactiveError) throw proactiveError;
+
+      if (proactiveData && proactiveData.length > 0) {
+        setProactiveOpportunities(proactiveData as ProactiveOpportunity[]);
+      } else {
+        const { data: featuredData, error: featuredError } = await supabase.functions.invoke('get-featured-opportunities');
+        if (featuredError) throw featuredError;
+        if (featuredData.opportunities) {
+          setFeaturedOpportunities(featuredData.opportunities);
+        }
+      }
     } catch (err) {
-      toast.error("Failed to fetch market radar opportunities", { description: (err as Error).message });
+      // Silently fail, as the component will just not render if empty.
+      console.error("Failed to fetch market opportunities", (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -43,16 +62,10 @@ export function MarketRadar() {
     setProcessingId(opportunityId);
     setActionType('accept');
     try {
-      // This will be implemented in Phase 4
-      // For now, we just simulate the action
-      await new Promise(res => setTimeout(res, 1000)); // Simulate network delay
-      
-      // Placeholder for accept logic
       const { error } = await supabase.from('proactive_opportunities').update({ status: 'accepted' }).eq('id', opportunityId);
       if (error) throw error;
-
       toast.success("Opportunity accepted!", { description: "It has been moved to your main pipeline for enrichment." });
-      setOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
+      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
     } catch (err) {
       toast.error("Failed to accept opportunity", { description: (err as Error).message });
     } finally {
@@ -68,7 +81,7 @@ export function MarketRadar() {
       const { error } = await supabase.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunityId);
       if (error) throw error;
       toast.info("Opportunity dismissed.");
-      setOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
+      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
     } catch (err) {
       toast.error("Failed to dismiss opportunity", { description: (err as Error).message });
     } finally {
@@ -77,14 +90,27 @@ export function MarketRadar() {
     }
   };
 
+  const hasProactive = proactiveOpportunities.length > 0;
+  const hasFeatured = featuredOpportunities.length > 0;
+
+  const Title = () => (
+    <div className="flex items-center gap-3 mb-4">
+      {hasProactive ? <Radar className="h-7 w-7 text-primary" /> : <Sparkles className="h-7 w-7 text-primary" />}
+      <div>
+        <h2 className="text-xl font-bold text-white">{hasProactive ? "Market Radar" : "Today's Top Opportunities"}</h2>
+        <p className="text-sm text-white/70">{hasProactive ? "High-value opportunities we found for you based on your profile." : "A look at high-value roles currently on the market."}</p>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto mb-8">
+      <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Radar className="h-7 w-7 text-primary" />
           <div>
-            <h2 className="text-xl font-bold text-white">Market Radar</h2>
-            <p className="text-sm text-white/70">High-value opportunities we found for you based on your profile.</p>
+            <h2 className="text-xl font-bold text-white">Scanning the Market...</h2>
+            <p className="text-sm text-white/70">Finding the best opportunities for you.</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -96,18 +122,16 @@ export function MarketRadar() {
     );
   }
 
+  if (!hasProactive && !hasFeatured) {
+    return null;
+  }
+
   return (
-    <div className="max-w-3xl mx-auto mb-8">
-      <div className="flex items-center gap-3 mb-4">
-        <Radar className="h-7 w-7 text-primary" />
-        <div>
-          <h2 className="text-xl font-bold text-white">Market Radar</h2>
-          <p className="text-sm text-white/70">High-value opportunities we found for you based on your profile.</p>
-        </div>
-      </div>
-      {opportunities.length > 0 ? (
+    <div className="mb-8">
+      <Title />
+      {hasProactive ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {opportunities.map(opp => (
+          {proactiveOpportunities.map(opp => (
             <ProactiveOpportunityCard 
               key={opp.id} 
               opportunity={opp}
@@ -119,11 +143,10 @@ export function MarketRadar() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-10 border border-dashed border-white/20 rounded-lg bg-black/10">
-          <h3 className="text-lg font-semibold text-white">Scanning the Market...</h3>
-          <p className="text-white/70 mt-2 max-w-md mx-auto text-sm">
-            The radar is currently empty. As you save agents, we'll learn your preferences and automatically surface relevant opportunities here.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {featuredOpportunities.map((opp) => (
+            <OpportunityCard key={opp.id} opportunity={opp} />
+          ))}
         </div>
       )}
     </div>
