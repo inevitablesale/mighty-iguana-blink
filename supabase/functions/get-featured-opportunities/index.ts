@@ -33,13 +33,6 @@ async function callGemini(prompt, apiKey) {
   }
 }
 
-const FALLBACK_SEARCHES = [
-    { query: "senior software engineer", location: "Remote" },
-    { query: "head of sales", location: "USA" },
-    { query: "principal product manager", location: "USA" },
-    { query: "engineering manager", location: "Remote" },
-];
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -72,9 +65,8 @@ serve(async (req) => {
         opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
         sourceIsProactive = true;
     } else {
-        // FALLBACK LOGIC: Perform a live search if no proactive opportunities are found
-        const randomSearch = FALLBACK_SEARCHES[Math.floor(Math.random() * FALLBACK_SEARCHES.length)];
-        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(randomSearch.query)}&location=${encodeURIComponent(randomSearch.location)}&sites=linkedin,google&results=10&enforce_annual_salary=true`;
+        // FALLBACK LOGIC: Use the specified high-yield URL
+        const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=remote&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100";
         
         console.log(`[get-featured-opportunities] No proactive opportunities found. Performing live fallback search: ${scrapingUrl}`);
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
