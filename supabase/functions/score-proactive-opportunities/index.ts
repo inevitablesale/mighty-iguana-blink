@@ -89,10 +89,11 @@ serve(async (req) => {
         **Instructions:**
         1.  Analyze the job opportunity carefully.
         2.  Compare it against the generic recruiter's profile.
-        3.  If the job is a good fit (a high-value role in the tech sector), return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation of why it's a good opportunity).
-        4.  If the job is NOT a good fit (e.g., low-paying, non-tech, outside North America), you MUST return a JSON object with "relevance_score": 4 or less.
+        3.  Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation for your score).
+        4.  If the job is a good fit (a high-value role in the tech sector), the score should be high.
+        5.  If the job is NOT a good fit (e.g., low-paying, non-tech, outside North America), you MUST assign a score of 4 or less and provide a reason in "relevance_reasoning".
 
-        Return ONLY a single, valid JSON object.
+        Return ONLY a single, valid JSON object with both "relevance_score" and "relevance_reasoning" keys.
       `;
 
       try {
@@ -115,9 +116,22 @@ serve(async (req) => {
             acceptedCount++;
           }
         } else {
-          // No good match found, mark as dismissed to avoid re-processing
-          await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
-          dismissedCount++;
+          // No good match found, mark as dismissed but still save the reasoning
+          const { error: updateError } = await supabaseAdmin
+            .from('proactive_opportunities')
+            .update({
+              status: 'dismissed',
+              relevance_score: result?.relevance_score || 0,
+              relevance_reasoning: result?.relevance_reasoning || "AI evaluation resulted in a low score."
+            })
+            .eq('id', opportunity.id);
+          
+          if (updateError) {
+            console.error(`Failed to update dismissed opportunity ${opportunity.id}:`, updateError.message);
+            errorCount++;
+          } else {
+            dismissedCount++;
+          }
         }
       } catch (e) {
         console.error(`Error scoring opportunity ${opportunity.id}:`, e.message);
