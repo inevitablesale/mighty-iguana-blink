@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings, Bot, Briefcase, Users, PlusCircle } from "lucide-react";
+import { LogOut, Settings, Bot, Briefcase, Users, PlusCircle, LayoutGrid } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -54,6 +54,10 @@ export function Sidebar() {
       <div className="flex-1 flex flex-col space-y-4 overflow-y-auto">
         <nav className="space-y-1">
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
+            <LayoutGrid className="mr-3 h-5 w-5" />
+            Deal Stream
+          </Button>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/c')}>
             <PlusCircle className="mr-3 h-5 w-5" />
             New Chat
           </Button>

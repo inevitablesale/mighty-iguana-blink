@@ -9,7 +9,8 @@ import type { Session } from "@supabase/supabase-js";
 import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
-import ContractFinder from "./pages/ContractFinder";
+import DealStream from "./pages/DealStream";
+import Chat from "./pages/Chat";
 import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
 import CommunityBounties from "./pages/CommunityBounties";
@@ -56,8 +57,9 @@ const App = () => {
                 path="/" 
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
-                <Route index element={<ContractFinder />} />
-                <Route path="c/:conversationId" element={<ContractFinder />} />
+                <Route index element={<DealStream />} />
+                <Route path="c" element={<Chat />} />
+                <Route path="c/:conversationId" element={<Chat />} />
                 <Route path="community-bounties" element={<CommunityBounties />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="opportunities" element={<Opportunities />} />

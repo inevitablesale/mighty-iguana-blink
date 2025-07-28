@@ -25,7 +25,7 @@ interface DealStreamFiltersProps {
 const roleTypes = ["All", "Leadership", "Sales", "Tech"];
 const dealSignalOptions = ["Strategic Hire"];
 const companySignalOptions = ["No TA Team", "Recent Funding"];
-const urgencyOptions = ["All", "Immediate", "Standard", "Slow Mover"];
+const urgencyOptions = ["All", "High", "Medium", "Low"];
 
 export function DealStreamFilters({ filters, onFilterChange, onReset }: DealStreamFiltersProps) {
   
