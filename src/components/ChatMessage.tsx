@@ -24,7 +24,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       )}
     >
       {isAssistant && (
-        <Avatar className="h-8 w-8">
+        <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarFallback className="bg-primary">
             <SweaterIcon className="h-5 w-5 text-primary-foreground" />
           </AvatarFallback>
@@ -32,7 +32,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
       )}
       <div
         className={cn(
-          "max-w-xl rounded-lg p-3 text-white backdrop-blur-sm border border-white/10",
+          "rounded-lg p-3 text-white backdrop-blur-sm border border-white/10",
+          opportunities && opportunities.length > 0 ? "max-w-3xl" : "max-w-xl",
           isAssistant
             ? "bg-black/20"
             : "bg-white/10"
@@ -51,7 +52,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
               </div>
             )}
             {opportunities && opportunities.length > 0 && (
-              <div className={cn("space-y-3", text ? "mt-3" : "")}>
+              <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-3", text ? "mt-3" : "")}>
                 {opportunities.map((opp) => (
                   <OpportunityCard key={opp.id} opportunity={opp} />
                 ))}
