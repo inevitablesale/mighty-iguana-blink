@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Mic, CornerDownLeft } from 'lucide-react';
+import { Send, CornerDownLeft } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { ChatMessage } from '@/components/ChatMessage';
 
 export default function Index() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -25,7 +28,7 @@ export default function Index() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() && !isLoading) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: ChatMessageType = {
       id: uuidv4(),
@@ -33,37 +36,50 @@ export default function Index() {
       text: input,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const loadingMessage: ChatMessageType = {
+      id: uuidv4(),
+      role: 'assistant',
+      isLoading: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage, loadingMessage]);
     setInput('');
     setIsLoading(true);
 
-    // TODO: Replace with actual API call to the new chat edge function
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke('process-chat-command', {
+        body: { query: input },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      
       const assistantMessage: ChatMessageType = {
         id: uuidv4(),
         role: 'assistant',
-        text: `This is a placeholder response for: "${userMessage.text}"`,
+        text: data.text,
+        opportunities: data.opportunities,
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+
+      setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
+
+    } catch (err) {
+      const errorMessage = (err as Error).message;
+      toast.error(errorMessage);
+      setMessages((prev) => prev.slice(0, -1)); // Remove loading message on error
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)]">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
-          {/* Placeholder for Chat Messages */}
           {messages.map((message) => (
-            <div key={message.id}>
-              <p><strong>{message.role}:</strong> {message.text}</p>
-            </div>
+            <ChatMessage key={message.id} message={message} />
           ))}
-           {isLoading && (
-            <div>
-              <p><strong>assistant:</strong> Thinking...</p>
-            </div>
-          )}
         </div>
       </div>
       <div className="border-t bg-background px-4 py-3">
@@ -71,7 +87,7 @@ export default function Index() {
           <form onSubmit={handleSendMessage} className="relative">
             <Textarea
               placeholder="e.g., Find me Series A companies in SF hiring for a Head of Sales..."
-              className="min-h-[48px] rounded-2xl resize-none p-4 pr-24"
+              className="min-h-[48px] rounded-2xl resize-none p-4 pr-16"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -81,11 +97,7 @@ export default function Index() {
               }}
               disabled={isLoading}
             />
-            <div className="absolute top-1/2 right-3 transform -translate-y-1/2 flex items-center gap-2">
-              <Button type="button" size="icon" variant="ghost" disabled={isLoading}>
-                <Mic className="h-5 w-5" />
-                <span className="sr-only">Use Microphone</span>
-              </Button>
+            <div className="absolute top-1/2 right-3 transform -translate-y-1/2 flex items-center">
               <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
                 <Send className="h-5 w-5" />
                 <span className="sr-only">Send</span>

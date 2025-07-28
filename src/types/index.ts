@@ -78,5 +78,6 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   text?: string;
-  // We will add more content types here, like deal cards or email previews
+  opportunities?: Opportunity[];
+  isLoading?: boolean;
 }
