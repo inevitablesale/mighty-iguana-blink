@@ -61,9 +61,9 @@ export function Sidebar() {
             <Briefcase className="mr-3 h-5 w-5" />
             Pipeline
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market')}>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market-insights')}>
             <Flame className="mr-3 h-5 w-5" />
-            Market Intel
+            Market Insights
           </Button>
         </nav>
         

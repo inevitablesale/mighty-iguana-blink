@@ -7,7 +7,6 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { useState, useMemo } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
-import { GenerateContractDialog } from '@/components/GenerateContractDialog';
 
 export default function Opportunities() {
   const location = useLocation();
@@ -75,9 +74,7 @@ export default function Opportunities() {
           {filteredOpportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOpportunities.map((opp) => (
-                <GenerateContractDialog key={opp.id} opportunity={opp}>
-                  <DealCard opportunity={opp} />
-                </GenerateContractDialog>
+                <DealCard key={opp.id} opportunity={opp} />
               ))}
             </div>
           ) : (

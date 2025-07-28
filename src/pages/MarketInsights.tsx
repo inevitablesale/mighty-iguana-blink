@@ -7,7 +7,7 @@ import { ProactiveOpportunityCard } from '@/components/ProactiveOpportunityCard'
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/hooks/useUserProfile';
 
-export default function Market() {
+export default function MarketInsights() {
   const [opportunities, setOpportunities] = useState<ProactiveOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function Market() {
     <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6 pb-6 border-b border-white/20">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-3xl font-bold text-white">Market Intelligence</h1>
+          <h1 className="text-3xl font-bold text-white">Market Insights</h1>
           <p className="text-white/80 mt-1 max-w-xl">
             High-potential opportunities discovered by Coogi's market scanner. These are available to all users until accepted.
           </p>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity, DealSignal } from "@/types";
@@ -27,13 +28,10 @@ const getSignalColor = (type: DealSignal['type']) => {
     }
 }
 
-export const DealCard = React.forwardRef<HTMLDivElement, DealCardProps>(
-  ({ opportunity }, ref) => {
-    return (
-      <Card 
-        ref={ref}
-        className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer"
-      >
+export const DealCard = ({ opportunity }: DealCardProps) => {
+  return (
+    <Link to={`/deal/${opportunity.id}`} className="block h-full">
+      <Card className="w-full h-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer flex flex-col">
         <CardHeader className="p-4">
           <div className="flex justify-between items-start gap-2">
             <div>
@@ -55,7 +53,7 @@ export const DealCard = React.forwardRef<HTMLDivElement, DealCardProps>(
               )}
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-0">
+        <CardContent className="p-4 pt-0 flex-grow">
           <div className="flex flex-wrap gap-2">
               <TooltipProvider>
               {(opportunity.deal_signals || []).map((signal, index) => (
@@ -75,13 +73,12 @@ export const DealCard = React.forwardRef<HTMLDivElement, DealCardProps>(
               </TooltipProvider>
           </div>
         </CardContent>
-        <CardFooter className="p-3 bg-black/30 border-t border-white/20 flex justify-end">
+        <CardFooter className="p-3 bg-black/30 border-t border-white/20 flex justify-end mt-auto">
           <div className="text-xs text-muted-foreground flex items-center">
-              Open Pitch Mode <ArrowRight className="ml-2 h-3 w-3" />
+              View Deal Intel <ArrowRight className="ml-2 h-3 w-3" />
           </div>
         </CardFooter>
       </Card>
-    );
-  }
-);
-DealCard.displayName = "DealCard";
+    </Link>
+  );
+};

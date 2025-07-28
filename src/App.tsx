@@ -12,7 +12,8 @@ import AppLayout from "./components/AppLayout";
 import ContractFinder from "./pages/ContractFinder";
 import Pipeline from "./pages/Pipeline";
 import Opportunities from "./pages/Opportunities";
-import Market from "./pages/Market";
+import MarketInsights from "./pages/MarketInsights";
+import Deal from "./pages/Deal";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -57,9 +58,10 @@ const App = () => {
               >
                 <Route index element={<ContractFinder />} />
                 <Route path="c/:conversationId" element={<ContractFinder />} />
-                <Route path="market" element={<Market />} />
+                <Route path="market-insights" element={<MarketInsights />} />
                 <Route path="pipeline" element={<Pipeline />} />
                 <Route path="opportunities" element={<Opportunities />} />
+                <Route path="deal/:opportunityId" element={<Deal />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
