@@ -108,10 +108,24 @@ export default function ContractFinder() {
               const data = JSON.parse(jsonString);
 
               if (data.type === 'status') {
-                setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: { ...item.content, summary: data.message } } : item));
+                setFeedItems(prev => {
+                  const itemIndex = prev.findIndex(item => item.id === systemResponseId);
+                  if (itemIndex === -1) return prev;
+                  const updatedItem = { ...prev[itemIndex], content: { ...prev[itemIndex].content, summary: data.message } };
+                  const newItems = [...prev];
+                  newItems[itemIndex] = updatedItem;
+                  return newItems;
+                });
               } else if (data.type === 'result' && !finalResultSaved) {
                 const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
-                setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: finalContent } : item));
+                setFeedItems(prev => {
+                  const itemIndex = prev.findIndex(item => item.id === systemResponseId);
+                  if (itemIndex === -1) return prev;
+                  const updatedItem = { ...prev[itemIndex], content: finalContent };
+                  const newItems = [...prev];
+                  newItems[itemIndex] = updatedItem;
+                  return newItems;
+                });
                 await supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent });
                 finalResultSaved = true;
               } else if (data.type === 'error') {
