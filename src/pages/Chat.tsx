@@ -109,6 +109,22 @@ export default function Chat() {
 
               if (data.type === 'status') {
                 setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: { ...item.content, summary: data.message } } : item));
+              } else if (data.type === 'analysis_start') {
+                setFeedItems(prev => prev.map(item => {
+                  if (item.id === systemResponseId) {
+                    return { ...item, content: { ...item.content, summary: `Analyzing ${data.payload.jobs.length} jobs...`, analysisProgress: { jobs: data.payload.jobs.map(job => ({ ...job, status: 'pending' })) } } };
+                  }
+                  return item;
+                }));
+              } else if (data.type === 'analysis_progress') {
+                setFeedItems(prev => prev.map(item => {
+                  if (item.id === systemResponseId && item.content.analysisProgress) {
+                    const newJobs = [...item.content.analysisProgress.jobs];
+                    newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
+                    return { ...item, content: { ...item.content, analysisProgress: { ...item.content.analysisProgress, jobs: newJobs } } };
+                  }
+                  return item;
+                }));
               } else if (data.type === 'result' && !finalResultSaved) {
                 const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
                 setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: finalContent } : item));

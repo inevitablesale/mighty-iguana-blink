@@ -145,6 +145,17 @@ export interface Conversation {
   created_at: string;
 }
 
+export interface AnalysisProgressJob {
+  company: string;
+  title: string;
+  status: 'pending' | 'analyzed';
+  match_score?: number;
+}
+
+export interface AnalysisProgress {
+  jobs: AnalysisProgressJob[];
+}
+
 export interface FeedItem {
   id: string;
   user_id: string;
@@ -156,6 +167,7 @@ export interface FeedItem {
     query?: string;
     opportunities?: Opportunity[];
     searchParams?: SearchParams;
+    analysisProgress?: AnalysisProgress;
   };
   created_at: string;
   conversation_id?: string;

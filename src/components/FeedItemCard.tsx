@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { FeedbackControl } from "./FeedbackControl";
 import { Link } from "react-router-dom";
+import { AnalysisProgressView } from "./AnalysisProgressView";
 
 interface FeedItemCardProps {
   item: FeedItem;
@@ -31,7 +32,10 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
           </div>
           <p className="text-xs text-white/50 mt-1">{formatDistanceToNow(new Date(item.created_at))} ago</p>
         </div>
-        {item.content.opportunities && item.content.opportunities.length > 0 && (
+
+        {item.content.analysisProgress ? (
+          <AnalysisProgressView progress={item.content.analysisProgress} />
+        ) : item.content.opportunities && item.content.opportunities.length > 0 ? (
           <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {item.content.opportunities.slice(0, 4).map((opp) => (
@@ -50,7 +54,7 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
                   </div>
               )}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

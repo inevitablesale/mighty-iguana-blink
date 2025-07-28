@@ -115,11 +115,15 @@ serve(async (req) => {
         const sortedJobs = rawJobResults.filter(job => job.max_amount && job.max_amount > 0).sort((a, b) => b.max_amount - a.max_amount);
         const topJobs = sortedJobs.slice(0, 20);
         
-        sendUpdate({ type: 'status', message: `Found ${topJobs.length} potential jobs. Analyzing and scoring...` });
+        sendUpdate({
+          type: 'analysis_start',
+          payload: {
+            jobs: topJobs.map(j => ({ company: j.company, title: j.title }))
+          }
+        });
 
         const enrichedOpportunities = [];
         for (const [index, job] of topJobs.entries()) {
-            sendUpdate({ type: 'status', message: `Analyzing job ${index + 1} of ${topJobs.length}: ${job.company.substring(0, 25)}...` });
             try {
                 const jobHash = await createJobHash(job);
                 const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
@@ -144,6 +148,14 @@ serve(async (req) => {
                 analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
                 analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
                 enrichedOpportunities.push(analysisData);
+
+                sendUpdate({
+                  type: 'analysis_progress',
+                  payload: {
+                    index: index,
+                    match_score: analysisData.match_score
+                  }
+                });
 
             } catch (e) {
                 console.error(`Failed to enrich job for ${job.company}: ${e.message}`);
