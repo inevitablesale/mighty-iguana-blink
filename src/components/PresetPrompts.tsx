@@ -6,10 +6,10 @@ interface PresetPromptsProps {
 }
 
 const prompts = [
-  "Find me senior sales roles at B2B SaaS companies in New York.",
-  "Show me remote-only software engineer jobs at fintech startups.",
-  "What are the latest marketing director openings in London?",
-  "I'm looking for product manager roles at Series A companies.",
+  "Show me B2B SaaS companies in New York hiring for senior sales roles right now — I want to pitch recruitment support.",
+  "Find remote fintech startups currently hiring software engineers — especially those with no talent acquisition team.",
+  "Which companies in London are hiring for Marketing Director roles? Prioritize ones with urgent or reposted listings.",
+  "I’m looking for Series A companies posting product manager roles — flag ones with high salaries or growth signals for outreach.",
 ];
 
 export function PresetPrompts({ onPromptSelect }: PresetPromptsProps) {
