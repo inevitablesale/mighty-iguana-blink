@@ -10,6 +10,7 @@ import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
+import Agents from "./pages/Agents";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -53,6 +54,7 @@ const App = () => {
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
                 <Route index element={<Index />} />
+                <Route path="agents" element={<Agents />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

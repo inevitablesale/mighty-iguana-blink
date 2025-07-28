@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Mail, FileOutput, Settings } from "lucide-react";
+import { LogOut, Mail, FileOutput, Settings, Bot, MessageSquare } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -50,16 +50,26 @@ export function Sidebar() {
         </a>
       </div>
       <div className="flex-1 space-y-6 overflow-y-auto">
+        <nav className="space-y-1">
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
+            <MessageSquare className="mr-3 h-5 w-5" />
+            Chat
+          </Button>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/agents')}>
+            <Bot className="mr-3 h-5 w-5" />
+            Agents
+          </Button>
+        </nav>
         <div>
-          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2">Extension Status</h3>
-          <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Extension Status</h3>
+          <div className="flex items-center gap-2 px-3">
             <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
             <ExtensionLogDialog />
           </div>
         </div>
         <div>
-          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2">Credit Usage</h3>
-          <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Credit Usage</h3>
+          <div className="space-y-2 px-3">
             <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
               <div className="flex items-center gap-2"><Mail className="h-4 w-4" /><span>Contact Credits</span></div>
               {loading ? <Skeleton className="h-5 w-8" /> : <span className="font-bold">{credits?.contact_credits ?? 0}</span>}

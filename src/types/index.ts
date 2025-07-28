@@ -88,3 +88,13 @@ export interface ChatMessage {
   isLoading?: boolean;
   searchParams?: SearchParams;
 }
+
+export interface Agent {
+  id: string;
+  user_id: string;
+  name: string;
+  prompt: string;
+  created_at: string;
+  last_run_at: string | null;
+  autonomy_level: 'manual' | 'semi-automatic' | 'automatic';
+}
