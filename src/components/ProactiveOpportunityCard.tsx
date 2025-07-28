@@ -34,14 +34,14 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
   };
 
   return (
-    <Card className="w-full bg-card text-card-foreground border flex flex-col h-full">
+    <Card className="w-full bg-card text-card-foreground border flex flex-col">
       <CardHeader className="p-3 pb-2">
         <div>
           <CardTitle className="text-base font-bold text-foreground leading-tight">{opportunity.job_data.company}</CardTitle>
           <CardDescription className="text-sm text-primary font-medium leading-tight truncate">{opportunity.job_data.title}</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="p-3 pt-2 flex-grow space-y-3">
+      <CardContent className="p-3 pt-2 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-green-400">
           <DollarSign size={14} />
           <span>{opportunity.contract_value_assessment}</span>
@@ -72,7 +72,7 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
           </Tooltip>
         </TooltipProvider>
       </CardContent>
-      <CardFooter className="p-2 flex gap-2 mt-auto">
+      <CardFooter className="p-2 flex gap-2">
         <Button 
           size="sm" 
           className="w-full" 

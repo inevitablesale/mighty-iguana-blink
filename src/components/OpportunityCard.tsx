@@ -41,7 +41,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
   return (
     <GenerateContractDialog opportunity={opportunity}>
-      <Card className="w-full cursor-pointer group hover:border-primary transition-colors flex flex-col h-full bg-black/20 border-white/10 text-white backdrop-blur-sm">
+      <Card className="w-full cursor-pointer group hover:border-primary transition-colors flex flex-col bg-black/20 border-white/10 text-white backdrop-blur-sm">
         <CardHeader className="p-4">
           <div className="flex justify-between items-start gap-2">
             <div>
@@ -54,7 +54,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="p-4 pt-0 flex-grow space-y-3">
+        <CardContent className="p-4 pt-0 space-y-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <InfoItem icon={<Briefcase size={14} />} text={industry} />
             <InfoItem icon={<MapPin size={14} />} text={opportunity.location} />
