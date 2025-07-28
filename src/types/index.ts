@@ -129,3 +129,9 @@ export interface PropensityToSwitchAnalysis {
   negative_signals: string[];
   summary: string;
 }
+
+export interface ContactEvaluation {
+  score: number;
+  status: 'Good Match' | 'Potential Fit' | 'Not a Match';
+  reasoning: string;
+}
