@@ -88,17 +88,18 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // For now, we assume the intent is always to find opportunities.
-    // In the future, we can add an intent detection step here.
     const intent = "find_opportunities";
 
     if (intent === "find_opportunities") {
         const searchQueryPrompt = `
-          Analyze the user's search query to extract structured search parameters.
+          You are an expert at parsing recruitment-focused search queries. Your task is to deconstruct the user's query into components for a job search API.
           User Query: "${query}"
-          Available sites are: linkedin, indeed, zip_recruiter, glassdoor, google.
-          If no specific location is mentioned, default the location to "Remote".
-          Also, create a concise "recruiter_specialty" string that summarizes the user's intent (e.g., "placing senior engineers in high-growth B2B software companies"). This will be used for analysis.
+
+          1.  **Identify the Job Role/Title:** Extract the core job title or keywords the user is looking for. This will be the \`search_query\`. It should ONLY contain the role, not company descriptions (e.g., "senior software engineer", "head of sales").
+          2.  **Identify the Location:** Extract the geographical location. Default to "Remote" if not specified.
+          3.  **Define the Recruiter's Specialty:** Create a concise \`recruiter_specialty\` string that captures the user's full intent, including company characteristics (e.g., "placing sales leaders in recently funded startups in San Francisco"). This will be used for post-search analysis.
+          4.  **Select Search Sites:** Choose the appropriate job sites. For most professional roles in the US or Europe, use 'linkedin,indeed,zip_recruiter,glassdoor,google'.
+
           Return ONLY a single, valid JSON object with keys: "search_query", "location", "sites", and "recruiter_specialty".
         `;
         const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
