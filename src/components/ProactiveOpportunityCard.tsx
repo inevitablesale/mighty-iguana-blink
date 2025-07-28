@@ -35,11 +35,30 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
 
   return (
     <Card className="w-full bg-card text-card-foreground border flex flex-col">
-      <CardHeader className="p-3 pb-2">
-        <div>
+      <CardHeader className="p-3 pb-2 relative">
+        <div className="pr-8">
           <CardTitle className="text-base font-bold text-foreground leading-tight">{opportunity.job_data.company}</CardTitle>
           <CardDescription className="text-sm text-primary font-medium leading-tight truncate">{opportunity.job_data.title}</CardDescription>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute top-2 right-2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => onDismiss(opportunity.id)}
+                disabled={isAccepting || isDismissing}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Dismiss</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Dismiss Opportunity</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </CardHeader>
       <CardContent className="p-3 pt-2 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-green-400">
@@ -72,7 +91,7 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
           </Tooltip>
         </TooltipProvider>
       </CardContent>
-      <CardFooter className="p-2 flex gap-2">
+      <CardFooter className="p-2">
         <Button 
           size="sm" 
           className="w-full" 
@@ -81,16 +100,6 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
         >
           <Check className="mr-2 h-4 w-4" />
           {isAccepting ? 'Accepting...' : 'Accept'}
-        </Button>
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          className="w-full" 
-          onClick={() => onDismiss(opportunity.id)}
-          disabled={isAccepting || isDismissing}
-        >
-          <X className="mr-2 h-4 w-4" />
-          {isDismissing ? 'Dismissing...' : 'Dismiss'}
         </Button>
       </CardFooter>
     </Card>
