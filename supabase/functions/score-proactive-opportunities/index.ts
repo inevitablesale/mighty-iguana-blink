@@ -59,12 +59,12 @@ serve(async (req) => {
 
     if (oppError) throw new Error(`Failed to fetch new opportunities: ${oppError.message}`);
     
-    console.log(`[score-proactive-opportunities] Found ${opportunities?.length || 0} new opportunities to score.`);
     if (!opportunities || opportunities.length === 0) {
       const message = "No new opportunities to score.";
       console.log(`[score-proactive-opportunities] Exiting cleanly: ${message}`);
       return new Response(JSON.stringify({ message }), { status: 200, headers: corsHeaders });
     }
+    console.log(`[score-proactive-opportunities] Found ${opportunities.length} new opportunities to score.`);
 
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -73,22 +73,27 @@ serve(async (req) => {
 
     if (profileError) throw new Error(`Failed to fetch user profiles: ${profileError.message}`);
 
-    console.log(`[score-proactive-opportunities] Found ${profiles?.length || 0} user profiles with intent.`);
-    if (!profiles || profiles.length === 0) {
-      const message = "No user profiles with intent found to score against.";
-      console.log(`[score-proactive-opportunities] Exiting cleanly: ${message}`);
-      return new Response(JSON.stringify({ message }), { status: 200, headers: corsHeaders });
-    }
-
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
+    let profilesForScoring = [];
+    const hasUserProfiles = profiles && profiles.length > 0;
+
+    if (hasUserProfiles) {
+      console.log(`[score-proactive-opportunities] Found ${profiles.length} user profiles with intent. Scoring against user profiles.`);
+      profilesForScoring = profiles.map(p => ({ userId: p.id, profile: p.intent_profile.summary }));
+    } else {
+      console.log(`[score-proactive-opportunities] No user profiles with intent found. Using a generic profile for scoring.`);
+      profilesForScoring = [{
+        userId: 'generic', // A placeholder for the prompt
+        profile: "A top-tier, generalist recruiter focused on identifying high-value, high-growth opportunities in the tech sector across North America. They are interested in roles with clear hiring signals, significant contract value, and strong company fundamentals."
+      }];
+    }
+
     let scoredCount = 0;
-    console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against ${profiles.length} profiles.`);
+    console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against ${profilesForScoring.length} profile(s).`);
 
     for (const opportunity of opportunities) {
-      const profilesForPrompt = profiles.map(p => ({ userId: p.id, profile: p.intent_profile.summary }));
-
       const scoringPrompt = `
         You are an AI-powered recruitment matchmaker. Your task is to find the single best recruiter for a given job opportunity from a list of recruiter profiles.
 
@@ -96,12 +101,12 @@ serve(async (req) => {
         ${JSON.stringify(opportunity.job_data, null, 2)}
 
         **Recruiter Profiles:**
-        ${JSON.stringify(profilesForPrompt, null, 2)}
+        ${JSON.stringify(profilesForScoring, null, 2)}
 
         **Instructions:**
         1.  Analyze the job opportunity carefully.
         2.  Compare it against each recruiter's profile.
-        3.  Identify the single BEST match. The best match is a recruiter who would see this as a high-value, must-win opportunity, even if it's slightly outside their explicit focus.
+        3.  Identify the single BEST match. The best match is a recruiter who would see this as a high-value, must-win opportunity.
         4.  If you find a good match, return a JSON object with "userId", "relevance_score" (an integer 1-10), and "relevance_reasoning" (a concise explanation of why it's a great match).
         5.  If NO recruiter is a good fit (i.e., the best possible score would be 4 or less), you MUST return a JSON object with "userId": null.
 
@@ -111,15 +116,29 @@ serve(async (req) => {
       try {
         const result = await callGemini(scoringPrompt, GEMINI_API_KEY);
 
-        if (result && result.userId && result.relevance_score >= 5) {
+        let updatePayload = {};
+        let shouldDismiss = false;
+
+        if (result && result.relevance_score >= 5) {
+          updatePayload = {
+            relevance_score: result.relevance_score,
+            relevance_reasoning: result.relevance_reasoning,
+            status: 'reviewed'
+          };
+          // Only assign a user if we are NOT in generic mode and a user was matched
+          if (hasUserProfiles && result.userId && result.userId !== 'generic') {
+            updatePayload.user_id = result.userId;
+          }
+        } else {
+          shouldDismiss = true;
+        }
+
+        if (shouldDismiss) {
+          await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
+        } else {
           const { error: updateError } = await supabaseAdmin
             .from('proactive_opportunities')
-            .update({
-              user_id: result.userId,
-              relevance_score: result.relevance_score,
-              relevance_reasoning: result.relevance_reasoning,
-              status: 'reviewed'
-            })
+            .update(updatePayload)
             .eq('id', opportunity.id);
 
           if (updateError) {
@@ -127,18 +146,14 @@ serve(async (req) => {
           } else {
             scoredCount++;
           }
-        } else {
-          // No good match found, mark as dismissed to avoid re-processing
-          await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
         }
       } catch (e) {
         console.error(`Error scoring opportunity ${opportunity.id}:`, e.message);
-        // Mark as errored to avoid retrying a failing prompt
         await supabaseAdmin.from('proactive_opportunities').update({ status: 'error', relevance_reasoning: e.message }).eq('id', opportunity.id);
       }
     }
 
-    const finalMessage = `Scoring complete. Matched ${scoredCount} of ${opportunities.length} opportunities to users.`;
+    const finalMessage = `Scoring complete. Matched ${scoredCount} of ${opportunities.length} opportunities.`;
     console.log(`[score-proactive-opportunities] ${finalMessage}`);
     return new Response(JSON.stringify({ message: finalMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
