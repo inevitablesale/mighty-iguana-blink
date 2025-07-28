@@ -1,13 +1,15 @@
-import { FeedItem } from "@/types";
-import { Bot, User, Save } from "lucide-react";
+import { FeedItem, Opportunity } from "@/types";
+import { Bot, User, Save, Users, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { DealCard } from "./DealCard";
 import { SaveAgentDialog } from "./SaveAgentDialog";
 import { Button } from "./ui/button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { FeedbackControl } from "./FeedbackControl";
-import { Link } from "react-router-dom";
 import { AnalysisProgressView } from "./AnalysisProgressView";
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FeedItemCardProps {
   item: FeedItem;
@@ -15,6 +17,36 @@ interface FeedItemCardProps {
 
 const SystemResponse = ({ item }: { item: FeedItem }) => {
   const { user } = useUserProfile();
+  const [isFindingContacts, setIsFindingContacts] = useState(false);
+
+  const handleFindAllContacts = async () => {
+    const opportunities = item.content.opportunities;
+    if (!opportunities || opportunities.length === 0) return;
+    
+    setIsFindingContacts(true);
+    const toastId = toast.loading("Queueing contact search for all opportunities...");
+
+    try {
+      const opportunityIds = opportunities.map((opp: Opportunity) => opp.id);
+      const { error } = await supabase.functions.invoke('batch-create-contact-tasks', {
+        body: { opportunityIds }
+      });
+
+      if (error) throw error;
+
+      toast.success("Contact search has been queued.", {
+        id: toastId,
+        description: "You'll see contact details appear on each deal card shortly."
+      });
+    } catch (err) {
+      toast.error("Failed to queue contact search.", {
+        id: toastId,
+        description: (err as Error).message
+      });
+    } finally {
+      setIsFindingContacts(false);
+    }
+  };
 
   return (
     <div className="flex items-start gap-4">
@@ -43,14 +75,20 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
                   ))}
               </div>
               {item.content.searchParams && (
-                  <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between">
-                      <p className="text-sm font-medium text-white/90">Want me to run this search for you automatically?</p>
-                      <SaveAgentDialog searchParams={item.content.searchParams}>
-                          <Button variant="secondary">
-                              <Save className="mr-2 h-4 w-4" />
-                              Create an Agent
-                          </Button>
-                      </SaveAgentDialog>
+                  <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
+                      <p className="text-sm font-medium text-white/90">What's next?</p>
+                      <div className="flex items-center gap-2">
+                        <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
+                          {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                          Find Contacts
+                        </Button>
+                        <SaveAgentDialog searchParams={item.content.searchParams}>
+                            <Button>
+                                <Save className="mr-2 h-4 w-4" />
+                                Create an Agent
+                            </Button>
+                        </SaveAgentDialog>
+                      </div>
                   </div>
               )}
           </div>

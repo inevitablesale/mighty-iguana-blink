@@ -241,7 +241,7 @@ serve(async (req) => {
               return;
           }
 
-          let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches. I've started finding key contacts for these companies in the background.`;
+          let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches. You can now find contacts or create an agent to automate this search.`;
 
           sendUpdate({ type: 'status', message: 'Finalizing results...' });
 
@@ -262,20 +262,6 @@ serve(async (req) => {
 
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
-
-          const tasksToInsert = savedOpportunities.map(opp => ({
-              user_id: user.id,
-              opportunity_id: opp.id,
-              company_name: opp.company_name,
-              status: 'pending'
-          }));
-
-          if (tasksToInsert.length > 0) {
-              await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
-              supabaseAdmin.functions.invoke('process-enrichment-queue', {
-                headers: { 'Authorization': req.headers.get('Authorization') }
-              });
-          }
 
           sendUpdate({ type: 'result', payload: { text: responseText, opportunities: savedOpportunities, searchParams: { recruiter_specialty } } });
         }

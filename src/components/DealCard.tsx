@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Opportunity } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, MapPin, Star, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
+import { Flame, MapPin, Star, ArrowRight, CheckCircle, Loader2, Search, XCircle } from "lucide-react";
 
 interface DealCardProps {
   opportunity: Opportunity;
@@ -21,38 +21,78 @@ const getUrgency = (urgency: string | undefined) => {
 
 export const DealCard = ({ opportunity }: DealCardProps) => {
   const [contactStatus, setContactStatus] = useState({
-    text: 'Matching Hiring Manager...',
-    icon: <Loader2 className="h-3 w-3 animate-spin" />,
+    text: 'Ready to search',
+    icon: <Search className="h-3 w-3" />,
     color: 'text-muted-foreground'
   });
 
   useEffect(() => {
-    const fetchContact = async () => {
-      const { data, error } = await supabase
+    const checkStatus = async () => {
+      // 1. Check for existing contacts
+      const { data: contactData, error: contactError } = await supabase
         .from('contacts')
         .select('job_title')
         .eq('opportunity_id', opportunity.id)
         .order('created_at', { ascending: true })
         .limit(1);
 
-      if (error) {
-        console.error(`Error fetching contact for opportunity ${opportunity.id}:`, error);
-        // Keep the loading state on error to avoid showing incorrect info
+      if (contactError) {
+        console.error(`Error fetching contact for opportunity ${opportunity.id}:`, contactError);
         return;
       }
 
-      if (data && data.length > 0 && data[0].job_title) {
+      if (contactData && contactData.length > 0 && contactData[0].job_title) {
         setContactStatus({
-          text: `Contact Found: ${data[0].job_title}`,
+          text: `Contact Found: ${contactData[0].job_title}`,
           icon: <CheckCircle className="h-3 w-3" />,
           color: 'text-green-400'
         });
+        return;
       }
-      // If no contact is found, the status will remain "Matching..."
+
+      // 2. If no contacts, check for a task
+      const { data: taskData, error: taskError } = await supabase
+        .from('contact_enrichment_tasks')
+        .select('status')
+        .eq('opportunity_id', opportunity.id)
+        .limit(1)
+        .single();
+      
+      if (taskError && taskError.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error(`Error fetching task for opportunity ${opportunity.id}:`, taskError);
+        return;
+      }
+
+      if (taskData) {
+        if (taskData.status === 'pending' || taskData.status === 'processing') {
+          setContactStatus({
+            text: 'Matching Hiring Manager...',
+            icon: <Loader2 className="h-3 w-3 animate-spin" />,
+            color: 'text-muted-foreground'
+          });
+        } else if (taskData.status === 'complete' || taskData.status === 'error') {
+          // Task is done, but we already know there are no contacts from the first check
+          setContactStatus({
+            text: 'No contacts found',
+            icon: <XCircle className="h-3 w-3" />,
+            color: 'text-red-400'
+          });
+        }
+      }
+      // If no task, it remains in the default "Ready to search" state.
     };
 
-    const timer = setTimeout(fetchContact, 1500);
-    return () => clearTimeout(timer);
+    checkStatus();
+    
+    const channel = supabase.channel(`deal-card-${opportunity.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `opportunity_id=eq.${opportunity.id}` }, checkStatus)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_enrichment_tasks', filter: `opportunity_id=eq.${opportunity.id}` }, checkStatus)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+
   }, [opportunity.id]);
 
   const urgency = getUrgency(opportunity.hiring_urgency);
