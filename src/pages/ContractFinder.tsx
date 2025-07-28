@@ -26,18 +26,10 @@ export default function ContractFinder() {
         setLoading(false);
         return;
       }
-
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
-        const { data, error } = await supabase
-          .from('feed_items')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true });
-
+        const { data, error } = await supabase.from('feed_items').select('*').eq('user_id', user.id).eq('conversation_id', conversationId).order('created_at', { ascending: true });
         if (error) throw error;
         setFeedItems(data || []);
       } catch (err) {
@@ -61,83 +53,70 @@ export default function ContractFinder() {
     setInput('');
     setIsSearching(true);
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+
+    if (!user || !session) {
         toast.error("You must be logged in to search.");
         setIsSearching(false);
         return;
     }
 
     let currentConversationId = conversationId;
-
     if (!currentConversationId) {
-      const { data: newConversation, error: newConvoError } = await supabase
-        .from('conversations')
-        .insert({ user_id: user.id, title: query })
-        .select()
-        .single();
-      
-      if (newConvoError) {
-        toast.error("Failed to create new chat.", { description: newConvoError.message });
-        setIsSearching(false);
-        return;
-      }
+      const { data: newConversation, error } = await supabase.from('conversations').insert({ user_id: user.id, title: query }).select().single();
+      if (error) { toast.error("Failed to create new chat.", { description: error.message }); setIsSearching(false); return; }
       currentConversationId = newConversation.id;
       navigate(`/c/${currentConversationId}`, { replace: true });
     }
 
-    const userQueryItem: FeedItem = {
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      type: 'user_search',
-      role: 'user',
-      content: { query },
-      created_at: new Date().toISOString(),
-      conversation_id: currentConversationId,
-    };
+    const userQueryItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, type: 'user_search', role: 'user', content: { query }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
     setFeedItems(prev => [...prev, userQueryItem]);
-    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined, conversation_id: currentConversationId });
+    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
 
-    const thinkingId = crypto.randomUUID();
-    const thinkingItem: FeedItem = {
-        id: thinkingId,
-        user_id: user.id,
-        type: 'agent_run_summary',
-        role: 'system',
-        content: { agentName: 'Coogi Assistant', summary: 'Thinking...' },
-        created_at: new Date().toISOString(),
-        conversation_id: currentConversationId,
-    };
-    setFeedItems(prev => [...prev, thinkingItem]);
+    const systemResponseId = crypto.randomUUID();
+    const systemResponseItem: FeedItem = { id: systemResponseId, user_id: user.id, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: 'AI Search powered by ContractGPT...' }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
+    setFeedItems(prev => [...prev, systemResponseItem]);
 
     try {
-      const { data, error } = await supabase.functions.invoke('process-chat-command', {
-        body: { query },
+      const response = await fetch(`https://dbtdplhlatnlzcvdvptn.supabase.co/functions/v1/process-chat-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ query }),
       });
 
-      if (error) throw new Error(error.message);
-      if (data.error) throw new Error(data.error);
+      if (!response.body) throw new Error("The response body is empty.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finalResultSaved = false;
 
-      const systemResponse: FeedItem = {
-        id: crypto.randomUUID(),
-        user_id: user.id,
-        type: 'agent_run_summary',
-        role: 'system',
-        content: { 
-          agentName: 'Coogi Assistant', 
-          summary: data.text,
-          opportunities: data.opportunities,
-          searchParams: data.searchParams,
-        },
-        created_at: new Date().toISOString(),
-        conversation_id: currentConversationId,
-      };
-      
-      setFeedItems(prev => [...prev.filter(item => item.id !== thinkingId), systemResponse]);
-      await supabase.from('feed_items').insert({ ...systemResponse, id: undefined });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n\n');
 
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonString = line.substring(6);
+            if (!jsonString) continue;
+            const data = JSON.parse(jsonString);
+
+            if (data.type === 'status') {
+              setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: { ...item.content, summary: data.message } } : item));
+            } else if (data.type === 'result' && !finalResultSaved) {
+              const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
+              setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: finalContent } : item));
+              await supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent });
+              finalResultSaved = true;
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
+      }
     } catch (err) {
-      setFeedItems(prev => prev.filter(item => item.id !== thinkingId));
+      setFeedItems(prev => prev.filter(item => item.id !== systemResponseId));
       toast.error("Search failed", { description: (err as Error).message });
     } finally {
       setIsSearching(false);
