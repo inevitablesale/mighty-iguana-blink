@@ -12,6 +12,7 @@ export interface Opportunity {
   recruiter_angle: string;
   key_signal_for_outreach: string;
   linkedin_url_slug?: string | null;
+  placement_difficulty: string;
 }
 
 export interface Contact {
