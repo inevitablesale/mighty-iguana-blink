@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart, Search } from "lucide-react";
+import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart, Search, Star } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import { Separator } from "./ui/separator";
@@ -34,6 +34,15 @@ interface Analysis {
   summary: string;
 }
 
+interface EvaluatedContact extends Contact {
+  evaluation?: {
+    score: number;
+    status: string;
+    reasoning: string;
+  };
+  isEvaluating?: boolean;
+}
+
 const feeOptions = [
   { id: "fee1", label: "Contingency: 20% of First-Year Base Salary", value: "20% of the candidate's first-year base salary, payable upon the candidate's start date." },
   { id: "fee2", label: "Contingency: 25% of First-Year Base Salary", value: "25% of the candidate's first-year base salary, payable upon the candidate's start date." },
@@ -43,8 +52,8 @@ const feeOptions = [
 export function GenerateContractDialog({ opportunity, children }: GenerateContractDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contacts, setContacts] = useState<EvaluatedContact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<EvaluatedContact | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [selectedFee, setSelectedFee] = useState<string | null>(null);
   const [generatedProposal, setGeneratedProposal] = useState<string | null>(null);
@@ -87,7 +96,22 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
           setAnalysis(analysisResult.data.analysis);
 
           if (contactsResult.error) throw new Error(contactsResult.error.message);
-          setContacts(contactsResult.data || []);
+          const initialContacts = contactsResult.data || [];
+          setContacts(initialContacts.map(c => ({ ...c, isEvaluating: true })));
+          
+          // Asynchronously evaluate each contact
+          const evaluatedContacts = await Promise.all(initialContacts.map(async (contact) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('evaluate-contact-fit', {
+                body: { contact, opportunityId: opportunity.id }
+              });
+              if (error) return { ...contact, isEvaluating: false };
+              return { ...contact, evaluation: data.evaluation, isEvaluating: false };
+            } catch (e) {
+              return { ...contact, isEvaluating: false };
+            }
+          }));
+          setContacts(evaluatedContacts);
 
         } catch (err) {
           toast.error("Failed to load opportunity data", { description: (err as Error).message });
@@ -198,6 +222,12 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
     if (!open) setTimeout(resetState, 300);
   };
 
+  const getStatusColor = (status: string) => {
+    if (status === 'Good Match') return 'text-green-500';
+    if (status === 'Potential Fit') return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -231,16 +261,26 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
           {step === 1 && (
             <div>
               {isLoading ? (
-                <div className="space-y-4 py-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+                <div className="space-y-2 py-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
               ) : (
                 <div className="py-4">
                   <RadioGroup onValueChange={(id) => setSelectedContact(contacts.find(c => c.id === id) || null)} className="max-h-[30vh] overflow-y-auto pr-2 space-y-2">
                     {contacts.map((contact) => (
-                      <Label key={contact.id} htmlFor={contact.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent">
-                        <RadioGroupItem value={contact.id} id={contact.id} />
-                        <div>
+                      <Label key={contact.id} htmlFor={contact.id} className="flex items-start gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent">
+                        <RadioGroupItem value={contact.id} id={contact.id} className="mt-1" />
+                        <div className="flex-grow">
                           <p className="font-semibold">{contact.name}</p>
                           <p className="text-sm text-muted-foreground">{contact.job_title}</p>
+                          {contact.isEvaluating && <Skeleton className="h-4 w-3/4 mt-2" />}
+                          {contact.evaluation && (
+                            <div className="mt-2 text-xs">
+                              <Badge variant="secondary" className={`font-semibold ${getStatusColor(contact.evaluation.status)}`}>
+                                <Star className="h-3 w-3 mr-1.5" />
+                                {contact.evaluation.score}/10 {contact.evaluation.status}
+                              </Badge>
+                              <p className="text-muted-foreground mt-1 italic">"{contact.evaluation.reasoning}"</p>
+                            </div>
+                          )}
                         </div>
                       </Label>
                     ))}
