@@ -2,7 +2,6 @@ console.log("Coogi Background Script Loaded at:", new Date().toLocaleTimeString(
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0';
 
-// --- EXPLICIT LOGGER ---
 const nativeConsole = {
   log: console.log.bind(console),
   error: console.error.bind(console),
@@ -10,108 +9,46 @@ const nativeConsole = {
   info: console.info.bind(console),
 };
 
-async function broadcastLog(type, ...args) {
-  try {
-    const prodTabs = await chrome.tabs.query({ url: COOGI_APP_URL });
-    const localTabs = await chrome.tabs.query({ url: "http://localhost:*/*" });
-    const allTabs = [...prodTabs, ...localTabs];
-    const uniqueTabs = Array.from(new Map(allTabs.map(tab => [tab.id, tab])).values());
+async function broadcastToTabs(eventName, payload) {
+  const prodTabs = await chrome.tabs.query({ url: "https://dbtdplhlatnlzcvdvptn.dyad.sh/*" });
+  const localTabs = await chrome.tabs.query({ url: "http://localhost:*/*" });
+  const allTabs = [...prodTabs, ...localTabs];
+  const uniqueTabs = Array.from(new Map(allTabs.map(tab => [tab.id, tab])).values());
 
-    for (const tab of uniqueTabs) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: (payload) => {
-            window.dispatchEvent(new CustomEvent('coogi-extension-log', { detail: payload }));
-          },
-          args: [{ type, args }],
-          world: 'MAIN'
-        });
-      } catch (e) { /* Tab might not be ready, ignore */ }
-    }
-  } catch (e) { nativeConsole.error("Error broadcasting log:", e.message); }
+  for (const tab of uniqueTabs) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (details) => {
+          window.dispatchEvent(new CustomEvent(details.eventName, { detail: details.payload }));
+        },
+        args: [{ eventName, payload }],
+        world: 'MAIN'
+      });
+    } catch (e) { /* Tab might not be ready, ignore */ }
+  }
 }
 
 const logger = {
-  log: (...args) => {
-    nativeConsole.log(...args);
-    broadcastLog('log', ...args);
-  },
-  error: (...args) => {
-    nativeConsole.error(...args);
-    broadcastLog('error', ...args);
-  },
-  warn: (...args) => {
-    nativeConsole.warn(...args);
-    broadcastLog('warn', ...args);
-  },
-  info: (...args) => {
-    nativeConsole.info(...args);
-    broadcastLog('info', ...args);
-  },
+  log: (...args) => { nativeConsole.log(...args); broadcastToTabs('coogi-extension-log', { type: 'log', args }); },
+  error: (...args) => { nativeConsole.error(...args); broadcastToTabs('coogi-extension-log', { type: 'error', args }); },
+  warn: (...args) => { nativeConsole.warn(...args); broadcastToTabs('coogi-extension-log', { type: 'warn', args }); },
+  info: (...args) => { nativeConsole.info(...args); broadcastToTabs('coogi-extension-log', { type: 'info', args }); },
 };
-// --- END LOGGER ---
-
 
 const SUPABASE_URL = "https://dbtdplhlatnlzcvdvptn.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRidGRwbGhsYXRubHpjdmR2cHRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5NDk3MTIsImV4cCI6MjA2ODUyNTcxMn0.U3pnytCxcEoo_bJGLzjeNdt_qQ9eX8dzwezrxXOaOfA";
 const ALARM_NAME = 'poll-tasks-alarm';
-const COOGI_APP_URL = "https://dbtdplhlatnlzcvdvptn.dyad.sh/*";
 
 let supabase = null;
 let supabaseChannel = null;
 let userId = null;
-
 let isTaskActive = false;
 let cooldownActive = false;
 const taskQueue = [];
-let currentOpportunityContext = null;
-let currentStatus = { status: 'disconnected', message: 'Initializing...' };
-let linkedInTabId = null;
-let currentTaskTimeout = null;
-
-async function getLinkedInTab() {
-  if (linkedInTabId) {
-    try {
-      const tab = await chrome.tabs.get(linkedInTabId);
-      return tab;
-    } catch (e) {
-      linkedInTabId = null;
-    }
-  }
-
-  const existingTabs = await chrome.tabs.query({ url: "https://*.linkedin.com/*" });
-  if (existingTabs.length > 0) {
-    linkedInTabId = existingTabs[0].id;
-    return existingTabs[0];
-  }
-
-  const newTab = await chrome.tabs.create({ url: "https://www.linkedin.com/feed/", active: false });
-  linkedInTabId = newTab.id;
-  return newTab;
-}
 
 async function broadcastStatus(status, message) {
-  currentStatus = { status, message };
-  try {
-    const prodTabs = await chrome.tabs.query({ url: COOGI_APP_URL });
-    const localTabs = await chrome.tabs.query({ url: "http://localhost:*/*" });
-    const allTabs = [...prodTabs, ...localTabs];
-    const uniqueTabs = Array.from(new Map(allTabs.map(tab => [tab.id, tab])).values());
-
-    for (const tab of uniqueTabs) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: (payload) => {
-            window.dispatchEvent(new CustomEvent('coogi-extension-status', { detail: payload }));
-          },
-          args: [currentStatus],
-          world: 'MAIN'
-        });
-      } catch (e) { /* Tab might not be ready, ignore */ }
-    }
-  } catch (e) { logger.error("Error broadcasting status:", e.message); }
+  await broadcastToTabs('coogi-extension-status', { status, message });
 }
 
 function initSupabase(token) {
@@ -128,22 +65,15 @@ function initSupabase(token) {
 function subscribeToTasks() {
   if (!supabase || !userId || (supabaseChannel && supabaseChannel.state === 'joined')) return;
   if (supabaseChannel) supabase.removeChannel(supabaseChannel);
-  logger.log("Attempting to subscribe to Supabase Realtime for tasks...");
+  
   supabaseChannel = supabase
     .channel("contact_enrichment_tasks")
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "contact_enrichment_tasks", filter: `user_id=eq.${userId}` }, (payload) => {
-      logger.log("Received new task via Realtime:", payload.new);
-      const task = payload.new;
-      if (task.status === "pending" && task.user_id === userId) enqueueTask(task);
+      if (payload.new.status === "pending") enqueueTask(payload.new);
     })
     .subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') {
-        logger.log("✅ Realtime subscription active for user:", userId);
-        broadcastStatus('idle', 'Ready and waiting for tasks.');
-      }
+      if (status === 'SUBSCRIBED') logger.log("✅ Realtime subscription active.");
       if (err) logger.error("❌ Supabase subscription error:", err);
-      if (status === 'CHANNEL_ERROR') logger.error("❌ Realtime channel error.");
-      if (status === 'TIMED_OUT') logger.error("❌ Realtime subscription timed out.");
     });
 }
 
@@ -160,285 +90,72 @@ async function initializeFromStorage() {
   }
 }
 
-async function startCompanyDiscoveryFlow(opportunityId, finalAction) {
-  if (!supabase) {
-    const errorMsg = "Cannot start discovery flow, Supabase not initialized.";
-    broadcastStatus('error', errorMsg);
-    if (finalAction.type === 'find_contacts') await updateTaskStatus(finalAction.taskId, "error", "Extension not authenticated.");
-    return { error: "Not authenticated." };
-  }
-
-  const { data: opportunity, error } = await supabase.from('opportunities').select('company_name, role, location').eq('id', opportunityId).single();
-
-  if (error || !opportunity) {
-    const errorMessage = `Could not find opportunity ${opportunityId}: ${error?.message}`;
-    broadcastStatus('error', errorMessage);
-    if (finalAction.type === 'find_contacts') await updateTaskStatus(finalAction.taskId, "error", errorMessage);
-    return { error: errorMessage };
-  }
-  
-  broadcastStatus('active', `Step 1: Searching for company page for ${opportunity.company_name}...`);
-  currentOpportunityContext = { id: opportunityId, company_name: opportunity.company_name, role: opportunity.role, location: opportunity.location, finalAction };
-  await chrome.storage.session.set({ currentOpportunityContext });
-  
-  const targetUrl = `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(opportunity.company_name)}`;
-
-  const tab = await getLinkedInTab();
-
-  currentTaskTimeout = setTimeout(() => {
-    logger.error(`Task timed out waiting for company search results for task ${finalAction.taskId}`);
-    updateTaskStatus(finalAction.taskId, "error", "Task timed out during company search.");
-    finalizeTask();
-  }, 45000); // 45-second timeout
-
-  const tabUpdateListener = async (tabId, info) => {
-    if (tabId === tab.id && info.status === 'complete') {
-      chrome.tabs.onUpdated.removeListener(tabUpdateListener);
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-      await chrome.tabs.sendMessage(tab.id, { action: "scrapeCompanySearchResults", taskId: finalAction.taskId, opportunityId });
-    }
-  };
-  chrome.tabs.onUpdated.addListener(tabUpdateListener);
-  
-  await chrome.tabs.update(tab.id, { url: targetUrl });
-
-  return { status: "Company search initiated." };
-}
-
 chrome.runtime.onMessageExternal.addListener(async (message, sender, sendResponse) => {
   if (message.type === "SET_TOKEN") {
-    logger.log("Received SET_TOKEN message from web app.");
     userId = message.userId;
     await chrome.storage.local.set({ token: message.token, userId: message.userId });
-    logger.log("User ID and token stored. Initializing Supabase, subscriptions, and polling...");
     initSupabase(message.token);
     subscribeToTasks();
     pollForPendingTasks();
-    sendResponse({ status: "Token received and stored." });
+    sendResponse({ status: "Token received." });
     return true;
-  }
-});
-
-function finalizeTask() {
-  if (currentTaskTimeout) {
-    clearTimeout(currentTaskTimeout);
-    currentTaskTimeout = null;
-  }
-  if (chrome.action) {
-    chrome.action.setBadgeText({ text: "" });
-  }
-  isTaskActive = false;
-  currentOpportunityContext = null;
-  chrome.storage.session.remove('currentOpportunityContext');
-  startCooldown();
-  processQueue();
-}
-
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-  if (message.type === 'log') {
-    logger[message.level](...message.args);
-    return;
-  }
-
-  if (message.action === "companySearchResults") {
-    logger.log(`[BACKGROUND] Received 'companySearchResults'.`);
-    if (currentTaskTimeout) clearTimeout(currentTaskTimeout);
-
-    if (!currentOpportunityContext) {
-        const data = await chrome.storage.session.get('currentOpportunityContext');
-        if (data.currentOpportunityContext) {
-            currentOpportunityContext = data.currentOpportunityContext;
-            logger.log("Restored opportunity context from session storage.");
-        } else {
-            logger.error("FATAL: Opportunity context lost and could not be restored. Aborting task.");
-            finalizeTask();
-            return; 
-        }
-    }
-
-    const { taskId, opportunityId, html } = message;
-    
-    if (html) {
-      broadcastStatus('active', `Step 2: Asking AI to analyze company search page...`);
-      try {
-        const payload = { html, opportunityContext: currentOpportunityContext };
-        const { data, error } = await supabase.functions.invoke('find-company-url-from-html', {
-          body: payload,
-        });
-
-        if (error) throw new Error(error.message);
-        
-        const companyUrl = data.url;
-        if (companyUrl) {
-          const companySlugMatch = companyUrl.match(/\/company\/([^/]+)/);
-          if (!companySlugMatch || !companySlugMatch[1]) {
-            throw new Error("Could not parse LinkedIn Company Slug from URL: " + companyUrl);
-          }
-          const companySlug = companySlugMatch[1];
-          logger.log(`Extracted Company Slug: ${companySlug}`);
-
-          const peoplePageUrl = `https://www.linkedin.com/company/${companySlug}/people/`;
-          const searchKeywords = "recruiter OR \"talent acquisition\" OR \"hiring manager\"";
-
-          broadcastStatus('active', `Step 3: Navigating to people page for ${currentOpportunityContext.company_name}...`);
-          logger.log(`Navigating to people page: ${peoplePageUrl}`);
-          
-          const tab = await getLinkedInTab();
-          
-          const tabUpdateListener = async (tabId, changeInfo, tab) => {
-            if (tabId === tab.id && changeInfo.status === 'complete' && tab.url?.includes(`/company/${companySlug}/people`)) {
-              chrome.tabs.onUpdated.removeListener(tabUpdateListener);
-              await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page to be stable
-              await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-              await chrome.tabs.sendMessage(tab.id, { 
-                  action: "searchWithinPeoplePage", 
-                  keywords: searchKeywords,
-                  taskId, 
-                  opportunityId 
-              });
-            }
-          };
-          chrome.tabs.onUpdated.addListener(tabUpdateListener);
-          await chrome.tabs.update(tab.id, { url: peoplePageUrl });
-
-        } else {
-          throw new Error("AI could not find a matching company URL on the page.");
-        }
-      } catch (e) {
-        const errorMessage = `AI company parsing failed: ${e.message}`;
-        logger.error(errorMessage);
-        await updateTaskStatus(taskId, "error", errorMessage);
-        broadcastStatus('error', errorMessage);
-        finalizeTask();
-      }
-    } else {
-      logger.error("Company search failed. No HTML received from content script.");
-      await updateTaskStatus(taskId, "error", "Could not get HTML from LinkedIn page.");
-      finalizeTask();
-    }
-  }
-
-  if (message.action === "peopleSearchResults") {
-    logger.log(`[BACKGROUND] Received 'peopleSearchResults'.`);
-    if (!currentOpportunityContext) {
-        const data = await chrome.storage.session.get('currentOpportunityContext');
-        if (data.currentOpportunityContext) {
-            currentOpportunityContext = data.currentOpportunityContext;
-        } else {
-            logger.error("FATAL: Opportunity context lost during people search. Aborting task.");
-            finalizeTask();
-            return;
-        }
-    }
-
-    const { taskId, opportunityId, html, error: contentError } = message;
-
-    if (contentError) {
-        logger.error(`Content script error: ${contentError}`);
-        await updateTaskStatus(taskId, "error", contentError);
-        finalizeTask();
-        return;
-    }
-    
-    broadcastStatus('active', `AI is analyzing page layout to find contacts...`);
-    
-    try {
-      if (!html) throw new Error("Could not retrieve HTML from the page.");
-
-      const { data: aiData, error: aiError } = await supabase.functions.invoke('parse-linkedin-search-with-ai', {
-        body: { html, opportunityContext: currentOpportunityContext },
-      });
-      
-      if (aiError) throw new Error(aiError.message);
-
-      const aiContacts = aiData.results.map(r => ({
-        name: r.title,
-        job_title: r.subtitle,
-        linkedin_profile_url: r.url,
-      }));
-
-      if (!aiContacts || aiContacts.length === 0) {
-        await updateTaskStatus(taskId, "complete", "No contacts were found after AI page parsing.");
-        broadcastStatus('idle', `Task complete. No contacts found for ${currentOpportunityContext?.company_name}.`);
-      } else {
-        const { data: recommendedData, error: recommendError } = await supabase.functions.invoke('identify-key-contacts', {
-            body: { contacts: aiContacts, opportunityContext: currentOpportunityContext },
-        });
-        if (recommendError) throw new Error(recommendError.message);
-
-        const recommendedContacts = recommendedData.recommended_contacts;
-        if (!recommendedContacts || recommendedContacts.length === 0) {
-            await updateTaskStatus(taskId, "complete", "AI found contacts but none were deemed relevant.");
-            broadcastStatus('idle', `Task complete. No key contacts identified for ${currentOpportunityContext?.company_name}.`);
-        } else {
-            const savedContacts = await saveContacts(taskId, opportunityId, recommendedContacts);
-            if (savedContacts) {
-              await enrichContacts(savedContacts);
-              await updateTaskStatus(taskId, "complete");
-              broadcastStatus('idle', `Successfully saved and enriched ${savedContacts.length} key contacts.`);
-            } else {
-              // saveContacts already handles logging and task status updates on failure
-              broadcastStatus('error', `Failed to save contacts for ${currentOpportunityContext?.company_name}.`);
-            }
-        }
-      }
-    } catch (e) {
-      const errorMessage = `AI page parsing failed: ${e.message}`;
-      logger.error(errorMessage);
-      await updateTaskStatus(taskId, "error", errorMessage);
-      broadcastStatus('error', errorMessage);
-    }
-    
-    finalizeTask();
   }
 });
 
 function enqueueTask(task) {
   if (!taskQueue.some(t => t.id === task.id)) {
-    logger.log(`Enqueuing task for ${task.company_name} (ID: ${task.id})`);
     taskQueue.push(task);
     broadcastStatus('idle', `New task for ${task.company_name} added to queue.`);
     processQueue();
-  } else {
-    logger.log(`Task for ${task.company_name} is already in the queue.`);
   }
 }
 
 function processQueue() {
-  logger.log(`Processing queue. Active: ${isTaskActive}, Cooldown: ${cooldownActive}, Queue size: ${taskQueue.length}`);
   if (isTaskActive || cooldownActive || taskQueue.length === 0) {
-    if (!isTaskActive && !cooldownActive) {
-      broadcastStatus('idle', 'All tasks complete. Waiting for new tasks.');
-    }
+    if (!isTaskActive && !cooldownActive) broadcastStatus('idle', 'All tasks complete. Waiting...');
     return;
   }
   const nextTask = taskQueue.shift();
-  logger.log(`Dequeued task: ${nextTask.id}`);
   handleTask(nextTask);
 }
 
 async function handleTask(task) {
-  logger.log(`Handling task ID: ${task.id} for company: ${task.company_name}`);
   isTaskActive = true;
-  if (chrome.action) {
-    chrome.action.setBadgeText({ text: "RUN" });
+  if (chrome.action) chrome.action.setBadgeText({ text: "RUN" });
+  
+  try {
+    await updateTaskStatus(task.id, "processing");
+    broadcastStatus('active', `Searching for contacts for ${task.company_name}...`);
+
+    const { error } = await supabase.functions.invoke('automated-contact-discovery', {
+      body: { opportunityId: task.opportunity_id, taskId: task.id },
+    });
+
+    if (error) throw new Error(error.message);
+    logger.log(`Successfully invoked contact discovery for task ${task.id}.`);
+
+  } catch (e) {
+    const errorMessage = `Failed to start contact discovery: ${e.message}`;
+    logger.error(errorMessage);
+    await updateTaskStatus(task.id, "error", errorMessage);
+    broadcastStatus('error', errorMessage);
+  } finally {
+    finalizeTask();
   }
-  await updateTaskStatus(task.id, "processing");
-  await startCompanyDiscoveryFlow(task.opportunity_id, { type: 'find_contacts', taskId: task.id });
+}
+
+function finalizeTask() {
+  if (chrome.action) chrome.action.setBadgeText({ text: "" });
+  isTaskActive = false;
+  startCooldown();
+  processQueue();
 }
 
 async function pollForPendingTasks() {
   if (!supabase || !userId) return;
-  logger.log("Polling for any pending tasks...");
   const { data, error } = await supabase.from('contact_enrichment_tasks').select('*').eq('user_id', userId).eq('status', 'pending');
-  if (error) {
-    logger.error("Error polling for tasks:", error);
-  } else if (data && data.length > 0) {
-    logger.log(`Found ${data.length} pending tasks from polling.`);
-    data.forEach(task => enqueueTask(task));
-  } else {
-    logger.log("No pending tasks found during poll.");
-  }
+  if (error) logger.error("Error polling for tasks:", error);
+  else if (data && data.length > 0) data.forEach(task => enqueueTask(task));
 }
 
 async function updateTaskStatus(taskId, status, errorMessage = null) {
@@ -446,52 +163,10 @@ async function updateTaskStatus(taskId, status, errorMessage = null) {
   await supabase.from("contact_enrichment_tasks").update({ status, error_message: errorMessage }).eq("id", taskId);
 }
 
-async function saveContacts(taskId, opportunityId, contacts) {
-  if (!supabase || contacts.length === 0) return null;
-  try {
-    const contactsToInsert = contacts.map((c) => ({ 
-      task_id: taskId, 
-      opportunity_id: opportunityId, 
-      user_id: userId, 
-      name: c.name, 
-      job_title: c.job_title, 
-      linkedin_profile_url: c.linkedin_profile_url 
-    }));
-    const { data, error } = await supabase.from("contacts").insert(contactsToInsert).select();
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    await updateTaskStatus(taskId, "error", `Failed to save contacts: ${err.message}`);
-    return null;
-  }
-}
-
-async function enrichContacts(contacts) {
-  if (!supabase || !contacts || contacts.length === 0) return;
-  logger.log(`Starting automatic email enrichment for ${contacts.length} new contacts.`);
-  
-  const enrichmentPromises = contacts.map(contact => {
-    return supabase.functions.invoke('enrich-contact-with-apollo', {
-      body: { contact_id: contact.id },
-    }).catch(e => ({ error: e, contactId: contact.id })); // Catch errors to not fail the whole batch
-  });
-
-  const results = await Promise.allSettled(enrichmentPromises);
-
-  results.forEach(result => {
-    if (result.status === 'rejected') {
-      logger.error(`Enrichment invocation failed for a contact:`, result.reason);
-    } else if (result.value.error) {
-      logger.error(`Enrichment function returned an error for contact ${result.value.contactId}:`, result.value.error.message);
-    }
-  });
-  logger.log("Finished automatic enrichment process.");
-}
-
 function startCooldown() {
   cooldownActive = true;
-  const cooldownTime = Math.floor(Math.random() * (60000 - 20000 + 1)) + 20000;
-  broadcastStatus('cooldown', `Taking a short break to appear human...`);
+  const cooldownTime = Math.floor(Math.random() * (45000 - 15000 + 1)) + 15000;
+  broadcastStatus('cooldown', `Taking a short break...`);
   setTimeout(() => {
     cooldownActive = false;
     processQueue();

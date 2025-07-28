@@ -9,24 +9,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to extract the unique slug from a full LinkedIn company URL
 function extractLinkedInSlug(url) {
   if (!url || typeof url !== 'string') return null;
   try {
     const parsedUrl = new URL(url);
     if (parsedUrl.hostname.includes('linkedin.com') && parsedUrl.pathname.startsWith('/company/')) {
       const parts = parsedUrl.pathname.split('/');
-      // Expected format: ['', 'company', 'slug', ...]
-      // We remove any trailing slashes or extra path segments.
       return parts[2]?.replace(/\/$/, '') || null;
     }
   } catch (e) {
-    // Ignore invalid URLs
   }
   return null;
 }
 
-// Helper to create a consistent hash for a job object using the Web Crypto API
 async function createJobHash(job) {
   const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
   const data = new TextEncoder().encode(jobString);
@@ -36,7 +31,6 @@ async function createJobHash(job) {
   return hashHex;
 }
 
-// Helper function to call Gemini API
 async function callGemini(prompt, apiKey) {
   const geminiResponse = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -88,10 +82,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Playbook function invoked.");
     const { agentId } = await req.json();
     if (!agentId) throw new Error("Agent ID is required.");
-    console.log(`Starting playbook for agentId: ${agentId}`);
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -102,16 +94,12 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    console.log("Fetching agent details...");
     const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote, country').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
-    console.log(`Agent "${agent.prompt}" fetched.`);
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // --- Step 1: Generate search query ---
-    console.log("Step 1: Generating search query from agent prompt...");
     const searchQueryPrompt = `
       Based on the following recruiter specialty description, extract a search query (the core job title or keywords) and a location (city/state/province). **The search query should NOT contain the location name.**
       Recruiter Specialty: "${agent.prompt}"
@@ -123,10 +111,7 @@ serve(async (req) => {
     const queryExtractionResult = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
-    console.log(`Search query generated: query='${searchQuery}', location='${location}'`);
 
-    // --- Step 2: Scrape Jobs ---
-    console.log("Step 2: Scraping jobs from external API...");
     let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}`;
     if (agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
     if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
@@ -137,29 +122,23 @@ serve(async (req) => {
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
-    console.log(`Scraping complete. Found ${rawJobResults?.length || 0} raw job results.`);
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
       return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // --- Step 3: Enrich data with AI analysis, using caching ---
-    console.log(`Step 3: Enriching ${rawJobResults.length} jobs, checking cache first...`);
     const enrichmentPromises = rawJobResults.map(async (job) => {
       const jobHash = await createJobHash(job);
       const { data: cached, error: cacheError } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
       
       if (cached && !cacheError) {
-        console.log(`Cache hit for job: ${job.title}`);
         const sanitizedData = cached.analysis_data;
         sanitizedData.match_score = sanitizeMatchScore(sanitizedData.match_score || sanitizedData.matchScore);
-        // Pass through the linkedin url from the original job object
         sanitizedData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
         return sanitizedData;
       }
 
-      console.log(`Cache miss for job: ${job.title}. Calling AI...`);
       const singleEnrichmentPrompt = `
         You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's specialty.
         Recruiter's specialty: "${agent.prompt}"
@@ -183,11 +162,8 @@ serve(async (req) => {
     const enrichedOpportunities = settledEnrichments
       .filter(r => r.status === 'fulfilled' && r.value)
       .map(r => r.value);
-    console.log(`Enrichment complete. ${enrichedOpportunities.length} opportunities were successfully analyzed.`);
     if (enrichedOpportunities.length === 0) throw new Error("AI analysis failed to enrich any opportunities.");
 
-    // --- Step 4: Validate and Save Enriched Opportunities ---
-    console.log("Step 4: Validating and saving opportunities to database...");
     const validatedOpportunities = enrichedOpportunities
       .map(opp => {
         const matchScore = opp.match_score;
@@ -217,78 +193,23 @@ serve(async (req) => {
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(validatedOpportunities).select();
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
-    console.log(`${savedOpportunities.length} opportunities saved successfully.`);
 
-    // --- Step 4.5: Automatically queue contact discovery ---
-    console.log("Step 4.5: Automatically queueing contact discovery tasks...");
-    const uniqueCompanyNames = [...new Set(savedOpportunities.map(opp => opp.company_name))];
-    
-    // Find which companies already have a task
-    const { data: existingTasks, error: existingTaskError } = await supabaseAdmin
-      .from('contact_enrichment_tasks')
-      .select('company_name')
-      .in('company_name', uniqueCompanyNames);
-    if (existingTaskError) console.error("Could not check for existing contact tasks, may create duplicates.", existingTaskError.message);
-    
-    const existingCompanyNames = new Set(existingTasks?.map(t => t.company_name) || []);
-    
-    const tasksToInsert = savedOpportunities
-      .filter(opp => !existingCompanyNames.has(opp.company_name))
-      .map(opp => ({
-        user_id: user.id,
-        opportunity_id: opp.id,
-        company_name: opp.company_name,
-        status: 'pending'
-      }));
+    const tasksToInsert = savedOpportunities.map(opp => ({
+      user_id: user.id,
+      opportunity_id: opp.id,
+      company_name: opp.company_name,
+      status: 'pending'
+    }));
 
     if (tasksToInsert.length > 0) {
       const { error: insertTaskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
       if (insertTaskError) {
         console.error("Failed to insert contact discovery tasks:", insertTaskError.message);
-      } else {
-        console.log(`Successfully queued ${tasksToInsert.length} new contact discovery tasks.`);
       }
-    } else {
-      console.log("No new contact discovery tasks to queue (tasks for these companies may already exist).");
     }
 
-    // --- Step 5: Conditional Outreach Generation ---
-    let outreachMessage = '';
-    if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
-        console.log(`Step 5: Generating outreach for ${savedOpportunities.length} opportunities (autonomy: ${agent.autonomy_level})...`);
-        const { data: profile } = await supabaseAdmin.from('profiles').select('first_name, calendly_url').eq('id', user.id).single();
-        const campaignPromises = savedOpportunities.map(async (opp) => {
-            try {
-                const outreachPrompt = `
-                  You are an expert copywriter for a recruiter. Write a concise, personalized cold email.
-                  Recruiter's name: ${profile?.first_name || 'your partner at Coogi'}.
-                  Recruiter's specialties: "${agent.prompt}".
-                  Opportunity: Company: ${opp.company_name}, Role: ${opp.role}, Key Signal: "${opp.key_signal_for_outreach}".
-                  Calendly: ${profile?.calendly_url || '(not provided)'}.
-                  Return a JSON object with keys: "subject", "body", "contact_name" (plausible job title), and "contact_email" (best-guess email).
-                  **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
-                `;
-                const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);
-                return {
-                    user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, role: opp.role,
-                    subject: outreachResult.subject, body: outreachResult.body, status: agent.autonomy_level === 'automatic' ? 'sent' : 'draft',
-                    contact_name: outreachResult.contact_name, contact_email: outreachResult.contact_email,
-                };
-            } catch (e) { return null; }
-        });
-        const campaignsToInsert = (await Promise.all(campaignPromises)).filter(c => c !== null);
-        if (campaignsToInsert.length > 0) {
-            await supabaseAdmin.from('campaigns').insert(campaignsToInsert);
-        }
-        outreachMessage = agent.autonomy_level === 'automatic' ? `and automatically sent ${campaignsToInsert.length} emails.` : `and created ${campaignsToInsert.length} drafts.`;
-        console.log(`Outreach generation complete. ${campaignsToInsert.length} campaigns created.`);
-    }
-
-    // --- Step 6: Finalize ---
-    console.log("Step 6: Finalizing run, updating agent's last_run_at timestamp.");
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-    const message = `Agent run complete. Found and saved ${savedOpportunities.length} new opportunities ${outreachMessage}`;
-    console.log("Playbook finished successfully.");
+    const message = `Agent run complete. Found ${savedOpportunities.length} new opportunities and queued them for contact discovery.`;
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {

@@ -9,8 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- UTILITY FUNCTIONS ---
-
 function extractLinkedInSlug(url) {
   if (!url || typeof url !== 'string') return null;
   try {
@@ -70,8 +68,6 @@ function sanitizeMatchScore(score) {
   return Math.max(0, Math.min(10, Math.round(numScore)));
 }
 
-// --- MAIN FUNCTION ---
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -93,7 +89,6 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-    // Step 1: Parse natural language query into structured parameters
     const searchQueryPrompt = `
       Analyze the user's search query to extract structured search parameters.
       User Query: "${query}"
@@ -106,7 +101,6 @@ serve(async (req) => {
     const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     if (!search_query || !location || !sites || !recruiter_specialty) throw new Error("AI failed to extract search parameters from your query.");
 
-    // Step 2: Scrape jobs using the extracted parameters
     const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=20`;
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
@@ -117,7 +111,6 @@ serve(async (req) => {
       return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Step 3: Enrich job data with AI analysis, using caching
     const enrichmentPromises = rawJobResults.map(async (job) => {
       const jobHash = await createJobHash(job);
       const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
@@ -152,8 +145,40 @@ serve(async (req) => {
       .filter(r => r.status === 'fulfilled' && r.value)
       .map(r => r.value);
 
-    // Step 4: Return the enriched opportunities to the client
-    return new Response(JSON.stringify({ opportunities: enrichedOpportunities }), {
+    const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
+        user_id: user.id,
+        company_name: opp.companyName || opp.company_name,
+        role: opp.role,
+        location: opp.location || 'N/A',
+        company_overview: opp.company_overview || 'N/A',
+        match_score: opp.match_score,
+        contract_value_assessment: opp.contract_value_assessment || 'N/A',
+        hiring_urgency: opp.hiring_urgency || 'N/A',
+        pain_points: opp.pain_points || 'N/A',
+        recruiter_angle: opp.recruiter_angle || 'N/A',
+        key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
+        linkedin_url_slug: opp.linkedin_url_slug || null,
+    }));
+
+    if (opportunitiesToInsert.length === 0) {
+        return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
+    if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+
+    const tasksToInsert = savedOpportunities.map(opp => ({
+        user_id: user.id,
+        opportunity_id: opp.id,
+        company_name: opp.company_name,
+        status: 'pending'
+    }));
+
+    if (tasksToInsert.length > 0) {
+        await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
+    }
+
+    return new Response(JSON.stringify({ opportunities: savedOpportunities }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

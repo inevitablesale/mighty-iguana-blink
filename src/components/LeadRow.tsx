@@ -2,18 +2,15 @@ import { TableRow, TableCell } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
-import { Sparkles, Briefcase, Users, MessageSquare, Loader2, XCircle, SearchCheck, ScanLine } from "lucide-react";
+import { Sparkles, MessageSquare, Loader2, XCircle, SearchCheck } from "lucide-react";
 import { LeadAnalysisDialog } from "./LeadAnalysisDialog";
-import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 import { ViewContactsDialog } from "./ViewContactsDialog";
-import { DeepScrapeDialog } from "./DeepScrapeDialog";
 
 interface LeadRowProps {
   opportunity: Opportunity;
   allCompanyOpportunities: Opportunity[];
   companyContacts: Contact[];
   task?: ContactEnrichmentTask;
-  onFindContacts: (opportunity: Opportunity) => void;
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
@@ -24,7 +21,6 @@ export function LeadRow({
   allCompanyOpportunities,
   companyContacts,
   task,
-  onFindContacts,
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
@@ -51,19 +47,19 @@ export function LeadRow({
     if (task) {
       switch (task.status) {
         case 'pending':
+          return <Button size="sm" disabled variant="outline"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Queued</Button>;
         case 'processing':
-          return <Button size="sm" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Searching...</Button>;
+          return <Button size="sm" disabled variant="outline"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Searching...</Button>;
         case 'complete':
           return <Button size="sm" disabled variant="outline"><SearchCheck className="mr-2 h-4 w-4" />No Contacts Found</Button>;
         case 'error':
-        case 'error_no_linkedin_url':
-          return <Button size="sm" variant="destructive" onClick={() => onFindContacts(opportunity)}><XCircle className="mr-2 h-4 w-4" />Retry Search</Button>;
+          return <Button size="sm" variant="destructive" disabled title={task.error_message || 'An unknown error occurred'}><XCircle className="mr-2 h-4 w-4" />Error</Button>;
         default:
-          return <Button size="sm" onClick={() => onFindContacts(opportunity)}><Users className="mr-2 h-4 w-4" /> Find Contacts</Button>;
+          return null;
       }
     }
 
-    return <Button size="sm" onClick={() => onFindContacts(opportunity)}><Users className="mr-2 h-4 w-4" /> Find Contacts</Button>;
+    return <Button size="sm" disabled variant="outline"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Queued</Button>;
   };
 
   return (
@@ -84,12 +80,6 @@ export function LeadRow({
           <LeadAnalysisDialog opportunity={opportunity}>
             <Button variant="ghost" size="icon"><Sparkles className="h-4 w-4" /></Button>
           </LeadAnalysisDialog>
-          <CompanyBriefingDialog companyName={opportunity.company_name}>
-            <Button variant="ghost" size="icon"><Briefcase className="h-4 w-4" /></Button>
-          </CompanyBriefingDialog>
-          <DeepScrapeDialog companyName={opportunity.company_name}>
-            <Button variant="ghost" size="icon"><ScanLine className="h-4 w-4" /></Button>
-          </DeepScrapeDialog>
           {renderContactButton()}
         </div>
       </TableCell>

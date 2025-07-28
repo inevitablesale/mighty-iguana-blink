@@ -7,7 +7,6 @@ interface LeadsTableProps {
   opportunitiesByCompany: Map<string, Opportunity[]>;
   contactsByCompany: Map<string, Contact[]>;
   tasksByCompany: Map<string, ContactEnrichmentTask>;
-  onFindContacts: (opportunity: Opportunity) => void;
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
@@ -18,7 +17,6 @@ export function LeadsTable({
   opportunitiesByCompany,
   contactsByCompany,
   tasksByCompany,
-  onFindContacts,
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
@@ -41,7 +39,6 @@ export function LeadsTable({
             allCompanyOpportunities={opportunitiesByCompany.get(opportunity.company_name) || []}
             companyContacts={contactsByCompany.get(opportunity.company_name) || []}
             task={tasksByCompany.get(opportunity.company_name)}
-            onFindContacts={onFindContacts}
             onGenerateCampaign={onGenerateCampaign}
             isGeneratingCampaign={isGeneratingCampaign}
             generatingContactId={generatingContactId}

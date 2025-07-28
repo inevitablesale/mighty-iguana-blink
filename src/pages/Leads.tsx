@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
 import { useNavigate } from "react-router-dom";
-import { useExtension } from "@/context/ExtensionContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,12 +15,11 @@ const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [contactsByCompany, setContactsByCompany] = useState<Map<string, Contact[]>>(new Map());
   const [tasksByCompany, setTasksByCompany] = useState<Map<string, ContactEnrichmentTask>>(new Map());
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
-  const { isExtensionInstalled } = useExtension();
 
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
@@ -32,7 +30,7 @@ const Leads = () => {
     }
 
     const [oppsRes, contactsRes, tasksRes] = await Promise.all([
-      supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
       supabase.from('contacts').select('*').eq('user_id', user.id),
       supabase.from('contact_enrichment_tasks').select('*').eq('user_id', user.id)
     ]);
@@ -41,14 +39,11 @@ const Leads = () => {
       toast.error("Failed to load initial data.");
     } else {
       setOpportunities(oppsRes.data || []);
-      // The rest of the data processing logic remains the same
-      const allOpportunities = oppsRes.data as Opportunity[];
+      
       const allContacts = contactsRes.data as Contact[];
-      const oppIdToCompanyName = new Map<string, string>();
-      allOpportunities.forEach(opp => oppIdToCompanyName.set(opp.id, opp.company_name));
       const groupedByCompany = new Map<string, Contact[]>();
       allContacts.forEach(contact => {
-        const companyName = oppIdToCompanyName.get(contact.opportunity_id);
+        const companyName = opportunities.find(o => o.id === contact.opportunity_id)?.company_name;
         if (companyName) {
           const companyContacts = groupedByCompany.get(companyName) || [];
           if (!companyContacts.some(c => c.id === contact.id)) companyContacts.push(contact);
@@ -56,6 +51,7 @@ const Leads = () => {
         }
       });
       setContactsByCompany(groupedByCompany);
+
       const allTasks = tasksRes.data as ContactEnrichmentTask[];
       const groupedTasks = new Map<string, ContactEnrichmentTask>();
       allTasks.forEach(task => {
@@ -67,11 +63,22 @@ const Leads = () => {
       setTasksByCompany(groupedTasks);
     }
     setLoading(false);
-  }, []);
+  }, [opportunities]);
 
   useEffect(() => {
     fetchInitialData();
-  }, [fetchInitialData]);
+    
+    const changes = supabase.channel('leads-page-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        console.log('Change received!', payload)
+        fetchInitialData();
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(changes);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +91,8 @@ const Leads = () => {
       });
       if (error) throw error;
       setOpportunities(data.opportunities || []);
-      toast.success(`Found ${data.opportunities?.length || 0} new opportunities.`, { id: toastId });
+      toast.success(`Found ${data.opportunities?.length || 0} new opportunities. Contact discovery is running.`, { id: toastId });
+      fetchInitialData();
     } catch (err) {
       toast.error((err as Error).message, { id: toastId });
     } finally {
@@ -93,11 +101,22 @@ const Leads = () => {
   };
 
   const handleGenerateCampaignForContact = async (contact: Contact) => {
-    // This function remains the same
-  };
-
-  const handleFindContacts = async (opportunity: Opportunity) => {
-    // This function remains the same
+    setGeneratingCampaignForContactId(contact.id);
+    const toastId = toast.loading("Generating personalized outreach...");
+    try {
+      const { error } = await supabase.functions.invoke('generate-outreach-for-opportunity', {
+        body: { opportunityId: contact.opportunity_id, contact },
+      });
+      if (error) throw error;
+      toast.success("Outreach draft created!", {
+        id: toastId,
+        action: { label: "View Campaigns", onClick: () => navigate('/campaigns') },
+      });
+    } catch (err) {
+      toast.error((err as Error).message, { id: toastId });
+    } finally {
+      setGeneratingCampaignForContactId(null);
+    }
   };
 
   const opportunitiesByCompany = useMemo(() => {
@@ -133,7 +152,7 @@ const Leads = () => {
             </form>
           </CardHeader>
           <CardContent>
-            {loading || isSearching ? (
+            {loading ? (
               <div className="space-y-2">
                 {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
@@ -143,7 +162,6 @@ const Leads = () => {
                 opportunitiesByCompany={opportunitiesByCompany}
                 contactsByCompany={contactsByCompany}
                 tasksByCompany={tasksByCompany}
-                onFindContacts={handleFindContacts}
                 onGenerateCampaign={handleGenerateCampaignForContact}
                 isGeneratingCampaign={!!generatingCampaignForContactId}
                 generatingContactId={generatingCampaignForContactId}
@@ -154,7 +172,7 @@ const Leads = () => {
                   <Target className="h-10 w-10 text-muted-foreground" />
                   <h3 className="text-2xl font-bold tracking-tight">No Leads Found</h3>
                   <p className="text-sm text-muted-foreground">
-                    Try a new search to discover opportunities.
+                    Run a playbook or try a new search to discover opportunities.
                   </p>
                 </div>
               </div>
