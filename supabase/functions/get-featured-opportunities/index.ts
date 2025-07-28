@@ -65,29 +65,8 @@ serve(async (req) => {
         opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
         sourceIsProactive = true;
     } else {
-        // FALLBACK LOGIC: Use the specified high-yield URL and add hours_old=24
-        const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=remote&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100&hours_old=24";
-        
-        console.log(`[get-featured-opportunities] No proactive opportunities found. Performing live fallback search: ${scrapingUrl}`);
-        const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
-        if (!scrapingResponse.ok) {
-            console.error(`Fallback job scraping failed: ${await scrapingResponse.text()}`);
-            return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
-        }
-        
-        const scrapingData = await scrapingResponse.json();
-        const rawJobResults = scrapingData?.jobs;
-        console.log(`[get-featured-opportunities] Fallback search returned ${rawJobResults?.length || 0} raw results.`);
-
-        if (rawJobResults && rawJobResults.length > 0) {
-            const sortedJobs = rawJobResults
-                .filter(job => job.max_amount && job.max_amount > 0)
-                .sort((a, b) => b.max_amount - a.max_amount)
-                .slice(0, 4);
-            
-            console.log(`[get-featured-opportunities] Filtered to ${sortedJobs.length} top-paying fallback jobs.`);
-            opportunitiesToEnrich = sortedJobs.map(job => ({ job, score: null }));
-        }
+        console.log("[get-featured-opportunities] No pre-scored opportunities found. Returning empty array.");
+        return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
 
     if (opportunitiesToEnrich.length === 0) {
@@ -114,7 +93,7 @@ serve(async (req) => {
         - "pain_points": A brief summary of likely pain points.
         - "recruiter_angle": A brief summary of the recruiter angle.
         - "key_signal_for_outreach": A brief summary of the key signal.
-        - "seniority_level": 'Executive', 'Senior', 'Mid-level', or 'Entry-level'.
+        - "seniority_level": 'Executive', 'Senior', 'Mid-level', 'Entry-level'.
       `;
       
       const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
