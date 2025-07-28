@@ -81,7 +81,12 @@ export default function DealStream() {
         user_id: user.id,
         type: 'agent_run_summary',
         role: 'system',
-        content: { agentName: 'Coogi Assistant', summary: data.text },
+        content: { 
+          agentName: 'Coogi Assistant', 
+          summary: data.text,
+          opportunities: data.opportunities,
+          searchParams: data.searchParams,
+        },
         created_at: new Date().toISOString(),
       };
       setFeedItems(prev => [...prev, systemResponse]);
@@ -89,10 +94,7 @@ export default function DealStream() {
 
       if (data.opportunities && data.opportunities.length > 0) {
         toast.success(`Found ${data.opportunities.length} new deals!`, {
-          action: {
-            label: "View Deals",
-            onClick: () => navigate('/opportunities', { state: { opportunities: data.opportunities, searchParams: data.searchParams } }),
-          },
+          description: "They are now in your feed below."
         });
       } else {
         toast.info("No new deals found.", { description: "Try broadening your search." });

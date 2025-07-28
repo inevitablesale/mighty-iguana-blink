@@ -130,6 +130,8 @@ export interface FeedItem {
     agentName?: string;
     summary?: string;
     query?: string;
+    opportunities?: Opportunity[];
+    searchParams?: SearchParams;
   };
   created_at: string;
 }
