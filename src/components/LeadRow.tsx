@@ -59,7 +59,7 @@ export function LeadRow({
       }
     }
 
-    return <Button size="sm" disabled variant="outline"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Queued</Button>;
+    return null;
   };
 
   return (
