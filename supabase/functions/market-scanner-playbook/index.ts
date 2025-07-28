@@ -9,14 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Define broad search queries for the market scanner
-const BROAD_SEARCHES = [
-    { query: "software engineer", location: "USA", sites: "linkedin,google,indeed" },
-    { query: "sales director", location: "USA", sites: "linkedin,google,indeed" },
-    { query: "product manager", location: "Remote", sites: "linkedin,google,indeed" },
-    { query: "data scientist", location: "Europe", sites: "linkedin,google,indeed" },
-];
-
 serve(async (req) => {
   // This function is designed to be triggered by a schedule, not a direct request.
   if (req.method === 'OPTIONS') {
@@ -29,47 +21,37 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let totalJobsFound = 0;
+    const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=usa&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100&hours_old=24";
+    
+    console.log(`[market-scanner-playbook] Calling JobSpy with URL: ${scrapingUrl}`);
+    const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(60000) });
+    if (!scrapingResponse.ok) {
+      throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
+    }
+    
+    const scrapingData = await scrapingResponse.json();
+    const rawJobResults = scrapingData?.jobs;
 
-    for (const search of BROAD_SEARCHES) {
-      try {
-        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search.query)}&location=${encodeURIComponent(search.location)}&sites=${search.sites}&results=50`;
-        
-        const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(60000) });
-        if (!scrapingResponse.ok) {
-          console.error(`Job scraping API failed for query "${search.query}": ${await scrapingResponse.text()}`);
-          continue;
-        }
-        
-        const scrapingData = await scrapingResponse.json();
-        const rawJobResults = scrapingData?.jobs;
-
-        if (!rawJobResults || rawJobResults.length === 0) {
-          continue;
-        }
-
-        const opportunitiesToInsert = rawJobResults.map(job => ({
-          source_query: `${search.query} in ${search.location}`,
-          job_data: job,
-          status: 'new'
-        }));
-
-        const { error: insertError } = await supabaseAdmin
-          .from('proactive_opportunities')
-          .insert(opportunitiesToInsert);
-
-        if (insertError) {
-          console.error(`Failed to insert proactive opportunities for query "${search.query}":`, insertError.message);
-        } else {
-          totalJobsFound += opportunitiesToInsert.length;
-        }
-      } catch (e) {
-        console.error(`Error processing search query "${search.query}":`, e.message);
-        continue;
-      }
+    if (!rawJobResults || rawJobResults.length === 0) {
+      return new Response(JSON.stringify({ message: "Market scanner ran but found no new jobs." }), { status: 200, headers: corsHeaders });
     }
 
-    const message = `Market Scanner Playbook finished. Found and stored ${totalJobsFound} new potential opportunities for review.`;
+    const opportunitiesToInsert = rawJobResults.map(job => ({
+      source_query: "High-yield market scan",
+      job_data: job,
+      status: 'new'
+    }));
+
+    const { error: insertError } = await supabaseAdmin
+      .from('proactive_opportunities')
+      .insert(opportunitiesToInsert);
+
+    if (insertError) {
+      console.error(`Failed to insert proactive opportunities:`, insertError.message);
+      throw new Error(`Failed to insert proactive opportunities: ${insertError.message}`);
+    }
+
+    const message = `Market Scanner Playbook finished. Found and stored ${opportunitiesToInsert.length} new potential opportunities for review.`;
     console.log(message);
 
     return new Response(JSON.stringify({ message }), {
