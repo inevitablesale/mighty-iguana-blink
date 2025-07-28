@@ -17,7 +17,7 @@ import { Loader2, Save } from 'lucide-react';
 import { SearchParams } from '@/types';
 
 interface SaveAgentDialogProps {
-  searchParams: SearchParams;
+  searchParams: SearchParams | null;
   children: React.ReactNode;
 }
 
@@ -29,6 +29,10 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
   const handleSave = async () => {
     if (!agentName.trim()) {
       toast.error("Please provide a name for your agent.");
+      return;
+    }
+    if (!searchParams) {
+      toast.error("Cannot save agent until the prompt has been generated.");
       return;
     }
     setIsSaving(true);
@@ -78,14 +82,21 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
           </div>
           <div className="space-y-2">
             <Label>Search Criteria (Prompt)</Label>
-            <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md border">
-              {searchParams.recruiter_specialty}
-            </p>
+            <div className="text-sm text-muted-foreground p-3 bg-muted rounded-md border min-h-[60px] flex items-center">
+              {searchParams ? (
+                <p className="text-foreground">{searchParams.recruiter_specialty}</p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Generating prompt based on market intel...</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving || !searchParams}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save Agent
           </Button>
