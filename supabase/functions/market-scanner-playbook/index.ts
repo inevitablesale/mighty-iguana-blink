@@ -9,6 +9,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to create a unique fingerprint for a job
+async function createJobHash(job) {
+  const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
+  const data = new TextEncoder().encode(jobString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 serve(async (req) => {
   // This function is designed to be triggered by a schedule, not a direct request.
   if (req.method === 'OPTIONS') {
@@ -21,7 +30,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=usa&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100&hours_old=24";
+    // UPDATED: Changed hours_old from 24 to 1 to fetch only recent jobs.
+    const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=usa&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100&hours_old=1";
     
     console.log(`[market-scanner-playbook] Calling JobSpy with URL: ${scrapingUrl}`);
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(60000) });
@@ -33,25 +43,31 @@ serve(async (req) => {
     const rawJobResults = scrapingData?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
-      return new Response(JSON.stringify({ message: "Market scanner ran but found no new jobs." }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ message: "Market scanner ran but found no new jobs in the last hour." }), { status: 200, headers: corsHeaders });
     }
 
-    const opportunitiesToInsert = rawJobResults.map(job => ({
-      source_query: "High-yield market scan",
-      job_data: job,
-      status: 'new'
+    // UPDATED: Calculate hash for each job before inserting.
+    const opportunitiesToInsert = await Promise.all(rawJobResults.map(async (job) => {
+      const hash = await createJobHash(job);
+      return {
+        source_query: "High-yield market scan",
+        job_data: job,
+        status: 'new',
+        job_hash: hash,
+      };
     }));
 
+    // UPDATED: Use 'upsert' with 'ignore' to silently skip duplicates based on the unique job_hash.
     const { error: insertError } = await supabaseAdmin
       .from('proactive_opportunities')
-      .insert(opportunitiesToInsert);
+      .upsert(opportunitiesToInsert, { onConflict: 'job_hash', ignoreDuplicates: true });
 
     if (insertError) {
       console.error(`Failed to insert proactive opportunities:`, insertError.message);
       throw new Error(`Failed to insert proactive opportunities: ${insertError.message}`);
     }
 
-    const message = `Market Scanner Playbook finished. Found and stored ${opportunitiesToInsert.length} new potential opportunities for review.`;
+    const message = `Market Scanner Playbook finished. Processed ${opportunitiesToInsert.length} potential opportunities from the last hour.`;
     console.log(message);
 
     return new Response(JSON.stringify({ message }), {
