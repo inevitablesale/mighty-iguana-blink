@@ -219,6 +219,39 @@ serve(async (req) => {
     if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
     console.log(`${savedOpportunities.length} opportunities saved successfully.`);
 
+    // --- Step 4.5: Automatically queue contact discovery ---
+    console.log("Step 4.5: Automatically queueing contact discovery tasks...");
+    const uniqueCompanyNames = [...new Set(savedOpportunities.map(opp => opp.company_name))];
+    
+    // Find which companies already have a task
+    const { data: existingTasks, error: existingTaskError } = await supabaseAdmin
+      .from('contact_enrichment_tasks')
+      .select('company_name')
+      .in('company_name', uniqueCompanyNames);
+    if (existingTaskError) console.error("Could not check for existing contact tasks, may create duplicates.", existingTaskError.message);
+    
+    const existingCompanyNames = new Set(existingTasks?.map(t => t.company_name) || []);
+    
+    const tasksToInsert = savedOpportunities
+      .filter(opp => !existingCompanyNames.has(opp.company_name))
+      .map(opp => ({
+        user_id: user.id,
+        opportunity_id: opp.id,
+        company_name: opp.company_name,
+        status: 'pending'
+      }));
+
+    if (tasksToInsert.length > 0) {
+      const { error: insertTaskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
+      if (insertTaskError) {
+        console.error("Failed to insert contact discovery tasks:", insertTaskError.message);
+      } else {
+        console.log(`Successfully queued ${tasksToInsert.length} new contact discovery tasks.`);
+      }
+    } else {
+      console.log("No new contact discovery tasks to queue (tasks for these companies may already exist).");
+    }
+
     // --- Step 5: Conditional Outreach Generation ---
     let outreachMessage = '';
     if (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic') {
