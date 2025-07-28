@@ -114,14 +114,15 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   type: MessageType;
-  timestamp: string;
-  text?: string;
-  opportunities?: Opportunity[];
-  isLoading?: boolean;
-  searchParams?: SearchParams;
-  // For agent runs
-  agentName?: string;
-  summary?: string;
+  created_at: string;
+  content: {
+    text?: string;
+    opportunities?: Opportunity[];
+    searchParams?: SearchParams;
+    agentName?: string;
+    summary?: string;
+  };
+  isLoading?: boolean; // Client-side only
 }
 
 

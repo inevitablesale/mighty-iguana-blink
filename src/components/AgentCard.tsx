@@ -38,6 +38,21 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
         id: toastId,
         description: data.message,
       });
+
+      // Post to feed
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('feed_items').insert({
+          user_id: user.id,
+          type: 'agent_run_summary',
+          role: 'system',
+          content: {
+            agentName: agent.name,
+            summary: data.message,
+          }
+        });
+      }
+
     } catch (err) {
       toast.error(`Agent "${agent.name}" failed.`, {
         id: toastId,

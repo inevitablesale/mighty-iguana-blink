@@ -11,7 +11,8 @@ import { Link } from "react-router-dom";
 
 // Component for the standard chat bubble
 const ChatBubble = ({ message }: { message: ChatMessageType }) => {
-  const { role, text, opportunities, isLoading, searchParams } = message;
+  const { role, content, isLoading } = message;
+  const { text, opportunities, searchParams } = content;
   const isAssistant = role === "assistant";
   const opportunitiesToShow = opportunities?.slice(0, 4) || [];
   const totalOpportunities = opportunities?.length || 0;
@@ -79,7 +80,7 @@ const ChatBubble = ({ message }: { message: ChatMessageType }) => {
 
 // Component for agent run summaries
 const AgentRunCard = ({ message }: { message: ChatMessageType }) => {
-  const { agentName, summary } = message;
+  const { agentName, summary } = message.content;
   return (
     <div className="flex items-start gap-3">
       <Avatar className="h-8 w-8 flex-shrink-0">
