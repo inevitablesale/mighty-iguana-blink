@@ -9,7 +9,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
-import DealStream from "./pages/DealStream";
+import ContractFinder from "./pages/ContractFinder";
 import Agents from "./pages/Agents";
 import Pipeline from "./pages/Pipeline";
 import Opportunities from "./pages/Opportunities";
@@ -56,7 +56,7 @@ const App = () => {
                 path="/" 
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
-                <Route index element={<DealStream />} />
+                <Route index element={<ContractFinder />} />
                 <Route path="market" element={<Market />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="pipeline" element={<Pipeline />} />

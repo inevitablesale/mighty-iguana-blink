@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2, Bot } from 'lucide-react';
 import { FeedItemCard } from '@/components/FeedItemCard';
 
-export default function DealStream() {
+export default function ContractFinder() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
@@ -136,7 +136,7 @@ export default function DealStream() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-24">
               <Bot className="h-12 w-12 mb-4 text-primary" />
-              <h3 className="text-xl font-semibold text-foreground">Welcome to your Deal Stream</h3>
+              <h3 className="text-xl font-semibold text-foreground">Welcome to your Contract Finder</h3>
               <p className="mt-2 max-w-md">
                 This is your command center. Tell me what kind of deals you're looking for, and I'll get to work. For example, try: "Find me senior sales roles at B2B SaaS companies in New York."
               </p>

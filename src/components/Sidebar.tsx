@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings, Bot, Briefcase, Flame, LayoutGrid } from "lucide-react";
+import { LogOut, Settings, Bot, Briefcase, Flame, MessageSquare } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -52,8 +52,8 @@ export function Sidebar() {
       <div className="flex-1 space-y-6 overflow-y-auto">
         <nav className="space-y-1">
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
-            <LayoutGrid className="mr-3 h-5 w-5" />
-            Deal Stream
+            <MessageSquare className="mr-3 h-5 w-5" />
+            Contract Finder
           </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/pipeline')}>
             <Briefcase className="mr-3 h-5 w-5" />
