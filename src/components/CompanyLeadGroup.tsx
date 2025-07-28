@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Opportunity, Contact } from "@/types/index";
+import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
 import { OpportunityRow } from "./OpportunityRow";
 import { Separator } from "./ui/separator";
 import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 import { Button } from "./ui/button";
-import { Briefcase, ChevronDown, ChevronUp, Users, MessageSquare } from "lucide-react";
+import { Briefcase, ChevronDown, ChevronUp, Users, MessageSquare, Loader2, XCircle, SearchCheck } from "lucide-react";
 import { ViewContactsDialog } from "./ViewContactsDialog";
 
 interface CompanyLeadGroupProps {
   companyName: string;
   opportunities: Opportunity[];
   companyContacts: Contact[];
+  task?: ContactEnrichmentTask;
   onFindContacts: (opportunity: Opportunity) => void;
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
@@ -24,6 +25,7 @@ export function CompanyLeadGroup({
   companyName,
   opportunities,
   companyContacts,
+  task,
   onFindContacts,
   onGenerateCampaign,
   isGeneratingCampaign,
@@ -39,6 +41,68 @@ export function CompanyLeadGroup({
     ? opportunities.slice(0, ROLE_LIMIT)
     : opportunities;
 
+  const renderContactButton = () => {
+    if (companyContacts.length > 0) {
+      return (
+        <ViewContactsDialog
+          companyName={companyName}
+          opportunities={opportunities}
+          contacts={companyContacts}
+          onGenerateCampaign={onGenerateCampaign}
+          isGenerating={isGeneratingCampaign}
+          generatingContactId={generatingContactId}
+          onEnrichContact={onEnrichContact}
+          enrichingContactId={enrichingContactId}
+        >
+          <Button className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+            <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})
+          </Button>
+        </ViewContactsDialog>
+      );
+    }
+
+    if (task) {
+      switch (task.status) {
+        case 'pending':
+        case 'processing':
+          return (
+            <Button disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Searching...
+            </Button>
+          );
+        case 'complete':
+          return (
+            <Button disabled variant="outline">
+              <SearchCheck className="mr-2 h-4 w-4" />
+              No Contacts Found
+            </Button>
+          );
+        case 'error':
+        case 'error_no_linkedin_url':
+          return (
+            <Button variant="destructive" onClick={() => onFindContacts(opportunities[0])}>
+              <XCircle className="mr-2 h-4 w-4" />
+              Search Failed - Retry
+            </Button>
+          );
+        default:
+          return (
+            <Button onClick={() => onFindContacts(opportunities[0])} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+              <Users className="mr-2 h-4 w-4" /> Find Contacts
+            </Button>
+          );
+      }
+    }
+
+    // Default case: no contacts and no task (for legacy leads or if task creation failed)
+    return (
+      <Button onClick={() => onFindContacts(opportunities[0])} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
+        <Users className="mr-2 h-4 w-4" /> Find Contacts
+      </Button>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -53,27 +117,7 @@ export function CompanyLeadGroup({
               Company Briefing
             </Button>
           </CompanyBriefingDialog>
-          
-          {companyContacts.length > 0 ? (
-            <ViewContactsDialog
-              companyName={companyName}
-              opportunities={opportunities}
-              contacts={companyContacts}
-              onGenerateCampaign={onGenerateCampaign}
-              isGenerating={isGeneratingCampaign}
-              generatingContactId={generatingContactId}
-              onEnrichContact={onEnrichContact}
-              enrichingContactId={enrichingContactId}
-            >
-              <Button className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-                <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})
-              </Button>
-            </ViewContactsDialog>
-          ) : (
-            <Button onClick={() => onFindContacts(opportunities[0])} className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
-              <Users className="mr-2 h-4 w-4" /> Find Contacts
-            </Button>
-          )}
+          {renderContactButton()}
         </div>
       </CardHeader>
       <CardContent className="p-0">

@@ -4,7 +4,7 @@ import { Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Opportunity, Contact } from "@/types/index";
+import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
 import { useNavigate } from "react-router-dom";
 import { useExtension } from "@/context/ExtensionContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { CompanyLeadGroup } from "@/components/CompanyLeadGroup";
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [contactsByCompany, setContactsByCompany] = useState<Map<string, Contact[]>>(new Map());
+  const [tasksByCompany, setTasksByCompany] = useState<Map<string, ContactEnrichmentTask>>(new Map());
   const [loading, setLoading] = useState(true);
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [enrichingContactId, setEnrichingContactId] = useState<string | null>(null);
@@ -29,12 +30,13 @@ const Leads = () => {
       return;
     }
 
-    const [oppsRes, contactsRes] = await Promise.all([
+    const [oppsRes, contactsRes, tasksRes] = await Promise.all([
       supabase.from('opportunities').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('contacts').select('*').eq('user_id', user.id)
+      supabase.from('contacts').select('*').eq('user_id', user.id),
+      supabase.from('contact_enrichment_tasks').select('*').eq('user_id', user.id)
     ]);
 
-    if (oppsRes.error || contactsRes.error) {
+    if (oppsRes.error || contactsRes.error || tasksRes.error) {
       toast.error("Failed to load data.");
     } else {
       const allOpportunities = oppsRes.data as Opportunity[];
@@ -58,6 +60,16 @@ const Leads = () => {
         }
       });
       setContactsByCompany(groupedByCompany);
+
+      const allTasks = tasksRes.data as ContactEnrichmentTask[];
+      const groupedTasks = new Map<string, ContactEnrichmentTask>();
+      allTasks.forEach(task => {
+        const existingTask = groupedTasks.get(task.company_name);
+        if (!existingTask || new Date(task.created_at) > new Date(existingTask.created_at)) {
+          groupedTasks.set(task.company_name, task);
+        }
+      });
+      setTasksByCompany(groupedTasks);
     }
     
     setLoading(false);
@@ -74,20 +86,19 @@ const Leads = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const handleNewContact = () => {
-        toast.info("New contacts found, updating list...");
+      const handleDataChange = () => {
         fetchData();
       };
 
       channel = supabase
-        .channel('contacts-insert-channel')
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'contacts',
-            filter: `user_id=eq.${user.id}`
-        }, handleNewContact)
-        .subscribe();
+        .channel('leads-page-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `user_id=eq.${user.id}`}, handleDataChange)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_enrichment_tasks', filter: `user_id=eq.${user.id}`}, handleDataChange)
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Subscribed to contacts and tasks changes.');
+          }
+        });
     };
 
     setupSubscription();
@@ -112,38 +123,12 @@ const Leads = () => {
 
       if (responseData.status === 'not_found') {
         toast.info(`Could not find a verified email for ${contact.name}.`, { id: toastId });
-        setContactsByCompany(prevMap => {
-          const newMap = new Map(prevMap);
-          for (const [company, contacts] of newMap.entries()) {
-            const contactIndex = contacts.findIndex(c => c.id === contact.id);
-            if (contactIndex > -1) {
-              const newContacts = [...contacts];
-              newContacts[contactIndex] = { ...newContacts[contactIndex], email_status: 'not_found' };
-              newMap.set(company, newContacts);
-              break;
-            }
-          }
-          return newMap;
-        });
       } else if (responseData.status === 'success' && responseData.data.email) {
-        const updatedContact = responseData.data;
-        toast.success(`Found email for ${updatedContact.name}!`, { id: toastId });
-        setContactsByCompany(prevMap => {
-          const newMap = new Map(prevMap);
-          for (const [company, contacts] of newMap.entries()) {
-            const contactIndex = contacts.findIndex(c => c.id === contact.id);
-            if (contactIndex > -1) {
-              const newContacts = [...contacts];
-              newContacts[contactIndex] = { ...newContacts[contactIndex], ...updatedContact };
-              newMap.set(company, newContacts);
-              break;
-            }
-          }
-          return newMap;
-        });
+        toast.success(`Found email for ${responseData.data.name}!`, { id: toastId });
       } else {
         toast.error('An unexpected response was received from the enrichment service.', { id: toastId });
       }
+      fetchData(); // Refetch to get the latest state
     } catch (e) {
       toast.error((e as Error).message, { id: toastId });
     } finally {
@@ -174,22 +159,6 @@ const Leads = () => {
   const handleFindContacts = async (opportunity: Opportunity) => {
     if (!isExtensionInstalled) {
       toast.info("Please install the Coogi Chrome Extension to find contacts.");
-      return;
-    }
-
-    const { data: existingTasks, error: taskError } = await supabase
-      .from('contact_enrichment_tasks')
-      .select('id, status')
-      .eq('company_name', opportunity.company_name)
-      .in('status', ['pending', 'processing', 'complete']);
-
-    if (taskError) {
-      toast.error("Could not check for existing tasks.");
-      return;
-    }
-
-    if (existingTasks && existingTasks.length > 0) {
-      toast.info(`A contact search for ${opportunity.company_name} has already been run or is in progress.`);
       return;
     }
 
@@ -264,6 +233,7 @@ const Leads = () => {
                     companyName={group.companyName}
                     opportunities={group.opportunities}
                     companyContacts={contactsByCompany.get(group.companyName) || []}
+                    task={tasksByCompany.get(group.companyName)}
                     onFindContacts={handleFindContacts}
                     onGenerateCampaign={handleGenerateCampaignForContact}
                     isGeneratingCampaign={!!generatingCampaignForContactId}

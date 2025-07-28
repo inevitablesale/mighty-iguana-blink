@@ -28,6 +28,16 @@ export interface Contact {
   phone_number?: string | null;
 }
 
+export type TaskStatus = 'pending' | 'processing' | 'complete' | 'error' | 'error_no_linkedin_url';
+
+export interface ContactEnrichmentTask {
+  id: string;
+  company_name: string;
+  status: TaskStatus;
+  error_message: string | null;
+  created_at: string;
+}
+
 export interface SearchCriteria {
   role?: string | null;
   location?: string | null;
