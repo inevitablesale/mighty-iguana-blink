@@ -11,8 +11,6 @@ interface LeadsTableProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
-  onEnrichContact: (contact: Contact) => void;
-  enrichingContactId: string | null;
 }
 
 export function LeadsTable({
@@ -24,8 +22,6 @@ export function LeadsTable({
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
-  onEnrichContact,
-  enrichingContactId,
 }: LeadsTableProps) {
   return (
     <Table>
@@ -49,8 +45,6 @@ export function LeadsTable({
             onGenerateCampaign={onGenerateCampaign}
             isGeneratingCampaign={isGeneratingCampaign}
             generatingContactId={generatingContactId}
-            onEnrichContact={onEnrichContact}
-            enrichingContactId={enrichingContactId}
           />
         ))}
       </TableBody>

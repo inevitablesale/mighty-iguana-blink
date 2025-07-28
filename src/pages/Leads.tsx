@@ -17,7 +17,6 @@ const Leads = () => {
   const [tasksByCompany, setTasksByCompany] = useState<Map<string, ContactEnrichmentTask>>(new Map());
   const [loading, setLoading] = useState(true);
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
-  const [enrichingContactId, setEnrichingContactId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
   const { isExtensionInstalled } = useExtension();
@@ -109,32 +108,6 @@ const Leads = () => {
       }
     };
   }, [fetchData]);
-
-  const handleEnrichContact = async (contact: Contact) => {
-    setEnrichingContactId(contact.id);
-    const toastId = toast.loading(`Searching for ${contact.name}'s email...`);
-
-    try {
-      const { data: responseData, error } = await supabase.functions.invoke('enrich-contact-with-apollo', {
-        body: { contact_id: contact.id },
-      });
-
-      if (error) throw new Error(error.message);
-
-      if (responseData.status === 'not_found') {
-        toast.info(`Could not find a verified email for ${contact.name}.`, { id: toastId });
-      } else if (responseData.status === 'success' && responseData.data.email) {
-        toast.success(`Found email for ${responseData.data.name}!`, { id: toastId });
-      } else {
-        toast.error('An unexpected response was received from the enrichment service.', { id: toastId });
-      }
-      fetchData();
-    } catch (e) {
-      toast.error((e as Error).message, { id: toastId });
-    } finally {
-      setEnrichingContactId(null);
-    }
-  };
 
   const handleGenerateCampaignForContact = async (contact: Contact) => {
     setGeneratingCampaignForContactId(contact.id);
@@ -235,8 +208,6 @@ const Leads = () => {
                 onGenerateCampaign={handleGenerateCampaignForContact}
                 isGeneratingCampaign={!!generatingCampaignForContactId}
                 generatingContactId={generatingCampaignForContactId}
-                onEnrichContact={handleEnrichContact}
-                enrichingContactId={enrichingContactId}
               />
             ) : (
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">

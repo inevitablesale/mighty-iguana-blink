@@ -319,20 +319,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   }
 
   if (message.action === "peopleSearchResults") {
-    logger.log(`[BACKGROUND] Received 'peopleSearchResults'. Checking context...`);
-    
+    logger.log(`[BACKGROUND] Received 'peopleSearchResults'.`);
     if (!currentOpportunityContext) {
         const data = await chrome.storage.session.get('currentOpportunityContext');
         if (data.currentOpportunityContext) {
             currentOpportunityContext = data.currentOpportunityContext;
-            logger.log("Restored opportunity context from session storage for people search.");
         } else {
             logger.error("FATAL: Opportunity context lost during people search. Aborting task.");
             finalizeTask();
             return;
         }
     }
-    logger.log("Context check passed.");
 
     const { taskId, opportunityId, html, error: contentError } = message;
 
@@ -346,57 +343,45 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     broadcastStatus('active', `AI is analyzing page layout to find contacts...`);
     
     try {
-      logger.log("Entering AI analysis try block.");
       if (!html) throw new Error("Could not retrieve HTML from the page.");
-      logger.log("HTML is present. Invoking 'parse-linkedin-search-with-ai' function.");
 
       const { data: aiData, error: aiError } = await supabase.functions.invoke('parse-linkedin-search-with-ai', {
         body: { html, opportunityContext: currentOpportunityContext },
       });
       
-      logger.log("'parse-linkedin-search-with-ai' function returned.");
       if (aiError) throw new Error(aiError.message);
-      logger.log("No error from function invocation. Processing results.");
 
       const aiContacts = aiData.results.map(r => ({
         name: r.title,
         job_title: r.subtitle,
         linkedin_profile_url: r.url,
       }));
-      logger.log(`Mapped ${aiContacts.length} contacts from AI results.`);
 
       if (!aiContacts || aiContacts.length === 0) {
         await updateTaskStatus(taskId, "complete", "No contacts were found after AI page parsing.");
         broadcastStatus('idle', `Task complete. No contacts found for ${currentOpportunityContext?.company_name}.`);
       } else {
-        logger.log(`Processing ${aiContacts.length} found contacts.`);
-        try {
-            logger.log("Invoking 'identify-key-contacts' function.");
-            const { data: recommendedData, error: recommendError } = await supabase.functions.invoke('identify-key-contacts', {
-                body: { contacts: aiContacts, opportunityContext: currentOpportunityContext },
-            });
-            if (recommendError) throw new Error(recommendError.message);
-            logger.log("'identify-key-contacts' returned. Processing recommendations.");
+        const { data: recommendedData, error: recommendError } = await supabase.functions.invoke('identify-key-contacts', {
+            body: { contacts: aiContacts, opportunityContext: currentOpportunityContext },
+        });
+        if (recommendError) throw new Error(recommendError.message);
 
-            const recommendedContacts = recommendedData.recommended_contacts;
-            if (!recommendedContacts || recommendedContacts.length === 0) {
-                await updateTaskStatus(taskId, "complete", "AI found contacts but none were deemed relevant.");
-                broadcastStatus('idle', `Task complete. No key contacts identified for ${currentOpportunityContext?.company_name}.`);
+        const recommendedContacts = recommendedData.recommended_contacts;
+        if (!recommendedContacts || recommendedContacts.length === 0) {
+            await updateTaskStatus(taskId, "complete", "AI found contacts but none were deemed relevant.");
+            broadcastStatus('idle', `Task complete. No key contacts identified for ${currentOpportunityContext?.company_name}.`);
+        } else {
+            const savedContacts = await saveContacts(taskId, opportunityId, recommendedContacts);
+            if (savedContacts) {
+              await enrichContacts(savedContacts);
+              await updateTaskStatus(taskId, "complete");
+              broadcastStatus('idle', `Successfully saved and enriched ${savedContacts.length} key contacts.`);
             } else {
-                logger.log(`AI recommended ${recommendedContacts.length} contacts. Saving to DB.`);
-                await saveContacts(taskId, opportunityId, recommendedContacts);
-                await updateTaskStatus(taskId, "complete");
-                broadcastStatus('idle', `Successfully saved ${recommendedContacts.length} key contacts.`);
+              // saveContacts already handles logging and task status updates on failure
+              broadcastStatus('error', `Failed to save contacts for ${currentOpportunityContext?.company_name}.`);
             }
-        } catch (e) {
-            const errorMessage = `AI contact identification failed: ${e.message}`;
-            logger.error(errorMessage);
-            await updateTaskStatus(taskId, "error", errorMessage);
-            broadcastStatus('error', errorMessage);
         }
-        logger.log("Finished processing found contacts.");
       }
-
     } catch (e) {
       const errorMessage = `AI page parsing failed: ${e.message}`;
       logger.error(errorMessage);
@@ -404,7 +389,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       broadcastStatus('error', errorMessage);
     }
     
-    logger.log("Finalizing people search task.");
     finalizeTask();
   }
 });
@@ -463,7 +447,7 @@ async function updateTaskStatus(taskId, status, errorMessage = null) {
 }
 
 async function saveContacts(taskId, opportunityId, contacts) {
-  if (!supabase || contacts.length === 0) return;
+  if (!supabase || contacts.length === 0) return null;
   try {
     const contactsToInsert = contacts.map((c) => ({ 
       task_id: taskId, 
@@ -473,11 +457,35 @@ async function saveContacts(taskId, opportunityId, contacts) {
       job_title: c.job_title, 
       linkedin_profile_url: c.linkedin_profile_url 
     }));
-    const { error } = await supabase.from("contacts").insert(contactsToInsert);
+    const { data, error } = await supabase.from("contacts").insert(contactsToInsert).select();
     if (error) throw error;
+    return data;
   } catch (err) {
     await updateTaskStatus(taskId, "error", `Failed to save contacts: ${err.message}`);
+    return null;
   }
+}
+
+async function enrichContacts(contacts) {
+  if (!supabase || !contacts || contacts.length === 0) return;
+  logger.log(`Starting automatic email enrichment for ${contacts.length} new contacts.`);
+  
+  const enrichmentPromises = contacts.map(contact => {
+    return supabase.functions.invoke('enrich-contact-with-apollo', {
+      body: { contact_id: contact.id },
+    }).catch(e => ({ error: e, contactId: contact.id })); // Catch errors to not fail the whole batch
+  });
+
+  const results = await Promise.allSettled(enrichmentPromises);
+
+  results.forEach(result => {
+    if (result.status === 'rejected') {
+      logger.error(`Enrichment invocation failed for a contact:`, result.reason);
+    } else if (result.value.error) {
+      logger.error(`Enrichment function returned an error for contact ${result.value.contactId}:`, result.value.error.message);
+    }
+  });
+  logger.log("Finished automatic enrichment process.");
 }
 
 function startCooldown() {

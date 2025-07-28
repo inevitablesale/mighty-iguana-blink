@@ -16,8 +16,6 @@ interface LeadRowProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
-  onEnrichContact: (contact: Contact) => void;
-  enrichingContactId: string | null;
 }
 
 export function LeadRow({
@@ -29,8 +27,6 @@ export function LeadRow({
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
-  onEnrichContact,
-  enrichingContactId,
 }: LeadRowProps) {
 
   const renderContactButton = () => {
@@ -43,8 +39,6 @@ export function LeadRow({
           onGenerateCampaign={onGenerateCampaign}
           isGenerating={isGeneratingCampaign}
           generatingContactId={generatingContactId}
-          onEnrichContact={onEnrichContact}
-          enrichingContactId={enrichingContactId}
         >
           <Button size="sm" className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
             <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})

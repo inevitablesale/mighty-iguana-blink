@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Contact, Opportunity } from "@/types/index";
-import { Linkedin, Mail, ChevronDown, Search } from "lucide-react";
+import { Linkedin, Mail, ChevronDown, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +25,6 @@ interface ViewContactsDialogProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGenerating: boolean;
   generatingContactId: string | null;
-  onEnrichContact: (contact: Contact) => void;
-  enrichingContactId: string | null;
   children: React.ReactNode;
 }
 
@@ -37,8 +35,6 @@ export function ViewContactsDialog({
   onGenerateCampaign, 
   isGenerating, 
   generatingContactId,
-  onEnrichContact,
-  enrichingContactId,
   children 
 }: ViewContactsDialogProps) {
   const getInitials = (name: string | null) => {
@@ -57,10 +53,40 @@ export function ViewContactsDialog({
         return <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>;
       case 'not_found':
         return <Badge variant="destructive">Not Found</Badge>;
+      case 'error_no_linkedin_url':
+      case 'error_no_name':
+        return <Badge variant="destructive">Error</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{status || 'Pending'}</Badge>;
     }
-  }
+  };
+
+  const renderEmailInfo = (contact: Contact) => {
+    if (contact.email) {
+      return (
+        <div className="text-right">
+          <p className="text-sm font-medium text-foreground truncate" title={contact.email}>{contact.email}</p>
+          {getEmailStatusBadge(contact.email_status)}
+        </div>
+      );
+    }
+
+    switch (contact.email_status) {
+      case 'not_found':
+        return <Badge variant="destructive">Not Found</Badge>;
+      case 'error_no_linkedin_url':
+      case 'error_no_name':
+        return <Badge variant="destructive">Data Error</Badge>;
+      default:
+        // This covers null, undefined, or any other status, indicating it's in progress
+        return (
+          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Searching...</span>
+          </div>
+        );
+    }
+  };
 
   return (
     <Dialog>
@@ -96,23 +122,7 @@ export function ViewContactsDialog({
                       </Button>
                     )}
 
-                    {contact.email ? (
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-foreground truncate" title={contact.email}>{contact.email}</p>
-                        {contact.email_status && getEmailStatusBadge(contact.email_status)}
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => onEnrichContact(contact)}
-                        disabled={enrichingContactId === contact.id || contact.email_status === 'not_found'}
-                      >
-                        <Search className="mr-2 h-4 w-4" />
-                        {enrichingContactId === contact.id ? 'Searching...' : 
-                         contact.email_status === 'not_found' ? 'Not Found' : 'Get Email'}
-                      </Button>
-                    )}
+                    {renderEmailInfo(contact)}
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
