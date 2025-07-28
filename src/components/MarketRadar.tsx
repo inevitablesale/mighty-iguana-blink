@@ -80,7 +80,13 @@ export function MarketRadar() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto mb-8">
-        <Skeleton className="h-8 w-48 mb-4" />
+        <div className="flex items-center gap-3 mb-4">
+          <Radar className="h-7 w-7 text-primary" />
+          <div>
+            <h2 className="text-xl font-bold text-white">Market Radar</h2>
+            <p className="text-sm text-white/70">High-value opportunities we found for you based on your profile.</p>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
@@ -88,10 +94,6 @@ export function MarketRadar() {
         </div>
       </div>
     );
-  }
-
-  if (opportunities.length === 0) {
-    return null; // Don't show anything if there are no opportunities
   }
 
   return (
@@ -103,18 +105,27 @@ export function MarketRadar() {
           <p className="text-sm text-white/70">High-value opportunities we found for you based on your profile.</p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {opportunities.map(opp => (
-          <ProactiveOpportunityCard 
-            key={opp.id} 
-            opportunity={opp}
-            onAccept={handleAccept}
-            onDismiss={handleDismiss}
-            isAccepting={processingId === opp.id && actionType === 'accept'}
-            isDismissing={processingId === opp.id && actionType === 'dismiss'}
-          />
-        ))}
-      </div>
+      {opportunities.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {opportunities.map(opp => (
+            <ProactiveOpportunityCard 
+              key={opp.id} 
+              opportunity={opp}
+              onAccept={handleAccept}
+              onDismiss={handleDismiss}
+              isAccepting={processingId === opp.id && actionType === 'accept'}
+              isDismissing={processingId === opp.id && actionType === 'dismiss'}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-10 border border-dashed border-white/20 rounded-lg bg-black/10">
+          <h3 className="text-lg font-semibold text-white">Scanning the Market...</h3>
+          <p className="text-white/70 mt-2 max-w-md mx-auto text-sm">
+            The radar is currently empty. As you save agents, we'll learn your preferences and automatically surface relevant opportunities here.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
