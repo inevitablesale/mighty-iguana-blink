@@ -3,10 +3,11 @@ import { ChatMessage as ChatMessageType } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SweaterIcon } from "./SweaterIcon";
 import { OpportunityCard } from "./OpportunityCard";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, ArrowRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SaveAgentDialog } from "./SaveAgentDialog";
 import { Button } from "./ui/button";
+import { Link } from "react-router-dom";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -15,6 +16,9 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const { role, text, opportunities, isLoading, searchParams } = message;
   const isAssistant = role === "assistant";
+  const opportunitiesToShow = opportunities?.slice(0, 4) || [];
+  const totalOpportunities = opportunities?.length || 0;
+  const hasOpportunities = totalOpportunities > 0;
 
   return (
     <div
@@ -33,10 +37,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
       <div
         className={cn(
           "rounded-lg p-3 text-white backdrop-blur-sm border border-white/10",
-          opportunities && opportunities.length > 0 ? "max-w-3xl" : "max-w-xl",
-          isAssistant
-            ? "bg-black/20"
-            : "bg-white/10"
+          hasOpportunities ? "w-full max-w-3xl" : "max-w-xl",
+          isAssistant ? "bg-black/20" : "bg-white/10"
         )}
       >
         {isLoading ? (
@@ -51,21 +53,29 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 <ReactMarkdown>{text}</ReactMarkdown>
               </div>
             )}
-            {opportunities && opportunities.length > 0 && (
-              <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-3", text ? "mt-3" : "")}>
-                {opportunities.map((opp) => (
-                  <OpportunityCard key={opp.id} opportunity={opp} />
-                ))}
-              </div>
-            )}
-            {searchParams && opportunities && opportunities.length > 0 && (
-              <div className="mt-4 border-t border-white/10 pt-3">
-                <SaveAgentDialog searchParams={searchParams}>
-                  <Button variant="outline" className="bg-transparent hover:bg-white/10 border-white/20 w-full">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save this Search as an Agent
+            {hasOpportunities && (
+              <div className="mt-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                  {opportunitiesToShow.map((opp) => (
+                    <OpportunityCard key={opp.id} opportunity={opp} />
+                  ))}
+                </div>
+                <div className="border-t border-white/10 pt-3 flex flex-col sm:flex-row gap-2">
+                  {searchParams && (
+                    <SaveAgentDialog searchParams={searchParams}>
+                      <Button variant="outline" className="bg-transparent hover:bg-white/10 border-white/20 w-full justify-center">
+                        <Save className="mr-2 h-4 w-4" />
+                        Automate this Search
+                      </Button>
+                    </SaveAgentDialog>
+                  )}
+                  <Button asChild variant="secondary" className="w-full justify-center">
+                    <Link to="/opportunities" state={{ opportunities, searchParams }}>
+                      View All ({totalOpportunities}) & Filter
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
-                </SaveAgentDialog>
+                </div>
               </div>
             )}
           </>
