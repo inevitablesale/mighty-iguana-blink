@@ -146,6 +146,7 @@ serve(async (req) => {
         Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
         **The "match_score" MUST be an integer between 1 and 10.**
         **For "contract_value_assessment", analyze the job description for salary information. If a salary range is found (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, provide a qualitative assessment like 'High Value' or 'Medium Value'.**
+        **For "recruiter_angle", describe the most effective way for a staffing agency to position their value to this specific client. Example: 'Position our agency as a strategic partner that can quickly fill this critical revenue-generating role by leveraging our pre-vetted network of top sales talent.'**
         **For "hiring_urgency", provide a qualitative assessment (e.g., "High", "Medium", "Standard", "Low") based on any signals in the job description. Do NOT say "Cannot be determined".**
         **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
       `;

@@ -14,7 +14,7 @@ export default function Index() {
     {
       id: uuidv4(),
       role: 'assistant',
-      text: "Hello! I'm Coogi, your AI recruiting assistant. How can I help you find and close deals today?",
+      text: "Hello! I'm Coogi, your AI partner for sourcing and securing new recruitment contracts. What kind of roles are we targeting today?",
     },
   ]);
   const [input, setInput] = useState('');

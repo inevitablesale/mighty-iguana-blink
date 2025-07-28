@@ -29,26 +29,24 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an expert legal and business affairs assistant for a top-tier recruiter.
-Your task is to generate a formal, professional recruitment services proposal.
+You are an expert legal and business affairs assistant for a top-tier recruitment agency. Your task is to generate a formal, professional recruitment services proposal based on industry best practices.
 
 The client is: ${campaign.company_name}
 The role to be filled is: ${campaign.role}
 The proposed fee structure is: "${feeStructure}"
 
-Generate a JSON object with a single key: "proposalBody".
-The value should be a complete, well-formatted proposal document as a single string. Use markdown for formatting (e.g., # for headers, * for italics, \\n for newlines).
+Generate a JSON object with a single key: "proposalBody". The value should be a complete, well-formatted proposal document as a single string. Use markdown for formatting (e.g., # for headers, * for italics, \\n for newlines).
 
-The proposal should include the following sections:
-1.  **Introduction**: Briefly introduce the proposal for recruitment services.
-2.  **Scope of Services**: Detail the services the recruiter will provide (e.g., sourcing, screening, interview coordination, offer negotiation).
-3.  **Fee Structure**: Clearly state the fee based on the provided structure. Explain when the fee is due (e.g., upon candidate's start date).
-4.  **Exclusivity Clause**: A standard clause about the recruitment terms. Assume a contingency-based search.
-5.  **Candidate Guarantee**: A standard replacement guarantee (e.g., a 90-day guarantee if the candidate leaves).
-6.  **Confidentiality**: A standard confidentiality clause.
-7.  **Acceptance**: A section for the client to sign and date, with a concluding sentence.
+The proposal must include the following sections, written in clear, professional language:
+1.  **Introduction**: A brief introduction of the proposal for recruitment services for the specified role.
+2.  **Scope of Services**: Detail the comprehensive services the agency will provide. This must include: candidate sourcing from a global talent pool, rigorous screening and vetting, interview coordination, offer negotiation support, and background checks.
+3.  **Fee Structure**: Clearly state the fee based on the provided structure: "${feeStructure}". Specify that the fee is due upon the successful candidate's official start date.
+4.  **Contingency Basis**: State clearly that this is a contingency-based agreement, meaning no fee is due unless the client hires a candidate presented by the agency.
+5.  **Candidate Guarantee**: Include a 90-day replacement guarantee. If the hired candidate leaves for any reason (excluding redundancy or elimination of the position) within 90 days of their start date, the agency will find a replacement candidate at no additional cost.
+6.  **Confidentiality**: A standard clause ensuring that all information shared by the client and about the candidates will be kept strictly confidential.
+7.  **Non-Solicitation**: A standard clause prohibiting the client from directly hiring any candidate presented by the agency for a period of 12 months without the agency's consent and payment of the agreed fee.
+8.  **Acceptance**: A concluding section with a call to action and fields for the client's authorized signature, name, title, and date to formalize the agreement.
 
-Make the language professional, clear, and legally sound, but avoid overly complex jargon.
 The entire output must be a single valid JSON object.
 **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
 `;
