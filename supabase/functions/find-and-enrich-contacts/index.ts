@@ -9,28 +9,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callGemini(prompt, apiKey) {
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      }),
+async function callGemini(prompt, apiKey, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          }),
+        }
+      );
+
+      if (geminiResponse.status === 503) {
+        if (i < retries - 1) {
+          console.warn(`Gemini API returned 503. Retrying in ${delay / 1000}s... (${i + 1}/${retries})`);
+          await new Promise(res => setTimeout(res, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        } else {
+          throw new Error(`Gemini API error: The model is overloaded. Please try again later. (Status: 503)`);
+        }
+      }
+
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorText}`);
+      }
+
+      const geminiResult = await geminiResponse.json();
+      const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
+      
+      try {
+        return JSON.parse(aiResponseText);
+      } catch (e) {
+        console.error("Failed to parse Gemini JSON response:", aiResponseText);
+        throw new Error(`JSON parsing error: ${e.message}`);
+      }
+    } catch (error) {
+      if (i === retries - 1) throw error;
     }
-  );
-  if (!geminiResponse.ok) throw new Error(`Gemini API error: ${await geminiResponse.text()}`);
-  const geminiResult = await geminiResponse.json();
-  const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
-  try {
-    return JSON.parse(aiResponseText);
-  } catch (e) {
-    console.error("Failed to parse Gemini JSON response:", aiResponseText);
-    throw new Error(`JSON parsing error: ${e.message}`);
   }
+  throw new Error("Gemini API call failed after multiple retries.");
 }
 
 async function callApifyActor(actorId, input, token) {
