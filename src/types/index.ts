@@ -49,12 +49,6 @@ export interface Opportunity {
   location_flexibility?: string | null;
   seniority_level?: string | null;
   likely_decision_maker?: string | null;
-
-  // Mock data for filtering
-  roleType?: 'Leadership' | 'Sales' | 'Tech';
-  urgency?: 'Immediate' | 'Standard' | 'Slow Mover';
-  isStrategicHire?: boolean;
-  hasRecentFunding?: boolean;
 }
 
 export interface ProactiveOpportunity {

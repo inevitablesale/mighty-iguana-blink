@@ -9,9 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Bot, Settings } from 'lucide-react';
 
 const initialFilters: Filters = {
-  roleType: 'All',
-  dealSignals: [],
-  companySignals: [],
   urgency: 'All',
 };
 
@@ -38,11 +35,7 @@ export default function DealStream() {
 
   const filteredOpportunities = useMemo(() => {
     return opportunities.filter(opp => {
-      if (filters.roleType !== 'All' && opp.roleType !== filters.roleType) return false;
-      if (filters.urgency !== 'All' && opp.urgency !== filters.urgency) return false;
-      if (filters.dealSignals.includes('Strategic Hire') && !opp.isStrategicHire) return false;
-      if (filters.companySignals.includes('No TA Team') && opp.ta_team_status !== 'No Recruiters') return false;
-      if (filters.companySignals.includes('Recent Funding') && !opp.hasRecentFunding) return false;
+      if (filters.urgency !== 'All' && opp.hiring_urgency !== filters.urgency) return false;
       return true;
     });
   }, [opportunities, filters]);

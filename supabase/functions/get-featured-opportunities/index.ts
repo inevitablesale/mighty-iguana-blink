@@ -20,22 +20,20 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
     
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    // Fetch top 4 highest-scored, pre-enriched proactive opportunities from the last 24 hours
+    // Fetch top 20 highest-scored, pre-enriched proactive opportunities.
+    // Removed the 24-hour time limit to ensure deals are always shown if available.
     const { data: opportunities, error: fetchError } = await supabaseAdmin
       .from('proactive_opportunities')
       .select('id, job_data, relevance_score, relevance_reasoning, contract_value_assessment, hiring_urgency, placement_difficulty, seniority_level')
-      .gte('created_at', twentyFourHoursAgo)
       .eq('status', 'reviewed')
       .is('user_id', null)
       .order('relevance_score', { ascending: false })
-      .limit(4);
+      .limit(20);
 
     if (fetchError) throw new Error(`Failed to fetch featured opportunities: ${fetchError.message}`);
     
     if (!opportunities || opportunities.length === 0) {
-        console.log("[get-featured-opportunities] No reviewed, unassigned opportunities found in the last 24 hours. Returning empty array.");
+        console.log("[get-featured-opportunities] No reviewed, unassigned opportunities found. Returning empty array.");
         return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
     
