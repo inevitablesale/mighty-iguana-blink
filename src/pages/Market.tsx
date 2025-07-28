@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Opportunity, SearchParams } from '@/types';
 import { toast } from 'sonner';
-import { OpportunityCard } from '@/components/OpportunityCard';
+import { DealCard } from '@/components/DealCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { SaveAgentDialog } from '@/components/SaveAgentDialog';
@@ -20,7 +20,19 @@ export default function Market() {
       try {
         const { data, error } = await supabase.functions.invoke('get-featured-opportunities');
         if (error) throw error;
-        setOpportunities(data.opportunities || []);
+        
+        // Map to deal structure
+        const deals = (data.opportunities || []).map((d: any) => ({
+            ...d,
+            deal_signals: [
+                { type: 'Urgency', value: d.hiring_urgency, description: 'The company is showing signs of needing to hire quickly.' },
+                { type: 'Budget', value: d.contract_value_assessment, description: 'This is an estimate of the potential placement fee.' }
+            ],
+            ta_team_status: 'Unknown',
+            match_score: d.match_score || 75,
+        }));
+        setOpportunities(deals);
+
       } catch (err) {
         toast.error("Failed to fetch market opportunities", { description: (err as Error).message });
       } finally {
@@ -42,6 +54,7 @@ export default function Market() {
       });
       if (error) throw error;
       setSynthesizedParams(data);
+      toast.success("Agent prompt created!", { description: "You can now save this as a new agent."});
     } catch (err) {
       toast.error("Failed to create agent prompt", { description: (err as Error).message });
     } finally {
@@ -77,7 +90,7 @@ export default function Market() {
           ) : opportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {opportunities.map((opp) => (
-                <OpportunityCard key={opp.id} opportunity={opp} />
+                <DealCard key={opp.id} opportunity={opp} />
               ))}
             </div>
           ) : (

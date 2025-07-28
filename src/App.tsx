@@ -9,7 +9,7 @@ import type { Session } from "@supabase/supabase-js";
 import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
-import Index from "./pages/Index";
+import DealStream from "./pages/DealStream";
 import Agents from "./pages/Agents";
 import Pipeline from "./pages/Pipeline";
 import Opportunities from "./pages/Opportunities";
@@ -51,13 +51,12 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/login" element={!session ? <Login /> : <Navigate to="/pipeline" />} />
+              <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
               <Route 
                 path="/" 
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
-                <Route index element={<Navigate to="/pipeline" />} />
-                <Route path="chat" element={<Index />} />
+                <Route index element={<DealStream />} />
                 <Route path="market" element={<Market />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="pipeline" element={<Pipeline />} />

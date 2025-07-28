@@ -1,28 +1,49 @@
-export interface CrunchbaseData {
+export interface DealSignal {
+  type: 'Urgency' | 'Strategic' | 'Budget' | 'Resource Gap' | 'Role Type';
+  value: string;
+  description: string; // e.g., "Why this matters..."
+}
+
+export interface ContactIntel {
   name: string;
-  categories?: string[];
-  company_type?: string;
-  num_employees?: string;
-  revenue_range?: string;
-  [key: string]: any; // Allow other properties
+  title: string;
+  linkedin_url?: string;
+  email?: string;
+  email_confidence?: 'Verified' | 'Unverified' | 'Guessed';
+  phone?: string;
+  reason: string; // "Posted job," "Likely Direct Manager," etc.
 }
 
 export interface Opportunity {
   id: string;
-  agent_id: string;
+  agent_id?: string;
   company_name: string;
   role: string;
   location: string;
-  match_score: number;
+  match_score: number; // The overall "Recruiter Fit" score
+  
+  // Core Deal Intelligence
   company_overview: string;
   contract_value_assessment: string;
   hiring_urgency: string;
   pain_points: string;
   recruiter_angle: string;
   key_signal_for_outreach: string;
+  
+  // New Signal-Based Data
+  deal_signals: DealSignal[];
+  ta_team_status: 'No Recruiters' | 'Lean Team' | 'Healthy Team' | 'Unknown';
+  
+  // Contact & Confidence
+  primary_contact?: ContactIntel;
+  contact_confidence?: number; // 0-100%
+  value_confidence?: number; // 0-100%
+  urgency_confidence?: number; // 0-100%
+
+  // Existing fields
   linkedin_url_slug?: string | null;
   placement_difficulty: string;
-  company_data_scraped?: CrunchbaseData | null;
+  company_data_scraped?: any;
   estimated_time_to_fill?: string | null;
   client_demand_signal?: string | null;
   location_flexibility?: string | null;
@@ -30,6 +51,7 @@ export interface Opportunity {
   likely_decision_maker?: string | null;
 }
 
+// Other types remain largely the same but will interact with the new Opportunity type
 export interface ProactiveOpportunity {
   id: string;
   relevance_reasoning: string;
@@ -42,7 +64,6 @@ export interface ProactiveOpportunity {
     date_posted?: string;
   };
   user_id: string | null;
-  // Enriched data for better card display
   contract_value_assessment?: string;
   hiring_urgency?: string;
   placement_difficulty?: string;
@@ -78,59 +99,9 @@ export interface Campaign {
   contact_email: string | null;
 }
 
-export type PlacementStatus = 'active' | 'completed' | 'cancelled';
-
-export interface Placement {
-  id:string;
-  campaign_id: string;
-  candidate_name: string;
-  start_date: string | null;
-  fee_amount: number | null;
-  status: PlacementStatus;
-  campaigns?: {
-    company_name: string;
-    role: string;
-  }
-}
-
-export type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'archived';
-
-export interface Proposal {
-  id: string;
-  campaign_id: string;
-  status: ProposalStatus;
-  fee_structure: string | null;
-  generated_body: string | null;
-  created_at: string;
-  campaigns?: {
-    company_name: string;
-    role: string;
-  }
-}
-
 export interface SearchParams {
   recruiter_specialty: string;
 }
-
-// Types for the new Feed UI
-export type MessageRole = 'user' | 'assistant' | 'system';
-export type MessageType = 'chat' | 'agent_run_summary';
-
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  type: MessageType;
-  created_at: string;
-  content: {
-    text?: string;
-    opportunities?: Opportunity[];
-    searchParams?: SearchParams;
-    agentName?: string;
-    summary?: string;
-  };
-  isLoading?: boolean; // Client-side only
-}
-
 
 export interface Agent {
   id: string;

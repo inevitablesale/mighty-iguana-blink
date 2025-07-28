@@ -1,6 +1,6 @@
 import { useLocation, Link } from 'react-router-dom';
 import { Opportunity, SearchParams } from '@/types';
-import { OpportunityCard } from '@/components/OpportunityCard';
+import { DealCard } from '@/components/DealCard';
 import { SaveAgentDialog } from '@/components/SaveAgentDialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -16,7 +16,8 @@ export default function Opportunities() {
 
   const filteredOpportunities = useMemo(() => {
     if (!opportunities) return [];
-    return opportunities.filter(opp => opp.match_score >= minScore);
+    // Temporary fix for match_score which is now a percentage
+    return opportunities.filter(opp => (opp.match_score / 10) >= minScore);
   }, [opportunities, minScore]);
 
   if (!opportunities || opportunities.length === 0) {
@@ -28,7 +29,7 @@ export default function Opportunities() {
           <Button asChild variant="link" className="mt-4 text-white">
             <Link to="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Chat
+              Back to Deal Stream
             </Link>
           </Button>
         </div>
@@ -74,7 +75,7 @@ export default function Opportunities() {
           {filteredOpportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOpportunities.map((opp) => (
-                <OpportunityCard key={opp.id} opportunity={opp} />
+                <DealCard key={opp.id} opportunity={opp} />
               ))}
             </div>
           ) : (
