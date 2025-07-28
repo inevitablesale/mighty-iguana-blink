@@ -7,18 +7,26 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { useState, useMemo } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { PitchModeSheet } from '@/components/PitchModeSheet';
 
 export default function Opportunities() {
   const location = useLocation();
   const { opportunities, searchParams } = (location.state || { opportunities: [], searchParams: null }) as { opportunities: Opportunity[], searchParams: SearchParams };
 
   const [minScore, setMinScore] = useState(6);
+  const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
+  const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
 
   const filteredOpportunities = useMemo(() => {
     if (!opportunities) return [];
     // Temporary fix for match_score which is now a percentage
     return opportunities.filter(opp => (opp.match_score / 10) >= minScore);
   }, [opportunities, minScore]);
+
+  const handleDealClick = (deal: Opportunity) => {
+    setSelectedDeal(deal);
+    setIsPitchModeOpen(true);
+  };
 
   if (!opportunities || opportunities.length === 0) {
     return (
@@ -75,7 +83,7 @@ export default function Opportunities() {
           {filteredOpportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOpportunities.map((opp) => (
-                <DealCard key={opp.id} opportunity={opp} />
+                <DealCard key={opp.id} opportunity={opp} onClick={handleDealClick} />
               ))}
             </div>
           ) : (
@@ -86,6 +94,11 @@ export default function Opportunities() {
           )}
         </div>
       </div>
+      <PitchModeSheet
+        opportunity={selectedDeal}
+        isOpen={isPitchModeOpen}
+        onOpenChange={setIsPitchModeOpen}
+      />
     </div>
   );
 }

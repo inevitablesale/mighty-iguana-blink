@@ -5,6 +5,11 @@ import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Flame, Briefcase, MapPin, Users, XCircle, Star, DollarSign, ArrowRight } from "lucide-react";
 
+interface DealCardProps {
+  opportunity: Opportunity;
+  onClick: (opportunity: Opportunity) => void;
+}
+
 const signalIcons: { [key: string]: React.ReactNode } = {
   'Urgency': <Flame className="h-3 w-3" />,
   'Budget': <DollarSign className="h-3 w-3" />,
@@ -23,9 +28,12 @@ const getSignalColor = (type: DealSignal['type']) => {
     }
 }
 
-export function DealCard({ opportunity }: { opportunity: Opportunity }) {
+export function DealCard({ opportunity, onClick }: DealCardProps) {
   return (
-    <Card className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50">
+    <Card 
+      onClick={() => onClick(opportunity)}
+      className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer"
+    >
       <CardHeader className="p-4">
         <div className="flex justify-between items-start gap-2">
           <div>
@@ -68,9 +76,9 @@ export function DealCard({ opportunity }: { opportunity: Opportunity }) {
         </div>
       </CardContent>
       <CardFooter className="p-3 bg-black/30 border-t border-white/20 flex justify-end">
-        <Button variant="ghost" size="sm">
-            Open Pitch Mode <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="text-xs text-muted-foreground flex items-center">
+            Open Pitch Mode <ArrowRight className="ml-2 h-3 w-3" />
+        </div>
       </CardFooter>
     </Card>
   );

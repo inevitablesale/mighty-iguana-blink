@@ -7,12 +7,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { SaveAgentDialog } from '@/components/SaveAgentDialog';
 import { Bot, Loader2 } from 'lucide-react';
+import { PitchModeSheet } from '@/components/PitchModeSheet';
 
 export default function Market() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [synthesizedParams, setSynthesizedParams] = useState<SearchParams | null>(null);
+  const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
+  const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
 
   useEffect(() => {
     const fetchOpportunities = async () => {
@@ -62,6 +65,11 @@ export default function Market() {
     }
   };
 
+  const handleDealClick = (deal: Opportunity) => {
+    setSelectedDeal(deal);
+    setIsPitchModeOpen(true);
+  };
+
   return (
     <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6 pb-6 border-b border-white/20">
@@ -90,7 +98,7 @@ export default function Market() {
           ) : opportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {opportunities.map((opp) => (
-                <DealCard key={opp.id} opportunity={opp} />
+                <DealCard key={opp.id} opportunity={opp} onClick={handleDealClick} />
               ))}
             </div>
           ) : (
@@ -101,6 +109,11 @@ export default function Market() {
           )}
         </div>
       </div>
+      <PitchModeSheet
+        opportunity={selectedDeal}
+        isOpen={isPitchModeOpen}
+        onOpenChange={setIsPitchModeOpen}
+      />
     </div>
   );
 }

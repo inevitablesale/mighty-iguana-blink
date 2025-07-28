@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
+import { PitchModeSheet } from '@/components/PitchModeSheet';
 
 // This is a placeholder for the real implementation of fetching deals.
 // In a real scenario, this would call a dedicated 'get-deal-stream' Edge Function.
@@ -25,11 +26,18 @@ const fetchDeals = async (): Promise<Opportunity[]> => {
   return (data as any[]).map(d => ({
     ...d,
     deal_signals: [
-        { type: 'Urgency', value: d.hiring_urgency, description: 'The company is showing signs of needing to hire quickly.' },
-        { type: 'Budget', value: d.contract_value_assessment, description: 'This is an estimate of the potential placement fee.' }
+        { type: 'Urgency', value: d.hiring_urgency || 'Medium', description: 'The company is showing signs of needing to hire quickly.' },
+        { type: 'Budget', value: d.contract_value_assessment || 'Est. Fee: $25,000', description: 'This is an estimate of the potential placement fee.' }
     ],
     ta_team_status: 'Unknown',
     match_score: d.match_score || 75,
+    primary_contact: {
+        name: 'Jane Doe',
+        title: 'VP of Engineering',
+        email: 'jane.doe@example.com',
+        email_confidence: 'Verified',
+        reason: 'Likely Direct Manager'
+    }
   }));
 };
 
@@ -39,6 +47,8 @@ export default function DealStream() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
+  const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -62,6 +72,11 @@ export default function DealStream() {
         setIsSearching(false);
         setInput('');
     }, 2000);
+  };
+
+  const handleDealClick = (deal: Opportunity) => {
+    setSelectedDeal(deal);
+    setIsPitchModeOpen(true);
   };
 
   return (
@@ -95,10 +110,15 @@ export default function DealStream() {
           {loading ? (
             [...Array(5)].map((_, i) => <Skeleton key={i} className="h-48 w-full bg-white/10" />)
           ) : (
-            deals.map(deal => <DealCard key={deal.id} opportunity={deal} />)
+            deals.map(deal => <DealCard key={deal.id} opportunity={deal} onClick={handleDealClick} />)
           )}
         </div>
       </main>
+      <PitchModeSheet 
+        opportunity={selectedDeal}
+        isOpen={isPitchModeOpen}
+        onOpenChange={setIsPitchModeOpen}
+      />
     </div>
   );
 }
