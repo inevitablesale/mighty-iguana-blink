@@ -143,27 +143,31 @@ serve(async (req) => {
         You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's stated specialty.
         Recruiter's specialty: "${agent.prompt}"
         Job Posting: ${JSON.stringify(job)}
-        Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
+        Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "min_salary", "max_salary", "qualitative_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
         
         **"match_score"**: MUST be an integer between 1 and 10.
-        
-        **"contract_value_assessment"**: This is your most important task. You MUST follow these rules without deviation.
-        - **RULE 1: CHECK FOR SALARY.** Look for a salary range in the job description text.
-        - **RULE 2: CALCULATE FEE.** If a salary range is found, you MUST calculate the fee using this formula: \`Fee = ( (Min_Salary + Max_Salary) / 2 ) * 0.20\`.
-        - **RULE 3: FORMAT FEE.** The result of the calculation MUST be formatted as a string: \`Est. Fee: $XX,XXX\`.
-        - **EXAMPLE:**
-            - Job Description contains: "salary for this role is $150,000 to $170,000 per year".
-            - Calculation: (($150000 + $170000) / 2) * 0.20 = $32,000.
-            - Your output for this key MUST be the string: "Est. Fee: $32,000".
-        - **RULE 4: NO SALARY FALLBACK.** If and ONLY if no salary range is present, you MUST return the string 'High Value'.
-        - **FINAL CHECK:** Before outputting, verify your value for this key. Is it 'Est. Fee: $XX,XXX' or 'High Value'? If not, you have failed. Fix it.
-
+        **"min_salary"**: An integer of the minimum salary if found, otherwise null.
+        **"max_salary"**: An integer of the maximum salary if found, otherwise null.
+        **"qualitative_value_assessment"**: A string, either 'High Value' or 'Medium Value', to be used ONLY if salary is not found.
         **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
         **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
         **"recruiter_angle"**: A concise sentence describing the most effective way for a staffing agency to position their value.
       `;
       const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
       
+      // **CODE-BASED CALCULATION**
+      let contractValue = analysisData.qualitative_value_assessment || 'Medium Value';
+      if (analysisData.min_salary && analysisData.max_salary) {
+          const min = Number(analysisData.min_salary);
+          const max = Number(analysisData.max_salary);
+          if (!isNaN(min) && !isNaN(max) && min > 0 && max > 0) {
+              const avg = (min + max) / 2;
+              const fee = avg * 0.20;
+              contractValue = `Est. Fee: $${fee.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+          }
+      }
+      analysisData.contract_value_assessment = contractValue;
+
       analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
       analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
 
