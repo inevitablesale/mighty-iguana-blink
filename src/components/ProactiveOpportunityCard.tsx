@@ -80,7 +80,7 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-help">
-                <Sparkles className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                <Sparkles className="h-3 w-3 text-yellow-400 flex-shrink-0" />
                 <span className="italic truncate">Score {opportunity.relevance_score}: {opportunity.relevance_reasoning}</span>
               </div>
             </TooltipTrigger>

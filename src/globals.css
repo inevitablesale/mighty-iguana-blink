@@ -13,8 +13,8 @@
     --popover: 20 14.3% 4.1%;
     --popover-foreground: 60 9.1% 97.8%;
  
-    --primary: 210.4 91.7% 50%;
-    --primary-foreground: 60 9.1% 97.8%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
  
     --secondary: 12 6.5% 15.1%;
     --secondary-foreground: 60 9.1% 97.8%;
@@ -30,19 +30,19 @@
 
     --border: 12 6.5% 15.1%;
     --input: 12 6.5% 15.1%;
-    --ring: 210.4 91.7% 50%;
+    --ring: 142.1 76.2% 36.3%;
  
     --radius: 0.5rem;
 
     /* New Sidebar Colors */
     --sidebar-background: hsl(240 10% 3.9% / 0.8);
     --sidebar-foreground: hsl(60 9.1% 97.8%);
-    --sidebar-primary: hsl(210.4 91.7% 50%);
-    --sidebar-primary-foreground: hsl(60 9.1% 97.8%);
+    --sidebar-primary: hsl(142.1 76.2% 36.3%);
+    --sidebar-primary-foreground: hsl(355.7 100% 97.3%);
     --sidebar-accent: hsl(12 6.5% 15.1%);
     --sidebar-accent-foreground: hsl(60 9.1% 97.8%);
     --sidebar-border: hsl(12 6.5% 15.1%);
-    --sidebar-ring: hsl(210.4 91.7% 50%);
+    --sidebar-ring: hsl(142.1 76.2% 36.3%);
   }
 }
  
@@ -55,12 +55,11 @@
     min-height: 100vh;
   }
   .coogi-gradient-bg {
-    background: radial-gradient(circle at 20% 80%, #003366, transparent 40%),
-                radial-gradient(circle at 80% 30%, #8A2BE2, transparent 40%),
-                radial-gradient(circle at 50% 50%, #4B0082, transparent 50%),
+    background: radial-gradient(circle at 20% 80%, hsl(150 30% 10%), transparent 40%),
+                radial-gradient(circle at 80% 30%, hsl(160 20% 8%), transparent 50%),
                 #0a0a0a;
-    background-size: 200% 200%;
-    animation: gradient-animation 20s ease infinite;
+    background-size: 150% 150%;
+    animation: gradient-animation 30s ease infinite;
   }
 
   @keyframes gradient-animation {
