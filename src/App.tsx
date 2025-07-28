@@ -12,7 +12,7 @@ import AppLayout from "./components/AppLayout";
 import ContractFinder from "./pages/ContractFinder";
 import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
-import MarketInsights from "./pages/MarketInsights";
+import CommunityBounties from "./pages/CommunityBounties";
 import Deal from "./pages/Deal";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -58,7 +58,7 @@ const App = () => {
               >
                 <Route index element={<ContractFinder />} />
                 <Route path="c/:conversationId" element={<ContractFinder />} />
-                <Route path="market-insights" element={<MarketInsights />} />
+                <Route path="community-bounties" element={<CommunityBounties />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="opportunities" element={<Opportunities />} />
                 <Route path="deal/:opportunityId" element={<Deal />} />

@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings, Bot, Briefcase, Flame, PlusCircle } from "lucide-react";
+import { LogOut, Settings, Bot, Briefcase, Users, PlusCircle } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -61,9 +61,9 @@ export function Sidebar() {
             <Briefcase className="mr-3 h-5 w-5" />
             AI Campaigns
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market-insights')}>
-            <Flame className="mr-3 h-5 w-5" />
-            Market Insights
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/community-bounties')}>
+            <Users className="mr-3 h-5 w-5" />
+            Community Bounties
           </Button>
         </nav>
         
