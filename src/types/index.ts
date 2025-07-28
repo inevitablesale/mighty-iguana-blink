@@ -89,6 +89,15 @@ export interface Contact {
   phone_number?: string | null;
 }
 
+export interface EvaluatedContact extends Contact {
+  evaluation?: {
+    score: number;
+    status: string;
+    reasoning: string;
+  };
+  isEvaluating?: boolean;
+}
+
 export type CampaignStatus = 'draft' | 'contacted' | 'replied' | 'sourcing' | 'interviewing' | 'hired' | 'archived';
 
 export interface Campaign {
