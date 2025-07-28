@@ -166,3 +166,13 @@ export interface FeedItem {
   created_at: string;
   conversation_id?: string;
 }
+
+export interface ContactEnrichmentTask {
+  id: string;
+  user_id: string;
+  opportunity_id: string;
+  company_name: string;
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  error_message: string | null;
+  created_at: string;
+}

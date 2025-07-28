@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Opportunity, EvaluatedContact, Campaign } from '@/types';
+import { Opportunity, EvaluatedContact, Campaign, ContactEnrichmentTask } from '@/types';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -40,46 +40,55 @@ export default function Deal() {
   const [contacts, setContacts] = useState<EvaluatedContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<EvaluatedContact | null>(null);
   const [draftCampaign, setDraftCampaign] = useState<Campaign | null>(null);
+  const [enrichmentTask, setEnrichmentTask] = useState<ContactEnrichmentTask | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-  const [isFindingContacts, setIsFindingContacts] = useState(false);
   const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  const fetchAndEvaluateContacts = useCallback(async (opportunityId: string) => {
+    const { data: contactsData, error: contactsError } = await supabase.from('contacts').select('*').eq('opportunity_id', opportunityId).order('created_at', { ascending: false });
+    if (contactsError) throw contactsError;
+
+    const initialContacts = contactsData || [];
+    setContacts(initialContacts.map(c => ({ ...c, isEvaluating: true })));
+
+    const evaluatedContacts = await Promise.all(initialContacts.map(async (contact) => {
+      try {
+        const { data, error } = await supabase.functions.invoke('evaluate-contact-fit', { body: { contact, opportunityId } });
+        if (error) return { ...contact, isEvaluating: false };
+        return { ...contact, evaluation: data.evaluation, isEvaluating: false };
+      } catch (e) {
+        return { ...contact, isEvaluating: false };
+      }
+    }));
+    setContacts(evaluatedContacts);
+  }, []);
+
   useEffect(() => {
-    const fetchOpportunityData = async () => {
-      if (!opportunityId) return;
+    if (!opportunityId) return;
+
+    const fetchInitialData = async () => {
       setLoading(true);
       setIsAnalysisLoading(true);
       try {
         const oppPromise = supabase.from('opportunities').select('*').eq('id', opportunityId).single();
         const analysisPromise = supabase.functions.invoke('analyze-propensity-to-switch', { body: { opportunityId } });
-        const contactsPromise = supabase.from('contacts').select('*').eq('opportunity_id', opportunityId);
+        const taskPromise = supabase.from('contact_enrichment_tasks').select('*').eq('opportunity_id', opportunityId).order('created_at', { ascending: false }).limit(1).single();
 
-        const [oppResult, analysisResult, contactsResult] = await Promise.all([oppPromise, analysisPromise, contactsPromise]);
+        const [oppResult, analysisResult, taskResult] = await Promise.all([oppPromise, analysisPromise, taskPromise]);
 
         if (oppResult.error) throw oppResult.error;
         setOpportunity(oppResult.data);
 
-        if (analysisResult.error) throw new Error(`Analysis Error: ${analysisResult.error.message}`);
-        setAnalysis(analysisResult.data.analysis);
+        if (analysisResult.error) console.error(`Analysis Error: ${analysisResult.error.message}`);
+        else setAnalysis(analysisResult.data.analysis);
         setIsAnalysisLoading(false);
 
-        if (contactsResult.error) throw contactsResult.error;
-        const initialContacts = contactsResult.data || [];
-        setContacts(initialContacts.map(c => ({ ...c, isEvaluating: true })));
+        if (taskResult.data) setEnrichmentTask(taskResult.data);
 
-        const evaluatedContacts = await Promise.all(initialContacts.map(async (contact) => {
-          try {
-            const { data, error } = await supabase.functions.invoke('evaluate-contact-fit', { body: { contact, opportunityId } });
-            if (error) return { ...contact, isEvaluating: false };
-            return { ...contact, evaluation: data.evaluation, isEvaluating: false };
-          } catch (e) {
-            return { ...contact, isEvaluating: false };
-          }
-        }));
-        setContacts(evaluatedContacts);
+        await fetchAndEvaluateContacts(opportunityId);
 
       } catch (err) {
         toast.error("Failed to load opportunity details", { description: (err as Error).message });
@@ -88,26 +97,36 @@ export default function Deal() {
         setLoading(false);
       }
     };
-    fetchOpportunityData();
-  }, [opportunityId, navigate]);
+
+    fetchInitialData();
+
+    const contactsChannel = supabase.channel(`contacts-${opportunityId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'contacts', filter: `opportunity_id=eq.${opportunityId}` }, () => fetchAndEvaluateContacts(opportunityId))
+      .subscribe();
+
+    const tasksChannel = supabase.channel(`tasks-${opportunityId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_enrichment_tasks', filter: `opportunity_id=eq.${opportunityId}` }, (payload) => {
+        if (payload.new) setEnrichmentTask(payload.new as ContactEnrichmentTask);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(contactsChannel);
+      supabase.removeChannel(tasksChannel);
+    };
+  }, [opportunityId, navigate, fetchAndEvaluateContacts]);
 
   const handleFindContacts = async () => {
     if (!opportunityId) return;
-    setIsFindingContacts(true);
-    const toastId = toast.loading("Searching for contacts...", { description: "This can take a minute or two. Please wait." });
+    const toastId = toast.loading("Adding contact search to the queue...");
     try {
-      const { data, error } = await supabase.functions.invoke('find-contacts-for-opportunity', { body: { opportunityId } });
+      const { error } = await supabase.functions.invoke('batch-create-contact-tasks', {
+        body: { opportunityIds: [opportunityId] }
+      });
       if (error) throw new Error(error.message);
-      if (data.contacts && data.contacts.length > 0) {
-        setContacts(prev => [...prev, ...data.contacts]);
-        toast.success(`Found ${data.contacts.length} new contacts!`, { id: toastId });
-      } else {
-        toast.info("No new contacts found.", { id: toastId, description: "The search completed, but didn't find anyone new." });
-      }
+      toast.success("Contact search queued!", { id: toastId, description: "The system will start finding contacts shortly." });
     } catch (err) {
-      toast.error("Failed to find contacts", { id: toastId, description: (err as Error).message });
-    } finally {
-      setIsFindingContacts(false);
+      toast.error("Failed to queue contact search", { id: toastId, description: (err as Error).message });
     }
   };
 
@@ -141,7 +160,7 @@ export default function Deal() {
         id: toastId,
         action: { label: "View Campaigns", onClick: () => navigate('/campaigns') }
       });
-      setDraftCampaign(null); // Clear the editor on success
+      setDraftCampaign(null);
     } catch (err) {
       toast.error("Failed to send email", { id: toastId, description: (err as Error).message });
     } finally {
@@ -154,6 +173,8 @@ export default function Deal() {
     if (status === 'Potential Fit') return 'text-yellow-500';
     return 'text-red-500';
   };
+
+  const isSearching = enrichmentTask?.status === 'pending' || enrichmentTask?.status === 'processing';
 
   if (loading) {
     return (
@@ -232,13 +253,36 @@ export default function Deal() {
                     </Label>
                   ))}
                 </RadioGroup>
-                {contacts.length === 0 && !isFindingContacts && (
-                  <div className="text-center py-4 border border-dashed rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-2">No contacts found yet.</p>
-                    <Button onClick={handleFindContacts} size="sm" variant="secondary"><Search className="mr-2 h-4 w-4" />Find Contacts</Button>
+                
+                {isSearching ? (
+                  <div className="text-center py-4 border border-dashed rounded-lg mt-2">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      {enrichmentTask?.status === 'pending' ? 'Waiting in queue...' : 'Actively searching for contacts...'}
+                    </p>
+                  </div>
+                ) : contacts.length === 0 && (
+                  <div className="text-center py-4 border border-dashed rounded-lg mt-2">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {enrichmentTask?.status === 'complete' ? 'Search complete. No contacts found.' : 'No contacts found yet.'}
+                    </p>
+                    <Button onClick={handleFindContacts} size="sm" variant="secondary" disabled={isSearching}>
+                      <Search className="mr-2 h-4 w-4" />
+                      Find Contacts
+                    </Button>
                   </div>
                 )}
-                {isFindingContacts && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></div>}
+
+                {enrichmentTask?.status === 'error' && (
+                  <div className="text-center py-4 border border-dashed border-red-500/50 rounded-lg mt-2">
+                    <p className="text-sm text-red-400 mb-2">The last search failed.</p>
+                    <p className="text-xs text-muted-foreground px-2">{enrichmentTask.error_message}</p>
+                    <Button onClick={handleFindContacts} size="sm" variant="secondary" className="mt-3" disabled={isSearching}>
+                      <Search className="mr-2 h-4 w-4" />
+                      Try Again
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
             {draftCampaign ? (
