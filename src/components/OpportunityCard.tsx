@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity } from "@/types";
 import { ArrowRight, DollarSign, Clock } from "lucide-react";
@@ -17,38 +17,32 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
   return (
     <GenerateContractDialog opportunity={opportunity}>
-      <Card className="w-full cursor-pointer hover:border-white/50 transition-colors bg-black/20 border border-white/10 text-white">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg text-white">{opportunity.company_name}</CardTitle>
-              <CardDescription className="text-white/80">{opportunity.role}</CardDescription>
+      <Card className="w-full cursor-pointer hover:border-white/50 transition-colors bg-black/20 border border-white/10 text-white flex flex-col p-4 h-full">
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h3 className="font-semibold text-white leading-tight">{opportunity.company_name}</h3>
+            <p className="text-sm text-white/80">{opportunity.role}</p>
+          </div>
+          <Badge className={`text-white flex-shrink-0 ${getMatchColor(opportunity.match_score)}`}>
+            {opportunity.match_score}/10
+          </Badge>
+        </div>
+        <p className="text-xs text-white/70 line-clamp-2 flex-grow mb-3">
+          {opportunity.key_signal_for_outreach}
+        </p>
+        <div className="flex items-center justify-between text-xs mt-auto">
+            <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline" className="border-white/20 text-white/80">
+                  <DollarSign className="h-3 w-3 mr-1" />
+                  {opportunity.contract_value_assessment}
+                </Badge>
+                <Badge variant="outline" className="border-white/20 text-white/80">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {opportunity.hiring_urgency}
+                </Badge>
             </div>
-            <Badge className={`text-white ${getMatchColor(opportunity.match_score)}`}>
-              Match: {opportunity.match_score}/10
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-white/80 line-clamp-2 mb-4">
-            {opportunity.key_signal_for_outreach}
-          </p>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="outline" className="border-white/20 text-white/80">
-              <DollarSign className="h-3 w-3 mr-1.5" />
-              {opportunity.contract_value_assessment}
-            </Badge>
-            <Badge variant="outline" className="border-white/20 text-white/80">
-              <Clock className="h-3 w-3 mr-1.5" />
-              {opportunity.hiring_urgency}
-            </Badge>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-end pt-4">
-          <div className="flex items-center text-white font-semibold text-sm hover:text-primary transition-colors">
-            View Details & Generate Contract <ArrowRight className="ml-2 h-4 w-4" />
-          </div>
-        </CardFooter>
+            <ArrowRight className="h-4 w-4 text-white/70 flex-shrink-0" />
+        </div>
       </Card>
     </GenerateContractDialog>
   );
