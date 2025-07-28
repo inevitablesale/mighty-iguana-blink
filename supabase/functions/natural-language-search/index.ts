@@ -108,7 +108,7 @@ serve(async (req) => {
     const rawJobResults = scrapingData?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
-      return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ opportunities: [], searchParams: { search_query, location, recruiter_specialty } }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const enrichmentPromises = rawJobResults.map(async (job) => {
@@ -161,7 +161,7 @@ serve(async (req) => {
     }));
 
     if (opportunitiesToInsert.length === 0) {
-        return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ opportunities: [], searchParams: { search_query, location, recruiter_specialty } }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
@@ -178,7 +178,7 @@ serve(async (req) => {
         await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
     }
 
-    return new Response(JSON.stringify({ opportunities: savedOpportunities }), {
+    return new Response(JSON.stringify({ opportunities: savedOpportunities, searchParams: { search_query, location, recruiter_specialty } }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

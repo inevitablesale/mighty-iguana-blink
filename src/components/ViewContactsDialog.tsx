@@ -64,8 +64,9 @@ export function ViewContactsDialog({
   const renderEmailInfo = (contact: Contact) => {
     if (contact.email) {
       return (
-        <div className="text-right">
-          <p className="text-sm font-medium text-foreground truncate" title={contact.email}>{contact.email}</p>
+        <div className="flex items-center gap-2">
+          <Mail size={14} className="text-muted-foreground" />
+          <span className="text-sm text-muted-foreground truncate" title={contact.email}>{contact.email}</span>
           {getEmailStatusBadge(contact.email_status)}
         </div>
       );
@@ -73,16 +74,15 @@ export function ViewContactsDialog({
 
     switch (contact.email_status) {
       case 'not_found':
-        return <Badge variant="destructive">Not Found</Badge>;
+        return <Badge variant="destructive">Email Not Found</Badge>;
       case 'error_no_linkedin_url':
       case 'error_no_name':
         return <Badge variant="destructive">Data Error</Badge>;
       default:
-        // This covers null, undefined, or any other status, indicating it's in progress
         return (
-          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Searching...</span>
+            <span>Searching for email...</span>
           </div>
         );
     }
@@ -91,28 +91,29 @@ export function ViewContactsDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Key Contacts for {companyName}</DialogTitle>
           <DialogDescription>
             Select a contact and a role to draft a personalized outreach email.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto pr-4">
+        <div className="max-h-[60vh] overflow-y-auto pr-4 py-4">
           {contacts.length > 0 ? (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {contacts.map((contact) => (
-                <li key={contact.id} className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <Avatar>
+                <li key={contact.id} className="flex items-center justify-between gap-4 p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <Avatar className="h-12 w-12">
                       <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-semibold">{contact.name}</p>
-                      <p className="text-sm text-muted-foreground">{contact.job_title}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{contact.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">{contact.job_title}</p>
+                      {renderEmailInfo(contact)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {contact.linkedin_profile_url && (
                       <Button asChild variant="outline" size="icon">
                         <a href={contact.linkedin_profile_url} target="_blank" rel="noopener noreferrer">
@@ -121,8 +122,6 @@ export function ViewContactsDialog({
                         </a>
                       </Button>
                     )}
-
-                    {renderEmailInfo(contact)}
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

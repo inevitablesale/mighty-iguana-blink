@@ -9,6 +9,13 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LeadCard } from "@/components/LeadCard";
+import { SearchSummary } from "@/components/SearchSummary";
+
+interface SearchParams {
+  search_query: string;
+  location: string;
+  recruiter_specialty: string;
+}
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -18,7 +25,7 @@ const Leads = () => {
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [searchSummary, setSearchSummary] = useState<{ query: string; params: SearchParams } | null>(null);
   const navigate = useNavigate();
 
   const fetchInitialData = useCallback(async () => {
@@ -84,7 +91,7 @@ const Leads = () => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
-    setHasSearched(true);
+    setSearchSummary(null);
     const toastId = toast.loading("Searching for new opportunities...");
     try {
       const { data, error } = await supabase.functions.invoke('natural-language-search', {
@@ -92,6 +99,7 @@ const Leads = () => {
       });
       if (error) throw error;
       setOpportunities(data.opportunities || []);
+      setSearchSummary({ query: searchQuery, params: data.searchParams });
       toast.success(`Found ${data.opportunities?.length || 0} new opportunities. Contact discovery is running.`, { id: toastId });
       fetchInitialData();
     } catch (err) {
@@ -131,7 +139,7 @@ const Leads = () => {
   }, [opportunities]);
 
   const renderContent = () => {
-    if (isSearching || (loading && hasSearched)) {
+    if (isSearching) {
       return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
@@ -139,7 +147,7 @@ const Leads = () => {
       );
     }
 
-    if (hasSearched && opportunities.length === 0) {
+    if (searchSummary && opportunities.length === 0) {
       return (
         <div className="text-center py-16">
           <h3 className="text-xl font-bold tracking-tight">No Leads Found</h3>
@@ -201,6 +209,7 @@ const Leads = () => {
           </form>
         </div>
         <div className="mt-4">
+          {searchSummary && <SearchSummary userQuery={searchSummary.query} aiResponse={searchSummary.params} />}
           {renderContent()}
         </div>
       </main>
