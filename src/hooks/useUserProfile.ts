@@ -29,7 +29,7 @@ export function useUserProfile() {
     if (user) {
       const [profileRes, creditsRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('credits').select('*').eq('user_id', user.id).single()
+        supabase.from('credits').select('*').eq('user_id', user.id).limit(1).single()
       ]);
 
       if (profileRes.error && profileRes.error.code !== 'PGRST116') {
