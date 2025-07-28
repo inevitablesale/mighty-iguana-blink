@@ -51,7 +51,7 @@ const Login = () => {
               appearance={{
                 theme: ThemeSupa,
               }}
-              providers={[]}
+              providers={['google', 'azure']}
               theme="dark"
             />
           </div>
