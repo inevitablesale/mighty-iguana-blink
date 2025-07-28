@@ -13,6 +13,10 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
+import Opportunities from "./pages/Opportunities";
+import Campaigns from "./pages/Campaigns";
+import Proposals from "./pages/Proposals";
+import Placements from "./pages/Placements";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +59,10 @@ const App = () => {
               >
                 <Route index element={<Index />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="opportunities" element={<Opportunities />} />
+                <Route path="campaigns" element={<Campaigns />} />
+                <Route path="proposals" element={<Proposals />} />
+                <Route path="placements" element={<Placements />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
