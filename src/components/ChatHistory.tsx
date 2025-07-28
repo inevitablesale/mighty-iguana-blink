@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Conversation } from '@/types';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Trash2 } from 'lucide-react';
+import { Button } from './ui/button';
+import { toast } from 'sonner';
 
 export function ChatHistory() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const { conversationId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -45,6 +48,48 @@ export function ChatHistory() {
     };
   }, []);
 
+  const handleDelete = async (e: React.MouseEvent, convoToDeleteId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!window.confirm("Are you sure you want to delete this chat? This action cannot be undone.")) {
+      return;
+    }
+
+    const toastId = toast.loading("Deleting chat...");
+
+    try {
+      // First, delete all associated feed items
+      const { error: feedError } = await supabase
+        .from('feed_items')
+        .delete()
+        .eq('conversation_id', convoToDeleteId);
+
+      if (feedError) throw feedError;
+
+      // Then, delete the conversation
+      const { error: convoError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', convoToDeleteId);
+
+      if (convoError) throw convoError;
+
+      toast.success("Chat deleted successfully.", { id: toastId });
+
+      // Update local state
+      setConversations(prev => prev.filter(c => c.id !== convoToDeleteId));
+
+      // If the active chat was deleted, navigate to home
+      if (conversationId === convoToDeleteId) {
+        navigate('/');
+      }
+
+    } catch (error) {
+      toast.error("Failed to delete chat.", { id: toastId, description: (error as Error).message });
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-2 px-3">
@@ -63,12 +108,22 @@ export function ChatHistory() {
             key={convo.id}
             to={`/c/${convo.id}`}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-white/10",
+              "group flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-white/10",
               conversationId === convo.id ? "bg-white/10 text-sidebar-foreground" : "text-sidebar-foreground/80"
             )}
           >
-            <MessageSquare className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{convo.title}</span>
+            <div className="flex items-center gap-3 truncate">
+              <MessageSquare className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{convo.title}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400"
+              onClick={(e) => handleDelete(e, convo.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </Link>
         ))}
       </div>
