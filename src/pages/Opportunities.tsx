@@ -13,14 +13,13 @@ export default function Opportunities() {
   const location = useLocation();
   const { opportunities, searchParams } = (location.state || { opportunities: [], searchParams: null }) as { opportunities: Opportunity[], searchParams: SearchParams };
 
-  const [minScore, setMinScore] = useState(6);
+  const [minScore, setMinScore] = useState(5);
   const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
   const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
 
   const filteredOpportunities = useMemo(() => {
     if (!opportunities) return [];
-    // Temporary fix for match_score which is now a percentage
-    return opportunities.filter(opp => (opp.match_score / 10) >= minScore);
+    return opportunities.filter(opp => opp.match_score >= minScore);
   }, [opportunities, minScore]);
 
   const handleDealClick = (deal: Opportunity) => {
@@ -33,7 +32,7 @@ export default function Opportunities() {
       <div className="flex flex-col items-center justify-center h-full text-white">
         <div className="bg-black/20 border border-white/10 p-8 rounded-lg backdrop-blur-sm text-center">
           <h2 className="text-2xl font-bold">No Opportunities Found</h2>
-          <p className="text-white/80 mt-2">There was an issue loading the opportunities.</p>
+          <p className="text-white/80 mt-2">There was an issue loading the opportunities. Please try another search.</p>
           <Button asChild variant="link" className="mt-4 text-white">
             <Link to="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -65,7 +64,7 @@ export default function Opportunities() {
           )}
         </div>
         <div className="max-w-5xl mx-auto mt-6">
-          <Label htmlFor="min-score-slider" className="text-white">Filter by Minimum Match Score: <span className="font-bold">{minScore}</span></Label>
+          <Label htmlFor="min-score-slider" className="text-white">Filter by Minimum Match Score: <span className="font-bold">{minScore}/10</span></Label>
           <Slider
             id="min-score-slider"
             min={1}

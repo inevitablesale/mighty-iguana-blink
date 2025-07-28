@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Opportunity } from '@/types';
 import { toast } from 'sonner';
@@ -27,7 +28,7 @@ const fetchDeals = async (): Promise<Opportunity[]> => {
         { type: 'Budget', value: d.contract_value_assessment || 'Est. Fee: $25,000', description: 'This is an estimate of the potential placement fee.' }
     ],
     ta_team_status: i % 3 === 0 ? 'No Recruiters' : 'Unknown',
-    match_score: d.match_score || 75,
+    match_score: d.match_score || 8,
     primary_contact: {
         name: 'Jane Doe',
         title: 'VP of Engineering',
@@ -57,6 +58,7 @@ export default function DealStream() {
   const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
   const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLoading(true);
@@ -92,13 +94,31 @@ export default function DealStream() {
     if (!input.trim() || isSearching) return;
     
     setIsSearching(true);
-    toast.info("Searching for new deals...", { description: "This may take a moment." });
+    const toastId = toast.loading("Finding and analyzing deals...", {
+      description: "This can take up to a minute. Please wait."
+    });
 
-    setTimeout(() => {
-        toast.success("Found new deals!", { description: "They have been added to the top of your stream." });
-        setIsSearching(false);
-        setInput('');
-    }, 2000);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-chat-command', {
+        body: { query: input },
+      });
+
+      if (error) throw new Error(error.message);
+      
+      if (data.error) throw new Error(data.error);
+
+      if (data.opportunities && data.opportunities.length > 0) {
+        toast.success(`Found ${data.opportunities.length} new deals!`, { id: toastId });
+        navigate('/opportunities', { state: { opportunities: data.opportunities, searchParams: data.searchParams } });
+      } else {
+        toast.info("No new deals found.", { id: toastId, description: data.text || "Try broadening your search." });
+      }
+      setInput('');
+    } catch (err) {
+      toast.error("Search failed", { id: toastId, description: (err as Error).message });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleDealClick = (deal: Opportunity) => {
@@ -118,6 +138,7 @@ export default function DealStream() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     handleSearch(e);
                   }
                 }}

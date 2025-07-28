@@ -42,7 +42,7 @@ export function DealCard({ opportunity, onClick }: DealCardProps) {
           </div>
           <Badge variant="secondary" className="flex-shrink-0 px-2 py-1 text-xs font-bold">
             <Star className="h-3 w-3 mr-1.5 text-yellow-400" />
-            {opportunity.match_score}% Fit
+            {opportunity.match_score}/10 Fit
           </Badge>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
