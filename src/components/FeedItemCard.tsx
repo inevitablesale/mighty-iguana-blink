@@ -1,5 +1,5 @@
 import { FeedItem, Opportunity } from "@/types";
-import { Bot, User, Save, Users, Loader2 } from "lucide-react";
+import { Bot, User, Save, Users, Loader2, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { DealCard } from "./DealCard";
 import { SaveAgentDialog } from "./SaveAgentDialog";
@@ -14,6 +14,32 @@ import { supabase } from "@/integrations/supabase/client";
 interface FeedItemCardProps {
   item: FeedItem;
 }
+
+const AgentPromptResponse = ({ item }: { item: FeedItem }) => {
+  if (!item.content.searchParams) return null;
+
+  return (
+    <div className="flex items-start gap-4">
+      <div className="bg-primary/10 text-primary p-2 rounded-full flex-shrink-0">
+        <Sparkles className="h-5 w-5" />
+      </div>
+      <div className="flex-1">
+        <div className="p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-white">Agent Prompt Generated</p>
+            <p className="text-sm text-white/80">I've created a prompt for this search. You can save it as an agent to run it automatically in the future.</p>
+          </div>
+          <SaveAgentDialog searchParams={item.content.searchParams}>
+            <Button>
+              <Save className="mr-2 h-4 w-4" />
+              Save Agent
+            </Button>
+          </SaveAgentDialog>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SystemResponse = ({ item }: { item: FeedItem }) => {
   const { user } = useUserProfile();
@@ -74,23 +100,15 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
                       <DealCard key={opp.id} opportunity={opp} />
                   ))}
               </div>
-              {item.content.searchParams && (
-                  <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
-                      <p className="text-sm font-medium text-white/90">What's next?</p>
-                      <div className="flex items-center gap-2">
-                        <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
-                          {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-                          Find Contacts
-                        </Button>
-                        <SaveAgentDialog searchParams={item.content.searchParams}>
-                            <Button>
-                                <Save className="mr-2 h-4 w-4" />
-                                Create an Agent
-                            </Button>
-                        </SaveAgentDialog>
-                      </div>
+              <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium text-white/90">What's next?</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
+                      {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                      Find Contacts for All
+                    </Button>
                   </div>
-              )}
+              </div>
           </div>
         ) : null}
       </div>
@@ -115,12 +133,16 @@ const UserQuery = ({ item }: { item: FeedItem }) => (
 
 export function FeedItemCard({ item }: FeedItemCardProps) {
   const renderContent = () => {
-    switch (item.role) {
-      case 'system':
+    switch (item.type) {
+      case 'agent_run_summary':
         return <SystemResponse item={item} />;
-      case 'user':
+      case 'user_search':
         return <UserQuery item={item} />;
+      case 'agent_prompt':
+        return <AgentPromptResponse item={item} />;
       default:
+        // Fallback for any other system message
+        if (item.role === 'system') return <SystemResponse item={item} />;
         return <p>Unknown feed item role: {item.role}</p>;
     }
   };

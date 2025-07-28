@@ -106,6 +106,9 @@ export default function Chat() {
           if (data.type === 'status') {
             const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: data.message }, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, newItem]);
+          } else if (data.type === 'agent_prompt_generated') {
+            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_prompt', role: 'system', content: { searchParams: data.payload.searchParams }, created_at: new Date().toISOString() };
+            setFeedItems(prev => [...prev, newItem]);
           } else if (data.type === 'analysis_start') {
             const newItemId = crypto.randomUUID();
             analysisMessageIdRef.current = newItemId;

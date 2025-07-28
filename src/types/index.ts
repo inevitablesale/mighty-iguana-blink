@@ -153,7 +153,7 @@ export interface AnalysisProgress {
 export interface FeedItem {
   id: string;
   user_id: string;
-  type: 'agent_run_summary' | 'user_search';
+  type: 'agent_run_summary' | 'user_search' | 'agent_prompt';
   role: 'system' | 'user';
   content: {
     agentName?: string;
