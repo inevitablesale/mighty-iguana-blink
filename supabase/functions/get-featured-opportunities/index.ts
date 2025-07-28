@@ -65,8 +65,8 @@ serve(async (req) => {
         opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
         sourceIsProactive = true;
     } else {
-        // FALLBACK LOGIC: Use the specified high-yield URL
-        const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=remote&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100";
+        // FALLBACK LOGIC: Use the specified high-yield URL and add hours_old=24
+        const scrapingUrl = "https://coogi-jobspy-production.up.railway.app/jobs?query=&location=remote&sites=linkedin,indeed,zip_recruiter&enforce_annual_salary=true&results_wanted=100&hours_old=24";
         
         console.log(`[get-featured-opportunities] No proactive opportunities found. Performing live fallback search: ${scrapingUrl}`);
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });

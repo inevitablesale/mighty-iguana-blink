@@ -105,8 +105,8 @@ serve(async (req) => {
         const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
         if (!search_query || !location || !sites || !recruiter_specialty) throw new Error("AI failed to extract search parameters from your query.");
 
-        // Per your instructions, using enforce_annual_salary=true to get roles with salary data.
-        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=40&enforce_annual_salary=true`;
+        // Per your instructions, using enforce_annual_salary=true and adding hours_old=24
+        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=40&enforce_annual_salary=true&hours_old=24`;
         console.log(`[process-chat-command] Calling JobSpy with URL: ${scrapingUrl}`);
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
         if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);

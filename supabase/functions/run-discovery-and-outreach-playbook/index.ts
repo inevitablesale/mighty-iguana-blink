@@ -112,12 +112,10 @@ serve(async (req) => {
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
 
-    // Per your instructions, using enforce_annual_salary=true to get roles with salary data.
-    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}&enforce_annual_salary=true`;
+    // Per your instructions, using enforce_annual_salary=true and adding hours_old=24.
+    // Removed conflicting params like job_type and is_remote to respect Indeed API limitations.
+    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}&enforce_annual_salary=true&hours_old=24`;
     if (agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
-    if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
-    if (agent.is_remote) scrapingUrl += `&is_remote=true`;
-    if (agent.search_lookback_hours) scrapingUrl += `&hours_old=${agent.search_lookback_hours}`;
     
     console.log(`[run-discovery-and-outreach-playbook] Calling JobSpy with URL: ${scrapingUrl}`);
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
