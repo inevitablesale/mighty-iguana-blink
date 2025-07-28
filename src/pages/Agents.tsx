@@ -4,10 +4,14 @@ import { Agent } from '@/types';
 import { toast } from 'sonner';
 import { AgentCard } from '@/components/AgentCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Play, Loader2, Radar } from "lucide-react";
 
 export default function Agents() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isScannerRunning, setIsScannerRunning] = useState(false);
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
@@ -38,6 +42,31 @@ export default function Agents() {
     setAgents(prev => prev.filter(agent => agent.id !== agentId));
   };
 
+  const handleRunScanner = async () => {
+    setIsScannerRunning(true);
+    const toastId = toast.loading("Running Market Scanner...", {
+      description: "This will scan the market for new opportunities. It may take a minute.",
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('market-scanner-playbook');
+
+      if (error) throw new Error(error.message);
+
+      toast.success("Market Scanner complete!", {
+        id: toastId,
+        description: data.message || "The scan finished successfully.",
+      });
+    } catch (err) {
+      toast.error("Market Scanner failed.", {
+        id: toastId,
+        description: (err as Error).message,
+      });
+    } finally {
+      setIsScannerRunning(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
@@ -47,6 +76,31 @@ export default function Agents() {
             Manage your automated playbooks. These agents run in the background to find new opportunities for you.
           </p>
         </header>
+
+        <Card className="mb-8 bg-primary/10 border-primary/20 text-white">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Radar className="h-6 w-6 text-primary" />
+              <div>
+                <CardTitle className="text-lg text-white">Market Scanner Playbook</CardTitle>
+                <CardDescription className="text-white/60">
+                  Manually trigger a broad market scan for high-value opportunities.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-white/80">
+              This playbook performs a wide search for recently posted, high-paying jobs across the entire market. The results are then scored and matched to the best-fit recruiter profile in the system.
+            </p>
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button onClick={handleRunScanner} disabled={isScannerRunning}>
+              {isScannerRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              Run Scanner Now
+            </Button>
+          </CardFooter>
+        </Card>
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
