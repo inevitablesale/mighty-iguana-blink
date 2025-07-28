@@ -39,6 +39,7 @@ export interface ProactiveOpportunity {
     title: string;
     location: string;
     description: string;
+    date_posted?: string;
   };
   user_id: string | null;
   // Enriched data for better card display
