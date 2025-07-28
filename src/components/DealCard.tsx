@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity, DealSignal } from "@/types";
@@ -26,57 +27,61 @@ const getSignalColor = (type: DealSignal['type']) => {
     }
 }
 
-export function DealCard({ opportunity }: DealCardProps) {
-  return (
-    <Card 
-      className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer"
-    >
-      <CardHeader className="p-4">
-        <div className="flex justify-between items-start gap-2">
-          <div>
-            <CardTitle className="text-base font-bold text-foreground">{opportunity.company_name}</CardTitle>
-            <CardDescription className="text-sm text-primary font-medium">{opportunity.role}</CardDescription>
+export const DealCard = React.forwardRef<HTMLDivElement, DealCardProps>(
+  ({ opportunity }, ref) => {
+    return (
+      <Card 
+        ref={ref}
+        className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer"
+      >
+        <CardHeader className="p-4">
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <CardTitle className="text-base font-bold text-foreground">{opportunity.company_name}</CardTitle>
+              <CardDescription className="text-sm text-primary font-medium">{opportunity.role}</CardDescription>
+            </div>
+            <Badge variant="secondary" className="flex-shrink-0 px-2 py-1 text-xs font-bold">
+              <Star className="h-3 w-3 mr-1.5 text-yellow-400" />
+              {opportunity.match_score}/10 Fit
+            </Badge>
           </div>
-          <Badge variant="secondary" className="flex-shrink-0 px-2 py-1 text-xs font-bold">
-            <Star className="h-3 w-3 mr-1.5 text-yellow-400" />
-            {opportunity.match_score}/10 Fit
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
-            <MapPin size={12} /> <span>{opportunity.location}</span>
-            {opportunity.ta_team_status === 'No Recruiters' && (
-                <>
-                <span className="mx-1">·</span>
-                <span className="flex items-center gap-1.5 text-yellow-300"><XCircle size={12} /> No Recruiters Detected</span>
-                </>
-            )}
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <div className="flex flex-wrap gap-2">
-            <TooltipProvider>
-            {(opportunity.deal_signals || []).map((signal, index) => (
-                <Tooltip key={index} delayDuration={100}>
-                    <TooltipTrigger>
-                        <Badge variant="outline" className={`font-normal ${getSignalColor(signal.type)}`}>
-                            <span className="mr-1.5">{signalIcons[signal.type]}</span>
-                            {signal.value}
-                        </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p className="font-bold">{signal.type} Signal</p>
-                        <p>{signal.description}</p>
-                    </TooltipContent>
-                </Tooltip>
-            ))}
-            </TooltipProvider>
-        </div>
-      </CardContent>
-      <CardFooter className="p-3 bg-black/30 border-t border-white/20 flex justify-end">
-        <div className="text-xs text-muted-foreground flex items-center">
-            Open Pitch Mode <ArrowRight className="ml-2 h-3 w-3" />
-        </div>
-      </CardFooter>
-    </Card>
-  );
-}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+              <MapPin size={12} /> <span>{opportunity.location}</span>
+              {opportunity.ta_team_status === 'No Recruiters' && (
+                  <>
+                  <span className="mx-1">·</span>
+                  <span className="flex items-center gap-1.5 text-yellow-300"><XCircle size={12} /> No Recruiters Detected</span>
+                  </>
+              )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="flex flex-wrap gap-2">
+              <TooltipProvider>
+              {(opportunity.deal_signals || []).map((signal, index) => (
+                  <Tooltip key={index} delayDuration={100}>
+                      <TooltipTrigger>
+                          <Badge variant="outline" className={`font-normal ${getSignalColor(signal.type)}`}>
+                              <span className="mr-1.5">{signalIcons[signal.type]}</span>
+                              {signal.value}
+                          </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          <p className="font-bold">{signal.type} Signal</p>
+                          <p>{signal.description}</p>
+                      </TooltipContent>
+                  </Tooltip>
+              ))}
+              </TooltipProvider>
+          </div>
+        </CardContent>
+        <CardFooter className="p-3 bg-black/30 border-t border-white/20 flex justify-end">
+          <div className="text-xs text-muted-foreground flex items-center">
+              Open Pitch Mode <ArrowRight className="ml-2 h-3 w-3" />
+          </div>
+        </CardFooter>
+      </Card>
+    );
+  }
+);
+DealCard.displayName = "DealCard";
