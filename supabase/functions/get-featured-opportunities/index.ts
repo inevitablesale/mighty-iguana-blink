@@ -33,6 +33,13 @@ async function callGemini(prompt, apiKey) {
   }
 }
 
+const FALLBACK_SEARCHES = [
+    { query: "senior software engineer", location: "Remote" },
+    { query: "head of sales", location: "USA" },
+    { query: "principal product manager", location: "USA" },
+    { query: "engineering manager", location: "Remote" },
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -56,13 +63,44 @@ serve(async (req) => {
       .limit(4);
 
     if (fetchError) throw new Error(`Failed to fetch featured opportunities: ${fetchError.message}`);
-    if (!topProactive || topProactive.length === 0) {
+    
+    let opportunitiesToEnrich = [];
+    let sourceIsProactive = false;
+
+    if (topProactive && topProactive.length > 0) {
+        opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
+        sourceIsProactive = true;
+    } else {
+        // FALLBACK LOGIC: Perform a live search if no proactive opportunities are found
+        const randomSearch = FALLBACK_SEARCHES[Math.floor(Math.random() * FALLBACK_SEARCHES.length)];
+        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(randomSearch.query)}&location=${encodeURIComponent(randomSearch.location)}&sites=linkedin,google&results=10&enforce_annual_salary=true`;
+        
+        const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
+        if (!scrapingResponse.ok) {
+            console.error(`Fallback job scraping failed: ${await scrapingResponse.text()}`);
+            return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
+        }
+        
+        const scrapingData = await scrapingResponse.json();
+        const rawJobResults = scrapingData?.jobs;
+
+        if (rawJobResults && rawJobResults.length > 0) {
+            const sortedJobs = rawJobResults
+                .filter(job => job.max_amount && job.max_amount > 0)
+                .sort((a, b) => b.max_amount - a.max_amount)
+                .slice(0, 4);
+            
+            opportunitiesToEnrich = sortedJobs.map(job => ({ job, score: null }));
+        }
+    }
+
+    if (opportunitiesToEnrich.length === 0) {
       return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
 
     // Enrich each one to match the `Opportunity` type for the UI card
-    const enrichmentPromises = topProactive.map(async (proactiveOpp) => {
-      const job = proactiveOpp.job_data;
+    const enrichmentPromises = opportunitiesToEnrich.map(async (item) => {
+      const job = item.job;
       
       const enrichmentPrompt = `
         You are a recruiting analyst. Analyze the following job data and format it for display on a summary card.
@@ -88,7 +126,7 @@ serve(async (req) => {
       return {
         id: crypto.randomUUID(), // Generate a temp ID for the key prop
         ...analysisData,
-        match_score: proactiveOpp.relevance_score,
+        match_score: sourceIsProactive ? item.score : 8, // Assign a default high score for featured jobs
       };
     });
 
