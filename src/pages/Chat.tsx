@@ -99,27 +99,24 @@ export default function Chat() {
         const parts = buffer.split('\n\n');
         buffer = parts.pop() || '';
 
-        if (parts.length === 0) continue;
-
-        setFeedItems(currentFeedItems => {
-          let newItems = [...currentFeedItems];
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue;
+          const jsonString = part.substring(6);
+          if (!jsonString) continue;
           
-          for (const part of parts) {
-            if (!part.startsWith('data: ')) continue;
-            const jsonString = part.substring(6);
-            if (!jsonString) continue;
-            
-            let data;
-            try {
-              data = JSON.parse(jsonString);
-            } catch (e) {
-              console.error("Failed to parse stream chunk:", jsonString, e);
-              continue;
-            }
+          let data;
+          try {
+            data = JSON.parse(jsonString);
+          } catch (e) {
+            console.error("Failed to parse stream chunk:", jsonString, e);
+            continue;
+          }
 
-            const itemIndex = newItems.findIndex(i => i.id === systemResponseId);
-            if (itemIndex === -1) continue;
+          setFeedItems(prevItems => {
+            const itemIndex = prevItems.findIndex(i => i.id === systemResponseId);
+            if (itemIndex === -1) return prevItems;
 
+            const newItems = [...prevItems];
             const currentItem = newItems[itemIndex];
             const updatedContent = { ...currentItem.content };
 
@@ -152,10 +149,11 @@ export default function Chat() {
               case 'error':
                 throw new Error(data.message);
             }
+            
             newItems[itemIndex] = { ...currentItem, content: updatedContent };
-          }
-          return newItems;
-        });
+            return newItems;
+          });
+        }
       }
     } catch (err) {
       setFeedItems(prev => prev.filter(item => item.id !== systemResponseId));
