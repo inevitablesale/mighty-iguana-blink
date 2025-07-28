@@ -18,6 +18,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const analysisMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchFeedItems = async () => {
@@ -51,6 +52,7 @@ export default function Chat() {
     
     setInput('');
     setIsSearching(true);
+    analysisMessageIdRef.current = null;
     
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
@@ -70,12 +72,7 @@ export default function Chat() {
     }
 
     const userQueryItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, type: 'user_search', role: 'user', content: { query }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
-    
-    const systemResponseId = crypto.randomUUID();
-    const systemResponseItem: FeedItem = { id: systemResponseId, user_id: user.id, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: 'Thinking...' }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
-    
-    setFeedItems(prev => [...prev, userQueryItem, systemResponseItem]);
-
+    setFeedItems(prev => [...prev, userQueryItem]);
     await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
 
     try {
@@ -89,7 +86,6 @@ export default function Chat() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let finalResultSaved = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -105,58 +101,36 @@ export default function Chat() {
           if (!jsonString) continue;
           
           let data;
-          try {
-            data = JSON.parse(jsonString);
-          } catch (e) {
-            console.error("Failed to parse stream chunk:", jsonString, e);
-            continue;
+          try { data = JSON.parse(jsonString); } catch (e) { console.error("Failed to parse stream chunk:", jsonString, e); continue; }
+
+          if (data.type === 'status') {
+            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: data.message }, created_at: new Date().toISOString() };
+            setFeedItems(prev => [...prev, newItem]);
+          } else if (data.type === 'analysis_start') {
+            const newItemId = crypto.randomUUID();
+            analysisMessageIdRef.current = newItemId;
+            const newItem: FeedItem = { id: newItemId, user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: `Analyzing ${data.payload.jobs.length} jobs...`, analysisProgress: { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) } }, created_at: new Date().toISOString() };
+            setFeedItems(prev => [...prev, newItem]);
+          } else if (data.type === 'analysis_progress' && analysisMessageIdRef.current) {
+            setFeedItems(prev => prev.map(item => {
+              if (item.id === analysisMessageIdRef.current && item.content.analysisProgress) {
+                const newJobs = [...item.content.analysisProgress.jobs];
+                newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
+                return { ...item, content: { ...item.content, analysisProgress: { jobs: newJobs } } };
+              }
+              return item;
+            }));
+          } else if (data.type === 'result') {
+            const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
+            const finalItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent, created_at: new Date().toISOString() };
+            setFeedItems(prev => [...prev, finalItem]);
+            await supabase.from('feed_items').insert({ ...finalItem, id: undefined });
+          } else if (data.type === 'error') {
+            throw new Error(data.message);
           }
-
-          setFeedItems(prevItems => {
-            const itemIndex = prevItems.findIndex(i => i.id === systemResponseId);
-            if (itemIndex === -1) return prevItems;
-
-            const newItems = [...prevItems];
-            const currentItem = newItems[itemIndex];
-            const updatedContent = { ...currentItem.content };
-
-            switch (data.type) {
-              case 'status':
-                updatedContent.summary = data.message;
-                break;
-              case 'analysis_start':
-                updatedContent.summary = `Analyzing ${data.payload.jobs.length} jobs...`;
-                updatedContent.analysisProgress = { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) };
-                break;
-              case 'analysis_progress':
-                if (updatedContent.analysisProgress) {
-                  const newJobs = [...updatedContent.analysisProgress.jobs];
-                  newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
-                  updatedContent.analysisProgress = { ...updatedContent.analysisProgress, jobs: newJobs };
-                }
-                break;
-              case 'result':
-                if (!finalResultSaved) {
-                  updatedContent.summary = data.payload.text;
-                  updatedContent.opportunities = data.payload.opportunities;
-                  updatedContent.searchParams = data.payload.searchParams;
-                  delete updatedContent.analysisProgress;
-                  
-                  supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: updatedContent });
-                  finalResultSaved = true;
-                }
-                break;
-              case 'error':
-                throw new Error(data.message);
-            }
-            
-            newItems[itemIndex] = { ...currentItem, content: updatedContent };
-            return newItems;
-          });
         }
       }
     } catch (err) {
-      setFeedItems(prev => prev.filter(item => item.id !== systemResponseId));
       toast.error("Search failed", { description: (err as Error).message });
     } finally {
       setIsSearching(false);
