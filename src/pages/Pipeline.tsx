@@ -1,44 +1,59 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Campaign, CampaignStatus } from '@/types';
+import { Campaign, CampaignStatus, ProactiveOpportunity } from '@/types';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, arrayMove } from "@dnd-kit/sortable";
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay } from "@dnd-kit/core";
+import { SortableContext } from "@dnd-kit/sortable";
 import { CampaignColumn } from '@/components/CampaignColumn';
 import { CampaignCard } from '@/components/CampaignCard';
 import { createPortal } from 'react-dom';
+import { ProactiveOpportunityCard } from '@/components/ProactiveOpportunityCard';
 
 const pipelineStatuses: CampaignStatus[] = ['draft', 'contacted', 'replied', 'sourcing', 'interviewing', 'hired'];
 
 export default function Pipeline() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [proactiveOpportunities, setProactiveOpportunities] = useState<ProactiveOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
+  const [processingOpp, setProcessingOpp] = useState<{ id: string; type: 'accept' | 'dismiss' } | null>(null);
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
+    const fetchPipelineData = async () => {
       setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not found");
 
-        const { data, error } = await supabase
+        const campaignsPromise = supabase
           .from('campaigns')
           .select('*')
           .eq('user_id', user.id)
           .in('status', pipelineStatuses)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setCampaigns(data);
+        const proactiveOppsPromise = supabase
+          .from('proactive_opportunities')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'reviewed');
+
+        const [campaignsResult, proactiveOppsResult] = await Promise.all([campaignsPromise, proactiveOppsPromise]);
+
+        if (campaignsResult.error) throw campaignsResult.error;
+        setCampaigns(campaignsResult.data);
+
+        if (proactiveOppsResult.error) throw proactiveOppsResult.error;
+        setProactiveOpportunities(proactiveOppsResult.data as ProactiveOpportunity[]);
+
       } catch (err) {
-        toast.error("Failed to fetch campaigns", { description: (err as Error).message });
+        toast.error("Failed to fetch pipeline data", { description: (err as Error).message });
       } finally {
         setLoading(false);
       }
     };
-    fetchCampaigns();
+    fetchPipelineData();
   }, []);
 
   const campaignsByStatus = useMemo(() => {
@@ -52,9 +67,32 @@ export default function Pipeline() {
     return grouped;
   }, [campaigns]);
 
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: { distance: 5 },
-  }));
+  const handleAcceptOpportunity = async (opportunityId: string) => {
+    setProcessingOpp({ id: opportunityId, type: 'accept' });
+    // This is where you would convert the proactive opportunity into a real opportunity/campaign
+    // For now, we'll just remove it from the list as a placeholder for success
+    setTimeout(() => {
+      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
+      toast.success("Opportunity accepted and moved to pipeline!");
+      setProcessingOpp(null);
+    }, 1000);
+  };
+
+  const handleDismissOpportunity = async (opportunityId: string) => {
+    setProcessingOpp({ id: opportunityId, type: 'dismiss' });
+    const { error } = await supabase
+      .from('proactive_opportunities')
+      .update({ status: 'dismissed' })
+      .eq('id', opportunityId);
+    
+    if (error) {
+      toast.error("Failed to dismiss opportunity.");
+    } else {
+      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
+      toast.info("Opportunity dismissed.");
+    }
+    setProcessingOpp(null);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     if (event.active.data.current?.type === "Campaign") {
@@ -68,8 +106,6 @@ export default function Pipeline() {
     if (!over || active.id === over.id) return;
 
     const activeId = active.id;
-    const overId = over.id;
-
     const isActiveACampaign = active.data.current?.type === "Campaign";
     if (!isActiveACampaign) return;
 
@@ -97,25 +133,43 @@ export default function Pipeline() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-4 md:p-6 flex gap-4">
-        {pipelineStatuses.map(s => <Skeleton key={s} className="h-[80vh] w-1/5 bg-white/10" />)}
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Campaign Pipeline</h1>
+        <h1 className="text-3xl font-bold text-white">Deal Pipeline</h1>
         <p className="text-white/80 mt-1">
-          Manage your active deals by dragging and dropping them between stages.
+          Your automated deal flow. New opportunities appear on the left. Drag campaigns to update their status.
         </p>
       </header>
       <div className="flex-grow overflow-x-auto pb-4">
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 h-full">
+            {/* Proactive Opportunities Column */}
+            <div className="w-full md:w-1/4 lg:w-1/5 flex-shrink-0">
+              <div className="bg-black/20 border border-white/10 rounded-lg p-2 h-full flex flex-col backdrop-blur-sm">
+                <h3 className="font-semibold text-center p-2 capitalize text-primary">
+                  Market Opportunities
+                </h3>
+                <div className="flex-grow overflow-y-auto space-y-2 pr-1">
+                  {loading ? (
+                    <Skeleton className="h-40 w-full bg-white/10" />
+                  ) : (
+                    proactiveOpportunities.map(opp => (
+                      <ProactiveOpportunityCard
+                        key={opp.id}
+                        opportunity={opp}
+                        onAccept={handleAcceptOpportunity}
+                        onDismiss={handleDismissOpportunity}
+                        isAccepting={processingOpp?.id === opp.id && processingOpp?.type === 'accept'}
+                        isDismissing={processingOpp?.id === opp.id && processingOpp?.type === 'dismiss'}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Campaign Columns */}
             <SortableContext items={pipelineStatuses}>
               {pipelineStatuses.map(status => (
                 <CampaignColumn

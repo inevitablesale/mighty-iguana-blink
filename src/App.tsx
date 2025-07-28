@@ -51,12 +51,13 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+              <Route path="/login" element={!session ? <Login /> : <Navigate to="/pipeline" />} />
               <Route 
                 path="/" 
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
-                <Route index element={<Index />} />
+                <Route index element={<Navigate to="/pipeline" />} />
+                <Route path="chat" element={<Index />} />
                 <Route path="market" element={<Market />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="pipeline" element={<Pipeline />} />
@@ -69,6 +70,6 @@ const App = () => {
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;

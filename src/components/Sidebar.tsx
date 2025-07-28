@@ -51,21 +51,21 @@ export function Sidebar() {
       </div>
       <div className="flex-1 space-y-6 overflow-y-auto">
         <nav className="space-y-1">
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/pipeline')}>
+            <Briefcase className="mr-3 h-5 w-5" />
+            Pipeline
+          </Button>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/agents')}>
+            <Bot className="mr-3 h-5 w-5" />
+            Agents
+          </Button>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/chat')}>
             <MessageSquare className="mr-3 h-5 w-5" />
             Chat
           </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market')}>
             <Flame className="mr-3 h-5 w-5" />
             Market
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/agents')}>
-            <Bot className="mr-3 h-5 w-5" />
-            Agents
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/pipeline')}>
-            <Briefcase className="mr-3 h-5 w-5" />
-            Pipeline
           </Button>
         </nav>
         <div>
