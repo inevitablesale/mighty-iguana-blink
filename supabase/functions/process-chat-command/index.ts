@@ -195,7 +195,7 @@ serve(async (req) => {
           sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} potential jobs. Now filtering and preparing for analysis...` });
 
           const sortedJobs = rawJobResults.filter(job => job.max_amount && job.max_amount > 0).sort((a, b) => b.max_amount - a.max_amount);
-          const topJobs = sortedJobs.slice(0, 40);
+          const topJobs = sortedJobs;
           
           sendUpdate({
             type: 'analysis_start',
