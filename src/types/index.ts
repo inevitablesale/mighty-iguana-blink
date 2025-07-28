@@ -41,6 +41,11 @@ export interface ProactiveOpportunity {
     description: string;
   };
   user_id: string | null;
+  // Enriched data for better card display
+  contract_value_assessment?: string;
+  hiring_urgency?: string;
+  placement_difficulty?: string;
+  seniority_level?: string;
 }
 
 export interface Contact {

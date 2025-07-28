@@ -36,12 +36,7 @@ export default function Pipeline() {
           .in('status', pipelineStatuses)
           .order('created_at', { ascending: false });
 
-        const proactiveOppsPromise = supabase
-          .from('proactive_opportunities')
-          .select('*')
-          .or(`user_id.eq.${user.id},user_id.is.null`)
-          .eq('status', 'reviewed')
-          .order('relevance_score', { ascending: false });
+        const proactiveOppsPromise = supabase.functions.invoke('get-enriched-proactive-opportunities');
 
         const [campaignsResult, proactiveOppsResult] = await Promise.all([campaignsPromise, proactiveOppsPromise]);
 
@@ -49,7 +44,7 @@ export default function Pipeline() {
         setCampaigns(campaignsResult.data);
 
         if (proactiveOppsResult.error) throw proactiveOppsResult.error;
-        setProactiveOpportunities(proactiveOppsResult.data as ProactiveOpportunity[]);
+        setProactiveOpportunities(proactiveOppsResult.data.opportunities as ProactiveOpportunity[]);
 
       } catch (err) {
         toast.error("Failed to fetch pipeline data", { description: (err as Error).message });
