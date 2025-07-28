@@ -17,14 +17,17 @@ export function FeedbackControl({ contentId, contentType, userId }: FeedbackCont
 
   useEffect(() => {
     const fetchFeedback = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('feedback')
         .select('rating')
         .eq('user_id', userId)
         .eq('content_id', contentId)
         .eq('content_type', contentType)
-        .single();
-      if (data) {
+        .maybeSingle(); // Use maybeSingle to gracefully handle 0 or 1 results
+
+      if (error) {
+        console.error("Error fetching feedback", error);
+      } else if (data) {
         setFeedback(data.rating as 'good' | 'bad');
       }
     };
