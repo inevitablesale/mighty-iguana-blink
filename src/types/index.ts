@@ -41,6 +41,7 @@ export interface Campaign {
   status: CampaignStatus;
   contact_name: string | null;
   contact_email: string | null;
+  created_at: string;
 }
 
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';
