@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Contact, Opportunity, ContactEvaluation } from "@/types/index";
-import { Linkedin, Mail, ChevronDown, Loader2, Eye, Phone, Sparkles } from "lucide-react";
+import { Linkedin, Mail, ChevronDown, Loader2, Eye, Phone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,8 +45,23 @@ export function ViewContactsDialog({
   revealedContactIds,
   children 
 }: ViewContactsDialogProps) {
+  const [open, setOpen] = useState(false);
   const [revealingId, setRevealingId] = useState<string | null>(null);
   const [evaluations, setEvaluations] = useState<Map<string, ContactEvaluation | 'loading'>>(new Map());
+
+  useEffect(() => {
+    if (open && contacts.length > 0) {
+      contacts.forEach(contact => {
+        if (!evaluations.has(contact.id)) {
+          const opportunity = opportunities.find(o => o.id === contact.opportunity_id);
+          if (opportunity) {
+            handleEvaluate(contact, opportunity);
+          }
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, contacts, opportunities]);
 
   const getInitials = (name: string | null) => {
     if (!name) return "?";
@@ -73,7 +88,8 @@ export function ViewContactsDialog({
       if (error) throw error;
       setEvaluations(prev => new Map(prev).set(contact.id, data.evaluation));
     } catch (err) {
-      toast.error(`Evaluation failed: ${(err as Error).message}`);
+      // Don't show a toast for auto-evaluations to avoid spamming user
+      console.error(`Evaluation failed for ${contact.name}: ${(err as Error).message}`);
       setEvaluations(prev => {
         const newMap = new Map(prev);
         newMap.delete(contact.id);
@@ -100,49 +116,31 @@ export function ViewContactsDialog({
     }
 
     return (
-      <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Evaluate
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {opportunities.map(opp => (
-              <DropdownMenuItem key={opp.id} onClick={() => handleEvaluate(contact, opp)} disabled={evaluations.get(contact.id) === 'loading'}>
-                Against: {opp.role}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              size="sm" 
-              disabled={(isGenerating && generatingContactId === contact.id) || !contact.email}
-              className="coogi-gradient-bg text-primary-foreground hover:opacity-90"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft'}
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {opportunities.map(opp => (
-              <DropdownMenuItem key={opp.id} onClick={() => handleDraftClick(contact, opp)} disabled={isGenerating}>
-                For: {opp.role}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            size="sm" 
+            disabled={(isGenerating && generatingContactId === contact.id) || !contact.email}
+            className="coogi-gradient-bg text-primary-foreground hover:opacity-90"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft'}
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {opportunities.map(opp => (
+            <DropdownMenuItem key={opp.id} onClick={() => handleDraftClick(contact, opp)} disabled={isGenerating}>
+              For: {opp.role}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
