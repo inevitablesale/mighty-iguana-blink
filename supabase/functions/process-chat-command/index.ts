@@ -195,7 +195,7 @@ serve(async (req) => {
           sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} potential jobs. Now filtering and preparing for analysis...` });
 
           const sortedJobs = rawJobResults.filter(job => job.max_amount && job.max_amount > 0).sort((a, b) => b.max_amount - a.max_amount);
-          const topJobs = sortedJobs.slice(0, 20);
+          const topJobs = sortedJobs.slice(0, 40);
           
           sendUpdate({
             type: 'analysis_start',
@@ -204,45 +204,51 @@ serve(async (req) => {
             }
           });
 
-          const enrichedOpportunities = [];
-          for (const [index, job] of topJobs.entries()) {
-              try {
-                  const jobHash = await createJobHash(job);
-                  const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
-                  
-                  let analysisData;
-                  if (cached) {
-                      analysisData = cached.analysis_data;
-                  } else {
-                      const singleEnrichmentPrompt = `
-                          You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's stated specialty.
-                          Recruiter's specialty: "${recruiter_specialty}"
-                          Job Posting: ${JSON.stringify(job)}
-                          Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
-                          **The "match_score" MUST be an integer between 1 and 10.**
-                          **For "contract_value_assessment", analyze the job description for salary information. If a salary range is found (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, provide a qualitative assessment like 'High Value' or 'Medium Value'.**
-                          **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
-                      `;
-                      analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
-                      await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
-                  }
-                  
-                  analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
-                  analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
-                  enrichedOpportunities.push(analysisData);
+          const enrichmentPromises = topJobs.map((job, index) => (async () => {
+            const jobHash = await createJobHash(job);
+            const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
+            
+            let analysisData;
+            if (cached) {
+                analysisData = cached.analysis_data;
+            } else {
+                const singleEnrichmentPrompt = `
+                    You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's stated specialty.
+                    Recruiter's specialty: "${recruiter_specialty}"
+                    Job Posting: ${JSON.stringify(job)}
+                    Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
+                    **The "match_score" MUST be an integer between 1 and 10.**
+                    **For "contract_value_assessment", analyze the job description for salary information. If a salary range is found (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, provide a qualitative assessment like 'High Value' or 'Medium Value'.**
+                    **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
+                `;
+                analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+                await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+            }
+            
+            analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
+            analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
 
-                  sendUpdate({
-                    type: 'analysis_progress',
-                    payload: {
-                      index: index,
-                      match_score: analysisData.match_score
-                    }
-                  });
-
-              } catch (e) {
-                  console.error(`Failed to enrich job for ${job.company}: ${e.message}`);
+            sendUpdate({
+              type: 'analysis_progress',
+              payload: {
+                index: index,
+                match_score: analysisData.match_score
               }
-          }
+            });
+
+            return analysisData;
+          })());
+
+          const settledResults = await Promise.allSettled(enrichmentPromises);
+          
+          const enrichedOpportunities = [];
+          settledResults.forEach(result => {
+            if (result.status === 'fulfilled' && result.value) {
+              enrichedOpportunities.push(result.value);
+            } else if (result.status === 'rejected') {
+              console.error("An enrichment promise failed:", result.reason);
+            }
+          });
 
           let opportunitiesToReturn = enrichedOpportunities.filter(opp => opp.match_score >= 5).sort((a, b) => b.match_score - a.match_score);
           
