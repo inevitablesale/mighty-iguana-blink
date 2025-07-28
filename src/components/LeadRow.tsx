@@ -2,10 +2,11 @@ import { TableRow, TableCell } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
-import { Sparkles, Briefcase, Users, MessageSquare, Loader2, XCircle, SearchCheck } from "lucide-react";
+import { Sparkles, Briefcase, Users, MessageSquare, Loader2, XCircle, SearchCheck, ScanLine } from "lucide-react";
 import { LeadAnalysisDialog } from "./LeadAnalysisDialog";
 import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 import { ViewContactsDialog } from "./ViewContactsDialog";
+import { DeepScrapeDialog } from "./DeepScrapeDialog";
 
 interface LeadRowProps {
   opportunity: Opportunity;
@@ -86,6 +87,9 @@ export function LeadRow({
           <CompanyBriefingDialog companyName={opportunity.company_name}>
             <Button variant="ghost" size="icon"><Briefcase className="h-4 w-4" /></Button>
           </CompanyBriefingDialog>
+          <DeepScrapeDialog companyName={opportunity.company_name}>
+            <Button variant="ghost" size="icon"><ScanLine className="h-4 w-4" /></Button>
+          </DeepScrapeDialog>
           {renderContactButton()}
         </div>
       </TableCell>
