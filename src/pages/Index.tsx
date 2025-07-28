@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/components/ChatMessage';
+import { ExamplePrompts } from '@/components/ExamplePrompts';
 
 export default function Index() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -26,14 +27,14 @@ export default function Index() {
     }
   }, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const submitQuery = async (query: string) => {
+    if (!query.trim() || isLoading) return;
 
+    setIsLoading(true);
     const userMessage: ChatMessageType = {
       id: uuidv4(),
       role: 'user',
-      text: input,
+      text: query,
     };
 
     const loadingMessage: ChatMessageType = {
@@ -43,12 +44,10 @@ export default function Index() {
     };
 
     setMessages((prev) => [...prev, userMessage, loadingMessage]);
-    setInput('');
-    setIsLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('process-chat-command', {
-        body: { query: input },
+        body: { query },
       });
 
       if (error) {
@@ -67,10 +66,20 @@ export default function Index() {
     } catch (err) {
       const errorMessage = (err as Error).message;
       toast.error(errorMessage);
-      setMessages((prev) => prev.slice(0, -1)); // Remove loading message on error
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    submitQuery(input);
+    setInput('');
+  };
+
+  const handlePromptClick = (prompt: string) => {
+    submitQuery(prompt);
   };
 
   return (
@@ -80,6 +89,12 @@ export default function Index() {
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
+          {messages.length === 1 && !isLoading && (
+            <div className="pt-8">
+              <h2 className="text-center text-lg font-medium text-white/80 mb-4">Or try one of these examples</h2>
+              <ExamplePrompts onPromptClick={handlePromptClick} />
+            </div>
+          )}
         </div>
       </div>
       <div className="bg-black/10 backdrop-blur-sm border-t border-white/10 px-4 py-3">
