@@ -48,32 +48,21 @@ async function callApifyActor(actorId, input, token) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  let taskId;
-  try {
-    const { opportunityId, linkedinHtml } = await req.json();
-    if (!opportunityId) throw new Error("Opportunity ID is required.");
+  const { opportunityId, taskId } = await req.json();
+  if (!opportunityId || !taskId) {
+    return new Response(JSON.stringify({ error: "Opportunity ID and Task ID are required." }), { status: 400, headers: corsHeaders });
+  }
 
+  try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     if (!GEMINI_API_KEY || !APIFY_API_TOKEN) throw new Error("API keys are not set.");
 
-    const { data: task, error: taskError } = await supabaseAdmin.from('contact_enrichment_tasks').select('id').eq('opportunity_id', opportunityId).eq('status', 'processing').single();
-    if (taskError) throw new Error(`Could not find active task for opportunity ${opportunityId}: ${taskError.message}`);
-    taskId = task.id;
-
     const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id').eq('id', opportunityId).single();
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
     let allContacts = [];
-
-    if (linkedinHtml) {
-      const parsePrompt = `Parse the raw HTML of a LinkedIn people search results page. Extract "name", "job_title", and "linkedin_profile_url" for each person. Return a JSON object with a "results" key containing an array of these objects.`;
-      const parsedLinkedIn = await callGemini(parsePrompt, GEMINI_API_KEY);
-      if (parsedLinkedIn.results) {
-        allContacts.push(...parsedLinkedIn.results.map(c => ({ ...c, source: 'LinkedIn' })));
-      }
-    }
 
     const apolloInput = { 
         "company_names": [opportunity.company_name], 
@@ -125,13 +114,12 @@ serve(async (req) => {
 
     await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete' }).eq('id', taskId);
 
-    // Check for automatic outreach
     if (opportunity.agent_id) {
         const { data: agent } = await supabaseAdmin.from('agents').select('autonomy_level').eq('id', opportunity.agent_id).single();
         if (agent && (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic')) {
             const authHeader = req.headers.get('Authorization');
-            const topContact = savedContacts.find(c => c.email); // Find the first contact with an email
-            if (topContact) {
+            const topContact = savedContacts.find(c => c.email);
+            if (topContact && authHeader) {
                 await supabaseAdmin.functions.invoke('generate-outreach-for-opportunity', {
                     headers: { 'Authorization': authHeader },
                     body: { 
@@ -147,10 +135,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({ message: `Successfully found and saved ${savedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
 
   } catch (error) {
-    if (taskId) {
-      const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-      await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'error', error_message: error.message }).eq('id', taskId);
-    }
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'error', error_message: error.message }).eq('id', taskId);
     console.error("Find and Enrich Contacts Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
