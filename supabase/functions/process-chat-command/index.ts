@@ -131,11 +131,17 @@ serve(async (req) => {
             Recruiter's specialty: "${recruiter_specialty}"
             Job Posting: ${JSON.stringify(job)}
             Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
-            **The "match_score" MUST be an integer between 1 and 10.**
-            **For "contract_value_assessment", analyze the job description for salary information. If a salary range is found (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee, and return a string formatted *EXACTLY* as 'Est. Fee: $22,000'. If no salary is found, return ONLY 'High Value' or 'Medium Value'. CRITICAL: DO NOT return a sentence or any descriptive text. For example, DO NOT return "The salary range is...". ONLY return the exact format specified.**
-            **For "placement_difficulty", provide a qualitative assessment which must be one of 'Low', 'Medium', or 'High'.**
-            **For "hiring_urgency", provide a qualitative assessment which must be one of 'Low', 'Medium', or 'High'.**
-            **For "recruiter_angle", describe the most effective way for a staffing agency to position their value to this specific client.**
+            **"match_score"**: MUST be an integer between 1 and 10.
+            **"contract_value_assessment"**: This field is CRITICAL.
+            - IF a salary range (e.g., "$100,000 - $120,000") is found in the job description:
+                1. Calculate the average salary. (e.g., $110,000)
+                2. Calculate 20% of the average salary. (e.g., $22,000)
+                3. Return a string formatted EXACTLY as 'Est. Fee: $22,000'.
+            - IF no salary is found, return ONLY the string 'High Value' or 'Medium Value'.
+            - **DO NOT** write sentences. **DO NOT** explain your reasoning. **DO NOT** say "The salary range is...". Your entire response for this key must be either 'Est. Fee: $XX,XXX' or 'High Value' or 'Medium Value'.
+            **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
+            **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
+            **"recruiter_angle"**: A concise sentence describing the best way for a staffing agency to position their value.
           `;
           const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
           
