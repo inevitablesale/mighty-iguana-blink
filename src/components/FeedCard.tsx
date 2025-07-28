@@ -1,19 +1,16 @@
-import { cn } from "@/lib/utils";
 import { ChatMessage as ChatMessageType } from "@/types";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SweaterIcon } from "./SweaterIcon";
 import { OpportunityCard } from "./OpportunityCard";
-import { Loader2, Save, ArrowRight } from "lucide-react";
+import { Loader2, Save, ArrowRight, Bot } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SaveAgentDialog } from "./SaveAgentDialog";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
 
-interface ChatMessageProps {
-  message: ChatMessageType;
-}
-
-export function ChatMessage({ message }: ChatMessageProps) {
+// Component for the standard chat bubble
+const ChatBubble = ({ message }: { message: ChatMessageType }) => {
   const { role, text, opportunities, isLoading, searchParams } = message;
   const isAssistant = role === "assistant";
   const opportunitiesToShow = opportunities?.slice(0, 4) || [];
@@ -21,12 +18,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const hasOpportunities = totalOpportunities > 0;
 
   return (
-    <div
-      className={cn(
-        "flex items-start gap-3",
-        !isAssistant && "justify-end"
-      )}
-    >
+    <div className={cn("flex items-start gap-3", !isAssistant && "justify-end")}>
       {isAssistant && (
         <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarFallback className="bg-primary text-primary-foreground">
@@ -83,4 +75,35 @@ export function ChatMessage({ message }: ChatMessageProps) {
       </div>
     </div>
   );
+};
+
+// Component for agent run summaries
+const AgentRunCard = ({ message }: { message: ChatMessageType }) => {
+  const { agentName, summary } = message;
+  return (
+    <div className="flex items-start gap-3">
+      <Avatar className="h-8 w-8 flex-shrink-0">
+        <AvatarFallback className="bg-secondary text-secondary-foreground">
+          <Bot className="h-5 w-5" />
+        </AvatarFallback>
+      </Avatar>
+      <div className="w-full max-w-3xl rounded-lg border bg-card p-3">
+        <p className="text-sm font-semibold text-foreground">
+          Agent Run: <span className="text-primary">{agentName}</span>
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
+      </div>
+    </div>
+  );
+};
+
+// Main dispatcher component
+export function FeedCard({ message }: { message: ChatMessageType }) {
+  switch (message.type) {
+    case 'agent_run_summary':
+      return <AgentRunCard message={message} />;
+    case 'chat':
+    default:
+      return <ChatBubble message={message} />;
+  }
 }

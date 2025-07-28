@@ -106,17 +106,24 @@ export interface SearchParams {
   recruiter_specialty: string;
 }
 
-// Types for the new Chat UI
-export type MessageRole = 'user' | 'assistant';
+// Types for the new Feed UI
+export type MessageRole = 'user' | 'assistant' | 'system';
+export type MessageType = 'chat' | 'agent_run_summary';
 
 export interface ChatMessage {
   id: string;
   role: MessageRole;
+  type: MessageType;
+  timestamp: string;
   text?: string;
   opportunities?: Opportunity[];
   isLoading?: boolean;
   searchParams?: SearchParams;
+  // For agent runs
+  agentName?: string;
+  summary?: string;
 }
+
 
 export interface Agent {
   id: string;
