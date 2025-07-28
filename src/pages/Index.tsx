@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
-import { ChatMessage as ChatMessageType, Opportunity } from '@/types';
+import { ChatMessage as ChatMessageType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -59,65 +59,35 @@ export default function Index() {
     }
   }, [messages]);
 
-  const fetchHistoryAndFeatured = useCallback(async () => {
+  const fetchHistory = useCallback(async () => {
     setIsHistoryLoading(true);
-    
-    // Fetch chat history
-    const { data: historyData, error: historyError } = await supabase
+    const { data, error } = await supabase
       .from('feed_items')
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (historyError) {
+    if (error) {
       toast.error("Failed to load chat history.");
-      setIsHistoryLoading(false);
-      return;
-    }
-
-    let allMessages: ChatMessageType[] = historyData || [];
-
-    // Fetch featured opportunities
-    try {
-      const { data: featuredData, error: featuredError } = await supabase.functions.invoke('get-featured-opportunities');
-      if (featuredError) throw featuredError;
-
-      if (featuredData.opportunities && featuredData.opportunities.length > 0) {
-        const featuredMessages: ChatMessageType[] = featuredData.opportunities.map((opp: Opportunity) => ({
-          id: opp.id || uuidv4(),
-          role: 'system',
-          type: 'featured_opportunity',
+    } else if (data) {
+      if (data.length === 0) {
+        setMessages([{
+          id: uuidv4(),
+          role: 'assistant',
+          type: 'chat',
           created_at: new Date().toISOString(),
           content: {
-            summary: "Here's a high-value opportunity from today's market scan you might be interested in.",
-            opportunity: opp,
+            text: "Hello! I'm Coogi, your AI partner. What should we focus on right now?",
           }
-        }));
-        allMessages = [...allMessages, ...featuredMessages];
+        }]);
+      } else {
+        setMessages(data as ChatMessageType[]);
       }
-    } catch (err) {
-      console.warn("Could not fetch featured opportunities:", (err as Error).message);
     }
-
-    if (allMessages.length === 0) {
-      allMessages.push({
-        id: uuidv4(),
-        role: 'assistant',
-        type: 'chat',
-        created_at: new Date().toISOString(),
-        content: {
-          text: "Hello! I'm Coogi, your AI partner. What should we focus on right now?",
-        }
-      });
-    }
-    
-    // Sort all messages by date before setting state
-    allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    setMessages(allMessages);
     setIsHistoryLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchHistoryAndFeatured();
+    fetchHistory();
 
     const channel = supabase
       .channel('feed-items-channel')
@@ -131,7 +101,7 @@ export default function Index() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchHistoryAndFeatured]);
+  }, [fetchHistory]);
 
   const submitQuery = async (query: string) => {
     if (!query.trim() || isLoading) return;

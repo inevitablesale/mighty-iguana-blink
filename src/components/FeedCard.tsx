@@ -1,9 +1,9 @@
-import { ChatMessage as ChatMessageType, Opportunity } from "@/types";
+import { ChatMessage as ChatMessageType } from "@/types";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SweaterIcon } from "./SweaterIcon";
 import { OpportunityCard } from "./OpportunityCard";
-import { Loader2, Save, ArrowRight, Bot, Radar } from "lucide-react";
+import { Loader2, Save, ArrowRight, Bot } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { SaveAgentDialog } from "./SaveAgentDialog";
 import { Button } from "./ui/button";
@@ -98,40 +98,11 @@ const AgentRunCard = ({ message }: { message: ChatMessageType }) => {
   );
 };
 
-// Component for featured opportunities from the market radar
-const FeaturedOpportunityCard = ({ message }: { message: ChatMessageType }) => {
-  const { summary, opportunity } = message.content;
-
-  if (!opportunity) return null;
-
-  return (
-    <div className="flex items-start gap-3">
-      <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarFallback className="bg-purple-500 text-white">
-          <Radar className="h-5 w-5" />
-        </AvatarFallback>
-      </Avatar>
-      <div className="w-full max-w-3xl rounded-lg border border-purple-500/50 bg-card p-3">
-        <p className="text-sm font-semibold text-purple-400">
-          Market Radar
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
-        <div className="mt-3">
-          <OpportunityCard opportunity={opportunity} />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
 // Main dispatcher component
 export function FeedCard({ message }: { message: ChatMessageType }) {
   switch (message.type) {
     case 'agent_run_summary':
       return <AgentRunCard message={message} />;
-    case 'featured_opportunity':
-      return <FeaturedOpportunityCard message={message} />;
     case 'chat':
     default:
       return <ChatBubble message={message} />;

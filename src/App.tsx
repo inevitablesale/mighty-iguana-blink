@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import Agents from "./pages/Agents";
 import Pipeline from "./pages/Pipeline";
 import Opportunities from "./pages/Opportunities";
+import Market from "./pages/Market";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -56,6 +57,7 @@ const App = () => {
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
                 <Route index element={<Index />} />
+                <Route path="market" element={<Market />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="pipeline" element={<Pipeline />} />
                 <Route path="opportunities" element={<Opportunities />} />

@@ -108,7 +108,7 @@ export interface SearchParams {
 
 // Types for the new Feed UI
 export type MessageRole = 'user' | 'assistant' | 'system';
-export type MessageType = 'chat' | 'agent_run_summary' | 'featured_opportunity';
+export type MessageType = 'chat' | 'agent_run_summary';
 
 export interface ChatMessage {
   id: string;
@@ -121,7 +121,6 @@ export interface ChatMessage {
     searchParams?: SearchParams;
     agentName?: string;
     summary?: string;
-    opportunity?: Opportunity;
   };
   isLoading?: boolean; // Client-side only
 }
