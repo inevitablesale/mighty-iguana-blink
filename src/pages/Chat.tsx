@@ -99,8 +99,13 @@ export default function Chat() {
         const parts = buffer.split('\n\n');
         buffer = parts.pop() || '';
 
-        for (const part of parts) {
-          if (part.startsWith('data: ')) {
+        if (parts.length === 0) continue;
+
+        setFeedItems(currentFeedItems => {
+          let newItems = [...currentFeedItems];
+          
+          for (const part of parts) {
+            if (!part.startsWith('data: ')) continue;
             const jsonString = part.substring(6);
             if (!jsonString) continue;
             
@@ -112,45 +117,45 @@ export default function Chat() {
               continue;
             }
 
-            setFeedItems(prev => prev.map(item => {
-              if (item.id !== systemResponseId) return item;
+            const itemIndex = newItems.findIndex(i => i.id === systemResponseId);
+            if (itemIndex === -1) continue;
 
-              const updatedContent = { ...item.content };
-              switch (data.type) {
-                case 'status':
-                  updatedContent.summary = data.message;
-                  break;
-                case 'analysis_start':
-                  updatedContent.summary = `Analyzing ${data.payload.jobs.length} jobs...`;
-                  updatedContent.analysisProgress = { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) };
-                  break;
-                case 'analysis_progress':
-                  if (updatedContent.analysisProgress) {
-                    const newJobs = [...updatedContent.analysisProgress.jobs];
-                    newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
-                    updatedContent.analysisProgress = { ...updatedContent.analysisProgress, jobs: newJobs };
-                  }
-                  break;
-                case 'result':
-                  if (!finalResultSaved) {
-                    updatedContent.summary = data.payload.text;
-                    updatedContent.opportunities = data.payload.opportunities;
-                    updatedContent.searchParams = data.payload.searchParams;
-                    // Clear analysis progress on final result
-                    delete updatedContent.analysisProgress;
-                    
-                    supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: updatedContent });
-                    finalResultSaved = true;
-                  }
-                  break;
-                case 'error':
-                  // This will be caught by the outer try-catch
-                  throw new Error(data.message);
-              }
-              return { ...item, content: updatedContent };
-            }));
+            const currentItem = newItems[itemIndex];
+            const updatedContent = { ...currentItem.content };
+
+            switch (data.type) {
+              case 'status':
+                updatedContent.summary = data.message;
+                break;
+              case 'analysis_start':
+                updatedContent.summary = `Analyzing ${data.payload.jobs.length} jobs...`;
+                updatedContent.analysisProgress = { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) };
+                break;
+              case 'analysis_progress':
+                if (updatedContent.analysisProgress) {
+                  const newJobs = [...updatedContent.analysisProgress.jobs];
+                  newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
+                  updatedContent.analysisProgress = { ...updatedContent.analysisProgress, jobs: newJobs };
+                }
+                break;
+              case 'result':
+                if (!finalResultSaved) {
+                  updatedContent.summary = data.payload.text;
+                  updatedContent.opportunities = data.payload.opportunities;
+                  updatedContent.searchParams = data.payload.searchParams;
+                  delete updatedContent.analysisProgress;
+                  
+                  supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: updatedContent });
+                  finalResultSaved = true;
+                }
+                break;
+              case 'error':
+                throw new Error(data.message);
+            }
+            newItems[itemIndex] = { ...currentItem, content: updatedContent };
           }
-        }
+          return newItems;
+        });
       }
     } catch (err) {
       setFeedItems(prev => prev.filter(item => item.id !== systemResponseId));
