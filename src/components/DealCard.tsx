@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Opportunity, Contact } from "@/types";
+import { Opportunity } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Flame, MapPin, Star, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 
@@ -33,22 +33,24 @@ export const DealCard = ({ opportunity }: DealCardProps) => {
         .select('job_title')
         .eq('opportunity_id', opportunity.id)
         .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (data && data.job_title) {
+      if (error) {
+        console.error(`Error fetching contact for opportunity ${opportunity.id}:`, error);
+        // Keep the loading state on error to avoid showing incorrect info
+        return;
+      }
+
+      if (data && data.length > 0 && data[0].job_title) {
         setContactStatus({
-          text: `Contact Found: ${data.job_title}`,
+          text: `Contact Found: ${data[0].job_title}`,
           icon: <CheckCircle className="h-3 w-3" />,
           color: 'text-green-400'
         });
-      } else if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        // Keep loading state on error
       }
-      // If no data and no error, it remains in the "Matching..." state
+      // If no contact is found, the status will remain "Matching..."
     };
 
-    // Check for contacts after a short delay to allow background process to start
     const timer = setTimeout(fetchContact, 1500);
     return () => clearTimeout(timer);
   }, [opportunity.id]);
