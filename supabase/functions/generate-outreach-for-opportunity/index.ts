@@ -15,7 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { opportunityId, contact } = await req.json();
+    const { opportunityId, contact, isAutomatic } = await req.json();
     if (!opportunityId || !contact) throw new Error("Opportunity ID and Contact are required.");
 
     const supabaseAdmin = createClient(
@@ -91,6 +91,8 @@ serve(async (req) => {
     const geminiResult = await geminiResponse.json();
     const outreachResult = JSON.parse(geminiResult.candidates?.[0]?.content?.parts?.[0]?.text);
 
+    const campaignStatus = isAutomatic ? 'contacted' : 'draft';
+
     const { error: insertError } = await supabaseAdmin.from('campaigns').insert({
       user_id: user.id,
       opportunity_id: opportunity.id,
@@ -98,13 +100,18 @@ serve(async (req) => {
       role: opportunity.role,
       subject: outreachResult.subject,
       body: outreachResult.body,
-      status: 'draft',
+      status: campaignStatus,
       contact_name: contact.name,
+      contact_email: contact.email,
     });
 
-    if (insertError) throw new Error(`Failed to save campaign draft: ${insertError.message}`);
+    if (insertError) throw new Error(`Failed to save campaign: ${insertError.message}`);
 
-    return new Response(JSON.stringify({ message: "Outreach draft created successfully." }), {
+    const successMessage = isAutomatic 
+      ? "Outreach automatically generated and sent."
+      : "Outreach draft created successfully.";
+
+    return new Response(JSON.stringify({ message: successMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

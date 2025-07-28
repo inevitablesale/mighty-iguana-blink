@@ -62,12 +62,11 @@ serve(async (req) => {
     if (taskError) throw new Error(`Could not find active task for opportunity ${opportunityId}: ${taskError.message}`);
     taskId = task.id;
 
-    const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id').eq('id', opportunityId).single();
+    const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id').eq('id', opportunityId).single();
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
     let allContacts = [];
 
-    // 1. Parse LinkedIn HTML if provided
     if (linkedinHtml) {
       const parsePrompt = `Parse the raw HTML of a LinkedIn people search results page. Extract "name", "job_title", and "linkedin_profile_url" for each person. Return a JSON object with a "results" key containing an array of these objects.`;
       const parsedLinkedIn = await callGemini(parsePrompt, GEMINI_API_KEY);
@@ -76,12 +75,10 @@ serve(async (req) => {
       }
     }
 
-    // 2. Query Apollo.io
     const apolloInput = { "company_names": [opportunity.company_name], "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], "max_people_per_company": 10, "include_email": true };
     const apolloResults = await callApifyActor('microworlds~apollo-io-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
     allContacts.push(...apolloResults.map(r => ({ name: r.name, job_title: r.title, email: r.email, source: 'Apollo' })).filter(c => c.email));
 
-    // 3. Deep Web Scrape
     const findUrlPrompt = `What is the official website URL for "${opportunity.company_name}"? Return JSON with key "websiteUrl".`;
     const urlResult = await callGemini(findUrlPrompt, GEMINI_API_KEY);
     if (urlResult.websiteUrl) {
@@ -97,7 +94,6 @@ serve(async (req) => {
         return new Response(JSON.stringify({ message: "No contacts found." }), { status: 200, headers: corsHeaders });
     }
 
-    // 4. AI Ranking and Selection
     const rankingPrompt = `You are an expert recruitment researcher. You have been given a list of potential contacts from various sources (LinkedIn, Apollo, Website). Your task is to intelligently rank all of these contacts from most to least relevant for the role of "${opportunity.role}" at "${opportunity.company_name}". Consider the contact's job title and the reliability of their source (LinkedIn and Apollo are more reliable than a generic website email). Return a single, valid JSON object with one key: "ranked_contacts". The value should be an array of ALL the original contact objects, sorted by relevance (most relevant first).`;
     const rankedResult = await callGemini(rankingPrompt, GEMINI_API_KEY);
     const rankedContacts = (rankedResult.ranked_contacts || []).slice(0, 10);
@@ -107,17 +103,31 @@ serve(async (req) => {
         return new Response(JSON.stringify({ message: "No relevant contacts identified." }), { status: 200, headers: corsHeaders });
     }
 
-    // 5. Save to DB
     const contactsToInsert = rankedContacts.map(c => ({
         task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
         name: c.name, job_title: c.job_title, email: c.email, linkedin_profile_url: c.linkedin_profile_url,
         email_status: c.email ? 'verified' : null
     }));
-    const { error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert);
+    const { data: savedContacts, error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert).select();
     if (insertError) throw new Error(`Failed to save contacts: ${insertError.message}`);
 
     await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete' }).eq('id', taskId);
-    return new Response(JSON.stringify({ message: `Successfully found and saved ${rankedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
+
+    // Check for automatic outreach
+    if (opportunity.agent_id) {
+        const { data: agent } = await supabaseAdmin.from('agents').select('autonomy_level').eq('id', opportunity.agent_id).single();
+        if (agent && agent.autonomy_level === 'automatic') {
+            const authHeader = req.headers.get('Authorization');
+            for (const contact of savedContacts) {
+                await supabaseAdmin.functions.invoke('generate-outreach-for-opportunity', {
+                    headers: { 'Authorization': authHeader },
+                    body: { opportunityId, contact, isAutomatic: true }
+                });
+            }
+        }
+    }
+
+    return new Response(JSON.stringify({ message: `Successfully found and saved ${savedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
 
   } catch (error) {
     if (taskId) {
