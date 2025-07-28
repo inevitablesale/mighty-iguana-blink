@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
-import { PitchModeSheet } from '@/components/PitchModeSheet';
+import { GenerateContractDialog } from '@/components/GenerateContractDialog';
 import { DealStreamFilters, Filters } from '@/components/DealStreamFilters';
 
 const fetchDeals = async (): Promise<Opportunity[]> => {
@@ -55,8 +55,6 @@ export default function DealStream() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<Opportunity | null>(null);
-  const [isPitchModeOpen, setIsPitchModeOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const navigate = useNavigate();
 
@@ -121,11 +119,6 @@ export default function DealStream() {
     }
   };
 
-  const handleDealClick = (deal: Opportunity) => {
-    setSelectedDeal(deal);
-    setIsPitchModeOpen(true);
-  };
-
   return (
     <div className="h-full flex flex-col">
       <header className="p-4 border-b border-white/10 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
@@ -163,7 +156,11 @@ export default function DealStream() {
           {loading ? (
             [...Array(5)].map((_, i) => <Skeleton key={i} className="h-48 w-full bg-white/10" />)
           ) : filteredDeals.length > 0 ? (
-            filteredDeals.map(deal => <DealCard key={deal.id} opportunity={deal} onClick={handleDealClick} />)
+            filteredDeals.map(deal => 
+              <GenerateContractDialog key={deal.id} opportunity={deal}>
+                <DealCard opportunity={deal} />
+              </GenerateContractDialog>
+            )
           ) : (
             <div className="text-center py-16 bg-black/20 border border-dashed border-white/10 rounded-lg backdrop-blur-sm">
               <h3 className="text-xl font-semibold text-white">No Deals Match Your Filters</h3>
@@ -172,11 +169,6 @@ export default function DealStream() {
           )}
         </div>
       </main>
-      <PitchModeSheet 
-        opportunity={selectedDeal}
-        isOpen={isPitchModeOpen}
-        onOpenChange={setIsPitchModeOpen}
-      />
     </div>
   );
 }

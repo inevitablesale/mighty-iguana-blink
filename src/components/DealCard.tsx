@@ -1,13 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity, DealSignal } from "@/types";
-import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Flame, Briefcase, MapPin, Users, XCircle, Star, DollarSign, ArrowRight } from "lucide-react";
 
 interface DealCardProps {
   opportunity: Opportunity;
-  onClick: (opportunity: Opportunity) => void;
 }
 
 const signalIcons: { [key: string]: React.ReactNode } = {
@@ -28,10 +26,9 @@ const getSignalColor = (type: DealSignal['type']) => {
     }
 }
 
-export function DealCard({ opportunity, onClick }: DealCardProps) {
+export function DealCard({ opportunity }: DealCardProps) {
   return (
     <Card 
-      onClick={() => onClick(opportunity)}
       className="w-full bg-black/20 border-white/10 text-white backdrop-blur-sm transition-all hover:border-primary/50 cursor-pointer"
     >
       <CardHeader className="p-4">
