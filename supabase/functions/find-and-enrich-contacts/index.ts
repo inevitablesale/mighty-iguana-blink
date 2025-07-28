@@ -75,9 +75,21 @@ serve(async (req) => {
       }
     }
 
-    const apolloInput = { "company_names": [opportunity.company_name], "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], "max_people_per_company": 10, "include_email": true };
+    const apolloInput = { 
+        "company_names": [opportunity.company_name], 
+        "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], 
+        "max_people_per_company": 10, 
+        "person_phone_numbers": "if_available",
+        "include_email": true 
+    };
     const apolloResults = await callApifyActor('microworlds~apollo-io-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
-    allContacts.push(...apolloResults.map(r => ({ name: r.name, job_title: r.title, email: r.email, source: 'Apollo' })).filter(c => c.email));
+    allContacts.push(...apolloResults.map(r => ({ 
+        name: r.name, 
+        job_title: r.title, 
+        email: r.email, 
+        phone_number: r.phone,
+        source: 'Apollo' 
+    })).filter(c => c.email || c.phone_number));
 
     const findUrlPrompt = `What is the official website URL for "${opportunity.company_name}"? Return JSON with key "websiteUrl".`;
     const urlResult = await callGemini(findUrlPrompt, GEMINI_API_KEY);
@@ -105,7 +117,7 @@ serve(async (req) => {
 
     const contactsToInsert = rankedContacts.map(c => ({
         task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
-        name: c.name, job_title: c.job_title, email: c.email, linkedin_profile_url: c.linkedin_profile_url,
+        name: c.name, job_title: c.job_title, email: c.email, phone_number: c.phone_number, linkedin_profile_url: c.linkedin_profile_url,
         email_status: c.email ? 'verified' : null
     }));
     const { data: savedContacts, error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert).select();

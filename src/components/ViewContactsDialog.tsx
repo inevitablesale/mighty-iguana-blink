@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Contact, Opportunity } from "@/types/index";
-import { Linkedin, Mail, ChevronDown, Loader2, Eye } from "lucide-react";
+import { Linkedin, Mail, ChevronDown, Loader2, Eye, Phone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +58,7 @@ export function ViewContactsDialog({
       return (
         <Button size="sm" variant="outline" onClick={() => onRevealContact(contact.id)}>
           <Eye className="mr-2 h-4 w-4" />
-          Reveal Email
+          Reveal Contact Info
         </Button>
       );
     }
@@ -109,12 +109,22 @@ export function ViewContactsDialog({
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold truncate">{contact.name}</p>
                       <p className="text-sm text-muted-foreground truncate">{contact.job_title}</p>
-                      {revealedContactIds.has(contact.id) && contact.email && (
-                         <div className="flex items-center gap-2">
-                          <Mail size={14} className="text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground truncate" title={contact.email}>{contact.email}</span>
-                          <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>
-                        </div>
+                      {revealedContactIds.has(contact.id) && (
+                         <div className="mt-1 space-y-1">
+                            {contact.email && (
+                                <div className="flex items-center gap-2">
+                                    <Mail size={14} className="text-muted-foreground flex-shrink-0" />
+                                    <span className="text-sm text-muted-foreground truncate" title={contact.email}>{contact.email}</span>
+                                    <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>
+                                </div>
+                            )}
+                            {contact.phone_number && (
+                                <div className="flex items-center gap-2">
+                                    <Phone size={14} className="text-muted-foreground flex-shrink-0" />
+                                    <span className="text-sm text-muted-foreground truncate" title={contact.phone_number}>{contact.phone_number}</span>
+                                </div>
+                            )}
+                         </div>
                       )}
                     </div>
                   </div>
