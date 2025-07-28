@@ -1,50 +1,36 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Campaign, CampaignStatus, ProactiveOpportunity } from '@/types';
+import { Campaign, CampaignStatus } from '@/types';
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
 import { CampaignColumn } from '@/components/CampaignColumn';
 import { CampaignCard } from '@/components/CampaignCard';
 import { createPortal } from 'react-dom';
-import { ProactiveOpportunityCard } from '@/components/ProactiveOpportunityCard';
-import type { User } from '@supabase/supabase-js';
 
 const pipelineStatuses: CampaignStatus[] = ['draft', 'contacted', 'replied', 'sourcing', 'interviewing', 'hired'];
 
 export default function Pipeline() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [proactiveOpportunities, setProactiveOpportunities] = useState<ProactiveOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
-  const [processingOpp, setProcessingOpp] = useState<{ id: string; type: 'accept' | 'dismiss' } | null>(null);
-  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const fetchPipelineData = async () => {
+    const fetchCampaigns = async () => {
       setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not found");
-        setUser(user);
 
-        const campaignsPromise = supabase
+        const { data, error } = await supabase
           .from('campaigns')
           .select('*')
           .eq('user_id', user.id)
           .in('status', pipelineStatuses)
           .order('created_at', { ascending: false });
 
-        const proactiveOppsPromise = supabase.functions.invoke('get-enriched-proactive-opportunities');
-
-        const [campaignsResult, proactiveOppsResult] = await Promise.all([campaignsPromise, proactiveOppsPromise]);
-
-        if (campaignsResult.error) throw campaignsResult.error;
-        setCampaigns(campaignsResult.data);
-
-        if (proactiveOppsResult.error) throw proactiveOppsResult.error;
-        setProactiveOpportunities(proactiveOppsResult.data.opportunities as ProactiveOpportunity[]);
+        if (error) throw error;
+        setCampaigns(data);
 
       } catch (err) {
         toast.error("Failed to fetch pipeline data", { description: (err as Error).message });
@@ -52,7 +38,7 @@ export default function Pipeline() {
         setLoading(false);
       }
     };
-    fetchPipelineData();
+    fetchCampaigns();
   }, []);
 
   const campaignsByStatus = useMemo(() => {
@@ -65,43 +51,6 @@ export default function Pipeline() {
     });
     return grouped;
   }, [campaigns]);
-
-  const handleAcceptOpportunity = async (opportunityId: string) => {
-    setProcessingOpp({ id: opportunityId, type: 'accept' });
-    try {
-      const { data, error } = await supabase.functions.invoke('accept-proactive-opportunity', {
-        body: { proactiveOpportunityId: opportunityId }
-      });
-
-      if (error) throw new Error(error.message);
-
-      setCampaigns(prev => [data.campaign, ...prev]);
-      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
-
-      toast.success("Opportunity accepted and moved to your draft pipeline!");
-
-    } catch (err) {
-      toast.error("Failed to accept opportunity", { description: (err as Error).message });
-    } finally {
-      setProcessingOpp(null);
-    }
-  };
-
-  const handleDismissOpportunity = async (opportunityId: string) => {
-    setProcessingOpp({ id: opportunityId, type: 'dismiss' });
-    const { error } = await supabase
-      .from('proactive_opportunities')
-      .update({ status: 'dismissed' })
-      .eq('id', opportunityId);
-    
-    if (error) {
-      toast.error("Failed to dismiss opportunity.");
-    } else {
-      setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
-      toast.info("Opportunity dismissed.");
-    }
-    setProcessingOpp(null);
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     if (event.active.data.current?.type === "Campaign") {
@@ -147,42 +96,12 @@ export default function Pipeline() {
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-white">Deal Pipeline</h1>
         <p className="text-white/80 mt-1">
-          Your automated deal flow. New opportunities appear on the left. Drag campaigns to update their status.
+          Your automated deal flow. Drag campaigns to update their status.
         </p>
       </header>
       <div className="flex-grow overflow-x-auto pb-4">
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 h-full">
-            {/* Proactive Opportunities Column */}
-            <div className="w-full md:w-1/4 lg:w-1/5 flex-shrink-0">
-              <div className="bg-black/20 border border-white/10 rounded-lg p-2 h-full flex flex-col backdrop-blur-sm">
-                <h3 className="font-semibold text-center p-2 capitalize text-primary">
-                  Market Opportunities
-                </h3>
-                <div className="flex-grow overflow-y-auto space-y-2 pr-1">
-                  {loading ? (
-                    <Skeleton className="h-40 w-full bg-white/10" />
-                  ) : proactiveOpportunities.length > 0 ? (
-                    proactiveOpportunities.map(opp => (
-                      <ProactiveOpportunityCard
-                        key={opp.id}
-                        opportunity={opp}
-                        onAccept={handleAcceptOpportunity}
-                        onDismiss={handleDismissOpportunity}
-                        isAccepting={processingOpp?.id === opp.id && processingOpp?.type === 'accept'}
-                        isDismissing={processingOpp?.id === opp.id && processingOpp?.type === 'dismiss'}
-                        currentUserId={user!.id}
-                      />
-                    ))
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground p-4 h-full flex items-center justify-center">
-                      <p>No new opportunities match your profile right now. Check back soon!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* Campaign Columns */}
             <SortableContext items={pipelineStatuses}>
               {pipelineStatuses.map(status => (

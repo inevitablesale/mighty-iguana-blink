@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FeedCard } from '@/components/FeedCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProactiveFeedSection } from '@/components/ProactiveFeedSection';
 
 const Composer = ({ onSendMessage, isLoading }: { onSendMessage: (query: string) => void, isLoading: boolean }) => {
   const [input, setInput] = useState('');
@@ -176,6 +177,7 @@ export default function Index() {
     <div className="flex flex-col h-full">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
+          <ProactiveFeedSection />
           {isHistoryLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-16 w-3/4 bg-white/10" />
