@@ -31,7 +31,7 @@ export function CampaignColumn({ status, campaigns }: CampaignColumnProps) {
       style={style}
       className="w-full md:w-1/4 lg:w-1/5 flex-shrink-0"
     >
-      <div className="bg-muted/50 rounded-lg p-2 h-full flex flex-col">
+      <div className="bg-black/20 border border-white/10 rounded-lg p-2 h-full flex flex-col backdrop-blur-sm">
         <h3 className="font-semibold text-center p-2 capitalize text-muted-foreground">
           {status.replace('_', ' ')}
         </h3>

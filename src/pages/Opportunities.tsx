@@ -21,21 +21,23 @@ export default function Opportunities() {
 
   if (!opportunities || opportunities.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-60px)] text-white">
-        <h2 className="text-2xl font-bold">No Opportunities Found</h2>
-        <p className="text-white/80 mt-2">There was an issue loading the opportunities.</p>
-        <Button asChild variant="link" className="mt-4 text-white">
-          <Link to="/">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Chat
-          </Link>
-        </Button>
+      <div className="flex flex-col items-center justify-center h-full text-white">
+        <div className="bg-black/20 border border-white/10 p-8 rounded-lg backdrop-blur-sm text-center">
+          <h2 className="text-2xl font-bold">No Opportunities Found</h2>
+          <p className="text-white/80 mt-2">There was an issue loading the opportunities.</p>
+          <Button asChild variant="link" className="mt-4 text-white">
+            <Link to="/">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Chat
+            </Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 h-[calc(100vh-60px)] flex flex-col">
+    <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6 pb-6 border-b border-white/20">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -76,7 +78,7 @@ export default function Opportunities() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
+            <div className="text-center py-16 bg-black/20 border border-dashed border-white/10 rounded-lg backdrop-blur-sm">
               <h3 className="text-xl font-semibold text-white">No opportunities match your filter</h3>
               <p className="text-white/70 mt-2">Try adjusting the match score slider above.</p>
             </div>

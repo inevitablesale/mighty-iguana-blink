@@ -21,17 +21,17 @@ const InfoItem = ({ icon, text, highlight = false, colorClass = 'text-muted-fore
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
-      case 'high': return 'text-red-500 dark:text-red-400';
-      case 'medium': return 'text-yellow-500 dark:text-yellow-400';
-      case 'low': return 'text-green-500 dark:text-green-400';
+      case 'high': return 'text-red-400';
+      case 'medium': return 'text-yellow-400';
+      case 'low': return 'text-green-400';
       default: return 'text-muted-foreground';
     }
   };
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency?.toLowerCase()) {
-      case 'high': return 'text-red-500 dark:text-red-400';
-      case 'medium': return 'text-yellow-500 dark:text-yellow-400';
+      case 'high': return 'text-red-400';
+      case 'medium': return 'text-yellow-400';
       default: return 'text-muted-foreground';
     }
   };
@@ -41,7 +41,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
   return (
     <GenerateContractDialog opportunity={opportunity}>
-      <Card className="w-full cursor-pointer group hover:border-primary transition-colors flex flex-col h-full bg-card text-card-foreground border">
+      <Card className="w-full cursor-pointer group hover:border-primary transition-colors flex flex-col h-full bg-black/20 border-white/10 text-white backdrop-blur-sm">
         <CardHeader className="p-4">
           <div className="flex justify-between items-start gap-2">
             <div>
@@ -61,8 +61,8 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             <InfoItem icon={<Users size={14} />} text={companySize} />
             <InfoItem icon={<Flame size={14} />} text={`${opportunity.hiring_urgency} Urgency`} colorClass={getUrgencyColor(opportunity.hiring_urgency)} />
           </div>
-          <div className="border-t border-border pt-3 space-y-2">
-             <InfoItem icon={<DollarSign size={14} />} text={opportunity.contract_value_assessment} highlight colorClass="text-green-600 dark:text-green-400" />
+          <div className="border-t border-white/20 pt-3 space-y-2">
+             <InfoItem icon={<DollarSign size={14} />} text={opportunity.contract_value_assessment} highlight colorClass="text-green-400" />
              <InfoItem icon={<BarChartHorizontal size={14} />} text={`${opportunity.placement_difficulty} Difficulty`} highlight colorClass={getDifficultyColor(opportunity.placement_difficulty)} />
           </div>
         </CardContent>

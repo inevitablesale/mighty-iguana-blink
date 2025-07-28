@@ -36,13 +36,13 @@ const Login = () => {
 
   return (
     <div className="coogi-gradient-bg flex min-h-screen flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md bg-black/30 backdrop-blur-lg border-white/10">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2">
             <SweaterIcon className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">Coogi</h1>
           </div>
-          <CardDescription>Weaving together the best opportunities.</CardDescription>
+          <CardDescription className="text-white/70">Weaving together the best opportunities.</CardDescription>
         </CardHeader>
         <CardContent>
           <div id="login-auth-form">
@@ -52,7 +52,7 @@ const Login = () => {
                 theme: ThemeSupa,
               }}
               providers={[]}
-              theme="light"
+              theme="dark"
             />
           </div>
         </CardContent>

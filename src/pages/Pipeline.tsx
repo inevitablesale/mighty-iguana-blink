@@ -100,20 +100,20 @@ export default function Pipeline() {
   if (loading) {
     return (
       <div className="p-4 md:p-6 flex gap-4">
-        {pipelineStatuses.map(s => <Skeleton key={s} className="h-[80vh] w-1/5" />)}
+        {pipelineStatuses.map(s => <Skeleton key={s} className="h-[80vh] w-1/5 bg-white/10" />)}
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 h-[calc(100vh-60px)] flex flex-col">
+    <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-white">Campaign Pipeline</h1>
         <p className="text-white/80 mt-1">
           Manage your active deals by dragging and dropping them between stages.
         </p>
       </header>
-      <div className="flex-grow overflow-x-auto">
+      <div className="flex-grow overflow-x-auto pb-4">
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 h-full">
             <SortableContext items={pipelineStatuses}>

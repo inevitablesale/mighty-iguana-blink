@@ -20,12 +20,12 @@ const Composer = ({ onSendMessage, isLoading }: { onSendMessage: (query: string)
   };
 
   return (
-    <div className="bg-background/80 backdrop-blur-sm border-b px-4 py-3 sticky top-0 z-10">
+    <div className="bg-black/10 backdrop-blur-sm border-t border-white/10 px-4 py-3 sticky bottom-0 z-10">
       <div className="max-w-3xl mx-auto">
         <form onSubmit={handleSubmit} className="relative">
           <Textarea
             placeholder="What kind of roles are we targeting today?"
-            className="min-h-[48px] rounded-2xl resize-none p-4 pr-16 bg-muted border-input"
+            className="min-h-[48px] rounded-2xl resize-none p-4 pr-16 bg-black/30 border-white/20 text-white placeholder:text-white/60"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -173,15 +173,14 @@ export default function Index() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)]">
-      <Composer onSendMessage={submitQuery} isLoading={isLoading} />
+    <div className="flex flex-col h-full">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {isHistoryLoading ? (
             <div className="space-y-4">
-              <Skeleton className="h-16 w-3/4" />
-              <Skeleton className="h-16 w-3/4 ml-auto" />
-              <Skeleton className="h-16 w-3/4" />
+              <Skeleton className="h-16 w-3/4 bg-white/10" />
+              <Skeleton className="h-16 w-3/4 ml-auto bg-white/10" />
+              <Skeleton className="h-16 w-3/4 bg-white/10" />
             </div>
           ) : (
             messages.map((message) => (
@@ -190,6 +189,7 @@ export default function Index() {
           )}
         </div>
       </div>
+      <Composer onSendMessage={submitQuery} isLoading={isLoading} />
     </div>
   );
 }

@@ -42,7 +42,7 @@ export function Sidebar() {
   };
 
   return (
-    <div className="hidden border-r border-white/10 bg-black/20 p-4 md:flex md:flex-col md:w-72">
+    <div className="hidden border-r border-white/10 bg-black/20 p-4 md:flex md:flex-col md:w-72 backdrop-blur-sm">
       <div className="flex h-14 items-center mb-4">
         <a href="/" className="flex items-center gap-2 font-semibold text-white">
           <SweaterIcon className="h-6 w-6" />

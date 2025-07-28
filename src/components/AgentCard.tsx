@@ -76,7 +76,7 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
   };
 
   return (
-    <Card className="w-full bg-black/20 border border-white/10 text-white">
+    <Card className="w-full bg-black/20 border border-white/10 text-white backdrop-blur-sm">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>

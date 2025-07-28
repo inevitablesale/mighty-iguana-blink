@@ -50,7 +50,7 @@ export default function Market() {
   };
 
   return (
-    <div className="p-4 md:p-6 h-[calc(100vh-60px)] flex flex-col">
+    <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6 pb-6 border-b border-white/20">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -72,7 +72,7 @@ export default function Market() {
         <div className="max-w-5xl mx-auto">
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
+              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full bg-white/10" />)}
             </div>
           ) : opportunities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -81,7 +81,7 @@ export default function Market() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
+            <div className="text-center py-16 bg-black/20 border border-dashed border-white/10 rounded-lg backdrop-blur-sm">
               <h3 className="text-xl font-semibold text-white">No Hot Opportunities Right Now</h3>
               <p className="text-white/70 mt-2">The market scanner hasn't found any high-value public opportunities in the last day. Check back soon.</p>
             </div>

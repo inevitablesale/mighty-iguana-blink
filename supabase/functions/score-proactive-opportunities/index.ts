@@ -54,8 +54,7 @@ serve(async (req) => {
     const { data: opportunities, error: oppError } = await supabaseAdmin
       .from('proactive_opportunities')
       .select('id, job_data')
-      .eq('status', 'new')
-      .limit(20); // Process in batches
+      .eq('status', 'new');
 
     if (oppError) throw new Error(`Failed to fetch new opportunities: ${oppError.message}`);
     

@@ -31,7 +31,7 @@ const ChatBubble = ({ message }: { message: ChatMessageType }) => {
         className={cn(
           "rounded-lg p-3",
           hasOpportunities ? "w-full max-w-3xl" : "max-w-xl",
-          isAssistant ? "bg-card border" : "bg-primary text-primary-foreground"
+          isAssistant ? "bg-black/20 border border-white/10 backdrop-blur-sm" : "bg-primary text-primary-foreground"
         )}
       >
         {isLoading ? (
@@ -42,7 +42,7 @@ const ChatBubble = ({ message }: { message: ChatMessageType }) => {
         ) : (
           <>
             {text && (
-              <div className="prose prose-sm prose-invert max-w-none dark:prose-invert">
+              <div className="prose prose-sm prose-invert max-w-none dark:prose-invert text-white">
                 <ReactMarkdown>{text}</ReactMarkdown>
               </div>
             )}
@@ -53,7 +53,7 @@ const ChatBubble = ({ message }: { message: ChatMessageType }) => {
                     <OpportunityCard key={opp.id} opportunity={opp} />
                   ))}
                 </div>
-                <div className="border-t pt-3 flex flex-col sm:flex-row gap-2">
+                <div className="border-t border-white/20 pt-3 flex flex-col sm:flex-row gap-2">
                   {searchParams && (
                     <SaveAgentDialog searchParams={searchParams}>
                       <Button variant="outline" className="w-full justify-center">
@@ -88,7 +88,7 @@ const AgentRunCard = ({ message }: { message: ChatMessageType }) => {
           <Bot className="h-5 w-5" />
         </AvatarFallback>
       </Avatar>
-      <div className="w-full max-w-3xl rounded-lg border bg-card p-3">
+      <div className="w-full max-w-3xl rounded-lg border border-white/10 bg-black/20 p-3 backdrop-blur-sm">
         <p className="text-sm font-semibold text-foreground">
           Agent Run: <span className="text-primary">{agentName}</span>
         </p>

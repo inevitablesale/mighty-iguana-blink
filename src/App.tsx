@@ -40,7 +40,7 @@ const App = () => {
   }, []);
 
   if (loading) {
-    return null; // Or a loading spinner
+    return <div className="coogi-gradient-bg min-h-screen" />;
   }
 
   return (

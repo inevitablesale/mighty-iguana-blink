@@ -77,7 +77,7 @@ export default function Agents() {
           </p>
         </header>
 
-        <Card className="mb-8 bg-primary/10 border-primary/20 text-white">
+        <Card className="mb-8 bg-primary/10 border-primary/20 text-white backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
               <Radar className="h-6 w-6 text-primary" />
@@ -104,8 +104,8 @@ export default function Agents() {
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-56 w-full" />
-            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full bg-white/10" />
+            <Skeleton className="h-56 w-full bg-white/10" />
           </div>
         ) : agents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -114,7 +114,7 @@ export default function Agents() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 border border-dashed border-white/20 rounded-lg">
+          <div className="text-center py-16 border border-dashed border-white/20 rounded-lg bg-black/20 backdrop-blur-sm">
             <h3 className="text-xl font-semibold text-white">No Agents Found</h3>
             <p className="text-white/70 mt-2">
               Create your first agent by making a search in the main chat window.

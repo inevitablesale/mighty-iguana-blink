@@ -26,7 +26,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <Card className="mb-2 bg-background text-foreground">
+      <Card className="mb-2 bg-black/30 border-white/10 text-white">
         <CardHeader className="p-3 relative">
           <button {...listeners} className="absolute top-3 right-2 p-1 text-muted-foreground hover:text-foreground cursor-grab">
             <GripVertical size={16} />
