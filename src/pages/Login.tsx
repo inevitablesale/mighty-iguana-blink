@@ -4,7 +4,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { SweaterIcon } from '@/components/SweaterIcon';
-import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 const Login = () => {
@@ -40,9 +40,11 @@ const Login = () => {
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2">
             <SweaterIcon className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Coogi</h1>
+            <CardTitle className="text-3xl font-bold">Coogi</CardTitle>
           </div>
-          <CardDescription className="text-white/70">Weaving together the best opportunities.</CardDescription>
+          <CardDescription className="text-white/70 pt-2">
+            Sign in with your provider to continue.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div id="login-auth-form">
@@ -53,6 +55,7 @@ const Login = () => {
               }}
               providers={['google', 'azure']}
               theme="dark"
+              onlyThirdPartyProviders={true}
             />
           </div>
         </CardContent>
