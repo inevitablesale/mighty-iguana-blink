@@ -12,7 +12,6 @@ import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -54,7 +53,6 @@ const App = () => {
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
                 <Route index element={<Index />} />
-                <Route path="profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

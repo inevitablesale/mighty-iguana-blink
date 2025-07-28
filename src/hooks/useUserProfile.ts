@@ -7,6 +7,7 @@ export interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   calendly_url: string | null;
+  email?: string | null; // Add email to profile
 }
 
 export interface UserCredits {
@@ -33,8 +34,9 @@ export function useUserProfile() {
 
       if (profileRes.error && profileRes.error.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileRes.error);
+        setProfile({ id: user.id, first_name: '', last_name: '', calendly_url: '', email: user.email });
       } else {
-        setProfile(profileRes.data);
+        setProfile({ ...profileRes.data, email: user.email });
       }
 
       if (creditsRes.error && creditsRes.error.code !== 'PGRST116') {

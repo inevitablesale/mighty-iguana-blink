@@ -1,10 +1,10 @@
 import { Outlet } from "react-router-dom";
-import { Header } from "@/components/Header";
+import { Sidebar } from "@/components/Sidebar";
 
 const AppLayout = () => {
   return (
-    <div className="flex flex-col min-h-screen w-full coogi-gradient-bg">
-      <Header title="Coogi AI" />
+    <div className="flex min-h-screen w-full coogi-gradient-bg text-white">
+      <Sidebar />
       <main className="flex-1">
         <Outlet />
       </main>
