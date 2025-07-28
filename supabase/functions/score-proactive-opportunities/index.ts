@@ -57,9 +57,6 @@ serve(async (req) => {
       .not('intent_profile', 'is', null);
 
     if (profileError) throw new Error(`Failed to fetch user profiles: ${profileError.message}`);
-    if (!profiles || profiles.length === 0) {
-      return new Response(JSON.stringify({ message: "No users with intent profiles to score against." }), { status: 200, headers: corsHeaders });
-    }
 
     const { data: opportunities, error: oppError } = await supabaseAdmin
       .from('proactive_opportunities')
@@ -72,64 +69,102 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: "No new opportunities to score." }), { status: 200, headers: corsHeaders });
     }
     
-    console.log(`[score-proactive-opportunities] Found ${opportunities.length} new opportunities to score against ${profiles.length} user profiles.`);
+    console.log(`[score-proactive-opportunities] Found ${opportunities.length} new opportunities to score against ${profiles?.length || 0} user profiles.`);
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
-    for (const profile of profiles) {
-      if (!profile.intent_profile?.summary) continue;
+    const assignedOppIds = new Set();
 
-      for (const opportunity of opportunities) {
-        const scoringPrompt = `
-          You are an AI recruitment analyst. Score a job opportunity based on its relevance to a specific recruiter's profile.
+    // First pass: Score against user profiles
+    if (profiles && profiles.length > 0) {
+        for (const profile of profiles) {
+            if (!profile.intent_profile?.summary) continue;
 
-          **Recruiter's Profile (Their Specialty):**
-          "${profile.intent_profile.summary}"
+            for (const opportunity of opportunities) {
+                if (assignedOppIds.has(opportunity.id)) continue; // Already assigned
 
-          **Job Opportunity to Score:**
-          ${JSON.stringify(opportunity.job_data, null, 2)}
+                const scoringPrompt = `
+                You are an AI recruitment analyst. Score a job opportunity based on its relevance to a specific recruiter's profile.
+                **Recruiter's Profile (Their Specialty):** "${profile.intent_profile.summary}"
+                **Job Opportunity to Score:** ${JSON.stringify(opportunity.job_data, null, 2)}
+                **Instructions:**
+                1. Analyze the job opportunity carefully.
+                2. Compare it against the recruiter's specific profile.
+                3. Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation for your score).
+                4. A score of 7-10 means it's a strong match for this specific recruiter.
+                5. Your reasoning MUST be addressed to the recruiter, explaining *why* this is a good or bad match for *them*.
+                Return ONLY a single, valid JSON object.
+                `;
 
-          **Instructions:**
-          1.  Analyze the job opportunity carefully.
-          2.  Compare it against the recruiter's specific profile.
-          3.  Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation for your score).
-          4.  A score of 7-10 means it's a strong match for this specific recruiter.
-          5.  A score of 4-6 is a potential but not perfect match.
-          6.  A score of 1-3 is a poor match.
-          7.  Your reasoning MUST be addressed to the recruiter, explaining *why* this is a good or bad match for *them*.
+                try {
+                    const result = await callGemini(scoringPrompt, GEMINI_API_KEY);
+                    
+                    if (result && result.relevance_score >= 7) { // Higher threshold for personal assignment
+                        await supabaseAdmin
+                        .from('proactive_opportunities')
+                        .update({
+                            relevance_score: result.relevance_score,
+                            relevance_reasoning: result.relevance_reasoning,
+                            status: 'reviewed',
+                            user_id: profile.id // Assign to the matched user
+                        })
+                        .eq('id', opportunity.id);
+                        assignedOppIds.add(opportunity.id);
+                    }
+                } catch (e) {
+                    console.error(`Error scoring opportunity ${opportunity.id} for user ${profile.id}:`, e.message);
+                }
+            }
+        }
+    }
 
-          Return ONLY a single, valid JSON object.
+    // Second pass: Score unassigned opportunities for general market quality
+    const unassignedOpportunities = opportunities.filter(opp => !assignedOppIds.has(opp.id));
+    console.log(`[score-proactive-opportunities] Scoring ${unassignedOpportunities.length} unassigned opportunities for general market quality.`);
+
+    for (const opportunity of unassignedOpportunities) {
+        const generalScoringPrompt = `
+            You are an AI market analyst. Evaluate the following job posting for its general quality and attractiveness to a generic, high-performing recruiter. Do not consider any specific user profile.
+            **Job Opportunity to Evaluate:** ${JSON.stringify(opportunity.job_data, null, 2)}
+            **Instructions:**
+            1.  Assess the role's quality based on factors like salary (if available), company reputation (inferred), clarity of the job description, and seniority.
+            2.  Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation of why this is a generally attractive opportunity).
+            3.  A score of 7-10 indicates a high-quality, "hot market" opportunity.
+            4.  The reasoning should be general, e.g., "This is a senior role at a well-known tech company with a competitive salary range."
+            Return ONLY a single, valid JSON object.
         `;
 
         try {
-          const result = await callGemini(scoringPrompt, GEMINI_API_KEY);
-          
-          if (result && result.relevance_score >= 5) {
-            await supabaseAdmin
-              .from('proactive_opportunities')
-              .update({
-                relevance_score: result.relevance_score,
-                relevance_reasoning: result.relevance_reasoning,
-                status: 'reviewed',
-                user_id: profile.id // Assign to the matched user
-              })
-              .eq('id', opportunity.id);
-          }
+            const result = await callGemini(generalScoringPrompt, GEMINI_API_KEY);
+            if (result && result.relevance_score >= 7) {
+                // It's a hot market opportunity
+                await supabaseAdmin
+                    .from('proactive_opportunities')
+                    .update({
+                        relevance_score: result.relevance_score,
+                        relevance_reasoning: result.relevance_reasoning,
+                        status: 'reviewed',
+                        user_id: null // Explicitly unassigned
+                    })
+                    .eq('id', opportunity.id);
+            } else {
+                // Not a good fit for anyone, dismiss it
+                await supabaseAdmin
+                    .from('proactive_opportunities')
+                    .update({ status: 'dismissed', relevance_reasoning: 'Did not meet quality standards for personalized or general market display.' })
+                    .eq('id', opportunity.id);
+            }
         } catch (e) {
-          console.error(`Error scoring opportunity ${opportunity.id} for user ${profile.id}:`, e.message);
+            console.error(`Error doing general scoring for opportunity ${opportunity.id}:`, e.message);
+            // Dismiss on error to avoid reprocessing
+            await supabaseAdmin
+                .from('proactive_opportunities')
+                .update({ status: 'dismissed', error_message: e.message })
+                .eq('id', opportunity.id);
         }
-      }
     }
-    
-    // Mark any remaining 'new' opportunities as 'dismissed' if they didn't match anyone
-    const oppIds = opportunities.map(o => o.id);
-    await supabaseAdmin
-      .from('proactive_opportunities')
-      .update({ status: 'dismissed', relevance_reasoning: 'Did not match any active user profiles.' })
-      .in('id', oppIds)
-      .eq('status', 'new');
 
-    const finalMessage = `Scoring complete. Processed ${opportunities.length} opportunities against ${profiles.length} user profiles.`;
+    const finalMessage = `Scoring complete. Processed ${opportunities.length} opportunities.`;
     console.log(`[score-proactive-opportunities] ${finalMessage}`);
     return new Response(JSON.stringify({ message: finalMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
