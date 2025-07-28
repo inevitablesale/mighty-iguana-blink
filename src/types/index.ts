@@ -1,10 +1,10 @@
 export interface Opportunity {
   id: string;
   agent_id: string;
-  company_name: string; // Changed from companyName
+  company_name: string;
   role: string;
   location: string;
-  match_score: number; // Changed from matchScore
+  match_score: number;
   company_overview: string;
   contract_value_assessment: string;
   hiring_urgency: string;
@@ -28,29 +28,6 @@ export interface Contact {
   phone_number?: string | null;
 }
 
-export type TaskStatus = 'pending' | 'processing' | 'complete' | 'error' | 'error_no_linkedin_url';
-
-export interface ContactEnrichmentTask {
-  id: string;
-  company_name: string;
-  status: TaskStatus;
-  error_message: string | null;
-  created_at: string;
-}
-
-export interface SearchCriteria {
-  role?: string | null;
-  location?: string | null;
-  quantity?: number | null;
-  vertical?: string | null;
-  keywords?: string[] | null;
-}
-
-export interface ProcessedCommand {
-  searchCriteria: SearchCriteria;
-  opportunities: Opportunity[];
-}
-
 export type CampaignStatus = 'draft' | 'contacted' | 'replied' | 'sourcing' | 'interviewing' | 'hired' | 'archived';
 
 export interface Campaign {
@@ -62,21 +39,6 @@ export interface Campaign {
   status: CampaignStatus;
   contact_name: string | null;
   contact_email: string | null;
-}
-
-export type AutonomyLevel = 'manual' | 'semi-automatic' | 'automatic';
-
-export interface Playbook {
-  id: string;
-  name: string;
-  prompt: string;
-  last_run_at?: string;
-  autonomy_level: AutonomyLevel;
-  search_lookback_hours: number;
-  max_results: number;
-  job_type?: string | null;
-  is_remote?: boolean;
-  country?: string | null;
 }
 
 export type PlacementStatus = 'active' | 'completed' | 'cancelled';
@@ -94,20 +56,6 @@ export interface Placement {
   }
 }
 
-export interface NewsItem {
-  title: string;
-  source: string;
-  date: string;
-}
-
-export interface CompanyBriefing {
-  overview: string;
-  recentNews: NewsItem[];
-  keyPersonnel: string;
-  techStack: string;
-  hiringAnalysis: string;
-}
-
 export type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'archived';
 
 export interface Proposal {
@@ -123,15 +71,12 @@ export interface Proposal {
   }
 }
 
-export interface PropensityToSwitchAnalysis {
-  score: number;
-  positive_signals: string[];
-  negative_signals: string[];
-  summary: string;
-}
+// Types for the new Chat UI
+export type MessageRole = 'user' | 'assistant';
 
-export interface ContactEvaluation {
-  score: number;
-  status: 'Good Match' | 'Potential Fit' | 'Not a Match';
-  reasoning: string;
+export interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  text?: string;
+  // We will add more content types here, like deal cards or email previews
 }

@@ -11,12 +11,8 @@ import { ExtensionProvider } from "./context/ExtensionContext";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Leads from "./pages/Leads";
-import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
-import Placements from "./pages/Placements";
-import Proposals from "./pages/Proposals";
 
 const queryClient = new QueryClient();
 
@@ -58,11 +54,7 @@ const App = () => {
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
                 <Route index element={<Index />} />
-                <Route path="leads" element={<Leads />} />
-                <Route path="campaigns" element={<Campaigns />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="placements" element={<Placements />} />
-                <Route path="proposals" element={<Proposals />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

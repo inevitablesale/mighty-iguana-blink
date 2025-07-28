@@ -5,8 +5,8 @@ import {
 } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { NavLink, useNavigate } from "react-router-dom";
-import { LogOut, User, Menu, Home, Target, Award, FileText, Briefcase } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { LogOut, User } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -17,15 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { SweaterIcon } from "./SweaterIcon";
-import { useExtension } from "@/context/ExtensionContext";
-import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
-import { ExtensionLogDialog } from "./ExtensionLogDialog";
 
 interface HeaderProps {
   title: string;
@@ -34,7 +26,6 @@ interface HeaderProps {
 export function Header({ title }: HeaderProps) {
   const navigate = useNavigate();
   const { profile, loading } = useUserProfile();
-  const { extensionStatus, extensionMessage } = useExtension();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -53,64 +44,15 @@ export function Header({ title }: HeaderProps) {
     return "U";
   };
 
-  const getMobileLinkClassName = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? "flex items-center gap-4 rounded-xl bg-muted px-3 py-2 text-primary"
-      : "flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground";
-
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-      <div className="md:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle navigation menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col">
-            <nav className="grid gap-2 text-lg font-medium">
-              <NavLink
-                to="/"
-                className="mb-4 flex items-center gap-2 text-lg font-semibold"
-              >
-                <SweaterIcon className="h-6 w-6 text-primary" />
-                <span>Coogi</span>
-              </NavLink>
-              <NavLink to="/" end className={getMobileLinkClassName}>
-                <Home className="h-5 w-5" />
-                Dashboard
-              </NavLink>
-              <NavLink to="/leads" className={getMobileLinkClassName}>
-                <Target className="h-5 w-5" />
-                Leads
-              </NavLink>
-              <NavLink to="/campaigns" className={getMobileLinkClassName}>
-                <Briefcase className="h-5 w-5" />
-                Campaigns
-              </NavLink>
-              <NavLink to="/placements" className={getMobileLinkClassName}>
-                <Award className="h-5 w-5" />
-                Placements
-              </NavLink>
-              <NavLink to="/proposals" className={getMobileLinkClassName}>
-                <FileText className="h-5 w-5" />
-                Proposals
-              </NavLink>
-            </nav>
-            <div className="mt-auto p-4 border-t space-y-2">
-              <div className="flex items-center justify-between px-3">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chrome Extension Status</h4>
-                <ExtensionLogDialog />
-              </div>
-              <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+      <a href="/" className="flex items-center gap-2 font-semibold">
+        <SweaterIcon className="h-6 w-6 text-primary" />
+        <span className="text-lg">{title}</span>
+      </a>
 
       <div className="w-full flex-1">
-        <h1 className="text-lg font-semibold md:text-2xl">{title}</h1>
+        {/* Future elements can go here */}
       </div>
 
       {loading ? (

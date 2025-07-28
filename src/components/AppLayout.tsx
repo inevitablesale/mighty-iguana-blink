@@ -1,11 +1,13 @@
 import { Outlet } from "react-router-dom";
-import { Sidebar } from "@/components/Sidebar";
+import { Header } from "@/components/Header";
 
 const AppLayout = () => {
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <Sidebar />
-      <Outlet />
+    <div className="flex flex-col min-h-screen w-full">
+      <Header title="Coogi AI" />
+      <main className="flex-1">
+        <Outlet />
+      </main>
     </div>
   );
 };
