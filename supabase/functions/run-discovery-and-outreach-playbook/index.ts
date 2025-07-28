@@ -81,69 +81,75 @@ serve(async (req) => {
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const rawJobResults = (await scrapingResponse.json())?.jobs;
 
+    let message;
+
     if (!rawJobResults || rawJobResults.length === 0) {
-      await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: corsHeaders });
+      message = `Agent "${agent.name}" ran but found no new job opportunities.`;
+    } else {
+      // Step 2: Enrich and filter jobs
+      const enrichmentPromises = rawJobResults.map(async (job) => {
+        const jobHash = await createJobHash(job);
+        const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
+        if (cached) return { ...cached.analysis_data, match_score: sanitizeMatchScore(cached.analysis_data.match_score) };
+
+        const enrichmentPrompt = `Analyze this job based on this specialty: "${agent.prompt}". Job: ${JSON.stringify(job)}. Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", etc.`;
+        const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
+        analysisData.match_score = sanitizeMatchScore(analysisData.match_score);
+        await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+        return analysisData;
+      });
+
+      const settledEnrichments = await Promise.allSettled(enrichmentPromises);
+      const enrichedOpportunities = settledEnrichments.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+      const validatedOpportunities = enrichedOpportunities.filter(opp => opp.match_score >= 6);
+
+      if (validatedOpportunities.length === 0) {
+        message = `Agent "${agent.name}" ran and analyzed ${enrichedOpportunities.length} jobs, but none met the quality threshold.`;
+      } else {
+        // Step 3: Save opportunities
+        const opportunitiesToInsert = validatedOpportunities.map(opp => ({
+            user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
+            match_score: opp.match_score, company_overview: opp.company_overview, contract_value_assessment: opp.contract_value_assessment,
+            hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
+            key_signal_for_outreach: opp.key_signal_for_outreach, placement_difficulty: opp.placement_difficulty,
+            estimated_time_to_fill: opp.estimated_time_to_fill, client_demand_signal: opp.client_demand_signal,
+            location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, likely_decision_maker: opp.likely_decision_maker,
+        }));
+        const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
+        if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+
+        message = `Agent "${agent.name}" found and processed ${savedOpportunities.length} new opportunities based on your autonomy settings.`;
+
+        if (agent.autonomy_level !== 'manual') {
+          // Step 4: For semi-auto or auto, find contacts and generate outreach
+          const authHeader = req.headers.get('Authorization');
+          for (const opp of savedOpportunities) {
+            const { error: taskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert({
+              user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, status: 'pending'
+            });
+            if (taskError) { console.error(`Failed to create task for opp ${opp.id}`); continue; }
+
+            await supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
+              headers: { 'Authorization': authHeader },
+              body: { opportunityId: opp.id, linkedinHtml: null }
+            });
+          }
+        }
+      }
     }
-
-    // Step 2: Enrich and filter jobs
-    const enrichmentPromises = rawJobResults.map(async (job) => {
-      const jobHash = await createJobHash(job);
-      const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
-      if (cached) return { ...cached.analysis_data, match_score: sanitizeMatchScore(cached.analysis_data.match_score) };
-
-      const enrichmentPrompt = `Analyze this job based on this specialty: "${agent.prompt}". Job: ${JSON.stringify(job)}. Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", etc.`;
-      const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
-      analysisData.match_score = sanitizeMatchScore(analysisData.match_score);
-      await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
-      return analysisData;
+    
+    // Post summary to feed
+    await supabaseAdmin.from('feed_items').insert({
+      user_id: user.id,
+      type: 'agent_run_summary',
+      role: 'system',
+      content: {
+        agentName: agent.name,
+        summary: message,
+      }
     });
 
-    const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-    const enrichedOpportunities = settledEnrichments.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-    const validatedOpportunities = enrichedOpportunities.filter(opp => opp.match_score >= 6);
-
-    if (validatedOpportunities.length === 0) {
-      await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent ran and analyzed ${enrichedOpportunities.length} jobs, but none met the quality threshold.` }), { status: 200, headers: corsHeaders });
-    }
-
-    // Step 3: Save opportunities
-    const opportunitiesToInsert = validatedOpportunities.map(opp => ({
-        user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
-        match_score: opp.match_score, company_overview: opp.company_overview, contract_value_assessment: opp.contract_value_assessment,
-        hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
-        key_signal_for_outreach: opp.key_signal_for_outreach, placement_difficulty: opp.placement_difficulty,
-        estimated_time_to_fill: opp.estimated_time_to_fill, client_demand_signal: opp.client_demand_signal,
-        location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, likely_decision_maker: opp.likely_decision_maker,
-    }));
-    const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
-    if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
-
-    // If agent is manual, stop here.
-    if (agent.autonomy_level === 'manual') {
-      await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-      return new Response(JSON.stringify({ message: `Agent found ${savedOpportunities.length} new opportunities. They are available in your search results.` }), { status: 200, headers: corsHeaders });
-    }
-
-    // Step 4: For semi-auto or auto, find contacts and generate outreach
-    const authHeader = req.headers.get('Authorization');
-    for (const opp of savedOpportunities) {
-      // Create a task for logging/tracking
-      const { data: task, error: taskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert({
-        user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, status: 'pending'
-      }).select().single();
-      if (taskError) { console.error(`Failed to create task for opp ${opp.id}`); continue; }
-
-      // Immediately invoke the next function in the chain
-      await supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
-        headers: { 'Authorization': authHeader },
-        body: { opportunityId: opp.id, linkedinHtml: null }
-      });
-    }
-
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
-    const message = `Agent ran complete. Found and processed ${savedOpportunities.length} new opportunities based on your autonomy settings.`;
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {

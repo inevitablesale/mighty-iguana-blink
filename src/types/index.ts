@@ -120,3 +120,16 @@ export interface Agent {
   last_run_at: string | null;
   autonomy_level: 'manual' | 'semi-automatic' | 'automatic';
 }
+
+export interface FeedItem {
+  id: string;
+  user_id: string;
+  type: 'agent_run_summary' | 'user_search';
+  role: 'system' | 'user';
+  content: {
+    agentName?: string;
+    summary?: string;
+    query?: string;
+  };
+  created_at: string;
+}
