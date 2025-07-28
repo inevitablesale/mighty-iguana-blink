@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProactiveOpportunity } from "@/types";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, Sparkles, X, User, Globe } from "lucide-react";
 
 interface ProactiveOpportunityCardProps {
   opportunity: ProactiveOpportunity;
@@ -10,9 +10,12 @@ interface ProactiveOpportunityCardProps {
   onDismiss: (opportunityId: string) => void;
   isAccepting: boolean;
   isDismissing: boolean;
+  currentUserId: string;
 }
 
-export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isAccepting, isDismissing }: ProactiveOpportunityCardProps) {
+export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isAccepting, isDismissing, currentUserId }: ProactiveOpportunityCardProps) {
+  const isPersonalized = opportunity.user_id === currentUserId;
+
   return (
     <Card className="w-full bg-card text-card-foreground border flex flex-col h-full">
       <CardHeader className="pb-3">
@@ -21,15 +24,18 @@ export function ProactiveOpportunityCard({ opportunity, onAccept, onDismiss, isA
             <CardTitle className="text-base font-bold text-foreground">{opportunity.job_data.company}</CardTitle>
             <CardDescription className="text-sm text-primary font-medium">{opportunity.job_data.title}</CardDescription>
           </div>
-          <Badge variant="secondary" className="flex-shrink-0 px-2 py-1 text-xs font-bold">
-            <Sparkles className="h-3 w-3 mr-1.5 text-purple-400" />
-            Score: {opportunity.relevance_score}
+          <Badge variant={isPersonalized ? "default" : "secondary"} className="flex-shrink-0 px-2 py-1 text-xs font-bold">
+            {isPersonalized ? <User className="h-3 w-3 mr-1.5" /> : <Globe className="h-3 w-3 mr-1.5" />}
+            {isPersonalized ? "For You" : "Hot Market"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="bg-muted/50 border rounded-md p-3">
-          <p className="text-xs font-semibold text-muted-foreground mb-1">Why you're seeing this:</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3 text-purple-400" />
+            AI Analysis (Score: {opportunity.relevance_score})
+          </p>
           <p className="text-sm text-foreground italic">"{opportunity.relevance_reasoning}"</p>
         </div>
       </CardContent>

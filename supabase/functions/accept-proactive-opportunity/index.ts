@@ -54,11 +54,13 @@ serve(async (req) => {
       .from('proactive_opportunities')
       .select('id, job_data, relevance_score, relevance_reasoning, user_id')
       .eq('id', proactiveOpportunityId)
-      .eq('user_id', user.id)
       .single();
 
     if (fetchError) throw new Error(`Failed to fetch proactive opportunity: ${fetchError.message}`);
-    if (!proactiveOpp) throw new Error("Proactive opportunity not found or does not belong to you.");
+    if (!proactiveOpp) throw new Error("Proactive opportunity not found.");
+    if (proactiveOpp.user_id && proactiveOpp.user_id !== user.id) {
+      throw new Error("This opportunity is assigned to another user.");
+    }
 
     const job = proactiveOpp.job_data;
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -128,7 +130,7 @@ serve(async (req) => {
 
     await supabaseAdmin
       .from('proactive_opportunities')
-      .update({ status: 'accepted' })
+      .update({ status: 'accepted', user_id: user.id })
       .eq('id', proactiveOpportunityId);
 
     return new Response(JSON.stringify({ campaign: savedCampaign }), {

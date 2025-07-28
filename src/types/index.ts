@@ -40,7 +40,7 @@ export interface ProactiveOpportunity {
     location: string;
     description: string;
   };
-  user_id: string;
+  user_id: string | null;
 }
 
 export interface Contact {

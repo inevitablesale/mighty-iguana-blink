@@ -9,6 +9,7 @@ import { CampaignColumn } from '@/components/CampaignColumn';
 import { CampaignCard } from '@/components/CampaignCard';
 import { createPortal } from 'react-dom';
 import { ProactiveOpportunityCard } from '@/components/ProactiveOpportunityCard';
+import type { User } from '@supabase/supabase-js';
 
 const pipelineStatuses: CampaignStatus[] = ['draft', 'contacted', 'replied', 'sourcing', 'interviewing', 'hired'];
 
@@ -18,6 +19,7 @@ export default function Pipeline() {
   const [loading, setLoading] = useState(true);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
   const [processingOpp, setProcessingOpp] = useState<{ id: string; type: 'accept' | 'dismiss' } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const fetchPipelineData = async () => {
@@ -25,6 +27,7 @@ export default function Pipeline() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not found");
+        setUser(user);
 
         const campaignsPromise = supabase
           .from('campaigns')
@@ -36,8 +39,9 @@ export default function Pipeline() {
         const proactiveOppsPromise = supabase
           .from('proactive_opportunities')
           .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'reviewed');
+          .or(`user_id.eq.${user.id},user_id.is.null`)
+          .eq('status', 'reviewed')
+          .order('relevance_score', { ascending: false });
 
         const [campaignsResult, proactiveOppsResult] = await Promise.all([campaignsPromise, proactiveOppsPromise]);
 
@@ -172,6 +176,7 @@ export default function Pipeline() {
                         onDismiss={handleDismissOpportunity}
                         isAccepting={processingOpp?.id === opp.id && processingOpp?.type === 'accept'}
                         isDismissing={processingOpp?.id === opp.id && processingOpp?.type === 'dismiss'}
+                        currentUserId={user!.id}
                       />
                     ))
                   ) : (
