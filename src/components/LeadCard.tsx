@@ -14,6 +14,8 @@ interface LeadCardProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
+  onRevealContact: (contactId: string) => void;
+  revealedContactIds: Set<string>;
 }
 
 export function LeadCard({
@@ -24,6 +26,8 @@ export function LeadCard({
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
+  onRevealContact,
+  revealedContactIds,
 }: LeadCardProps) {
 
   const renderContactButton = () => {
@@ -36,9 +40,11 @@ export function LeadCard({
           onGenerateCampaign={onGenerateCampaign}
           isGenerating={isGeneratingCampaign}
           generatingContactId={generatingContactId}
+          onRevealContact={onRevealContact}
+          revealedContactIds={revealedContactIds}
         >
           <Button size="sm" className="w-full coogi-gradient-bg text-primary-foreground hover:opacity-90">
-            <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})
+            <MessageSquare className="mr-2 h-4 w-4" /> View Contacts ({companyContacts.length})
           </Button>
         </ViewContactsDialog>
       );

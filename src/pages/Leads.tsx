@@ -26,6 +26,7 @@ const Leads = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchSummary, setSearchSummary] = useState<{ query: string; params: SearchParams } | null>(null);
+  const [revealedContactIds, setRevealedContactIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   const fetchInitialData = useCallback(async () => {
@@ -128,6 +129,12 @@ const Leads = () => {
     }
   };
 
+  const handleRevealContact = (contactId: string) => {
+    setRevealedContactIds(prev => new Set(prev).add(contactId));
+    // This is where we would decrement a contact credit in the future.
+    toast.success("Contact information revealed.");
+  };
+
   const opportunitiesByCompany = useMemo(() => {
     const companyMap = new Map<string, Opportunity[]>();
     opportunities.forEach(opp => {
@@ -171,6 +178,8 @@ const Leads = () => {
               onGenerateCampaign={handleGenerateCampaignForContact}
               isGeneratingCampaign={!!generatingCampaignForContactId}
               generatingContactId={generatingCampaignForContactId}
+              onRevealContact={handleRevealContact}
+              revealedContactIds={revealedContactIds}
             />
           ))}
         </div>

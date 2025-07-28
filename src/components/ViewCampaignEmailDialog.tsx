@@ -14,6 +14,20 @@ interface ViewCampaignEmailDialogProps {
 }
 
 export function ViewCampaignEmailDialog({ campaign, children }: ViewCampaignEmailDialogProps) {
+  const renderBodyWithHighlights = (body: string) => {
+    if (!body) return null;
+    const parts = body.split(/<mark>|<\/mark>/g);
+    return parts.map((part, index) =>
+      index % 2 === 1 ? (
+        <mark key={index} className="bg-yellow-200/80 dark:bg-yellow-700/80 rounded px-1 py-0.5">
+          {part}
+        </mark>
+      ) : (
+        <span key={index}>{part}</span>
+      )
+    );
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -29,7 +43,9 @@ export function ViewCampaignEmailDialog({ campaign, children }: ViewCampaignEmai
           </div>
           <div>
             <h4 className="font-semibold mb-1">Body</h4>
-            <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap">{campaign.body}</p>
+            <div className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap leading-relaxed">
+              {renderBodyWithHighlights(campaign.body)}
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -68,8 +68,9 @@ serve(async (req) => {
       2.  Use the "Key Signal for Outreach" as your opening hook.
       3.  Subtly address the "Client's Likely Pain Points" in the body of the email.
       4.  Incorporate the "Recommended Recruiter Angle" to position the recruiter as the perfect solution.
-      5.  Include a clear call to action to book a meeting using the Calendly link.
+      5.  If a Calendly link is provided, include a clear call to action to book a meeting using it. If not, suggest a brief call.
       6.  Do NOT use placeholders like "[Your Name]".
+      7.  When you insert a personalized element (like the Key Signal, Pain Points, or Recruiter Angle), wrap it in <mark> tags. For example: "I saw <mark>your recent funding announcement</mark> and wanted to reach out."
 
       Return a JSON object with two keys: "subject" and "body". The subject line should be compelling and reference the role.
       **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**

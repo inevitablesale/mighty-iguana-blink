@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Contact, Opportunity } from "@/types/index";
-import { Linkedin, Mail, ChevronDown, Loader2 } from "lucide-react";
+import { Linkedin, Mail, ChevronDown, Loader2, Eye } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,8 @@ interface ViewContactsDialogProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGenerating: boolean;
   generatingContactId: string | null;
+  onRevealContact: (contactId: string) => void;
+  revealedContactIds: Set<string>;
   children: React.ReactNode;
 }
 
@@ -35,6 +37,8 @@ export function ViewContactsDialog({
   onGenerateCampaign, 
   isGenerating, 
   generatingContactId,
+  onRevealContact,
+  revealedContactIds,
   children 
 }: ViewContactsDialogProps) {
   const getInitials = (name: string | null) => {
@@ -47,45 +51,40 @@ export function ViewContactsDialog({
     onGenerateCampaign(campaignContact);
   };
 
-  const getEmailStatusBadge = (status: string | null | undefined) => {
-    switch (status) {
-      case 'verified':
-        return <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>;
-      case 'not_found':
-        return <Badge variant="destructive">Not Found</Badge>;
-      case 'error_no_linkedin_url':
-      case 'error_no_name':
-        return <Badge variant="destructive">Error</Badge>;
-      default:
-        return <Badge variant="secondary">{status || 'Pending'}</Badge>;
-    }
-  };
+  const renderContactActions = (contact: Contact) => {
+    const isRevealed = revealedContactIds.has(contact.id);
 
-  const renderEmailInfo = (contact: Contact) => {
-    if (contact.email) {
+    if (!isRevealed) {
       return (
-        <div className="flex items-center gap-2">
-          <Mail size={14} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground truncate" title={contact.email}>{contact.email}</span>
-          {getEmailStatusBadge(contact.email_status)}
-        </div>
+        <Button size="sm" variant="outline" onClick={() => onRevealContact(contact.id)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Reveal Email
+        </Button>
       );
     }
 
-    switch (contact.email_status) {
-      case 'not_found':
-        return <Badge variant="destructive">Email Not Found</Badge>;
-      case 'error_no_linkedin_url':
-      case 'error_no_name':
-        return <Badge variant="destructive">Data Error</Badge>;
-      default:
-        return (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Searching for email...</span>
-          </div>
-        );
-    }
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            size="sm" 
+            disabled={(isGenerating && generatingContactId === contact.id) || !contact.email}
+            className="coogi-gradient-bg text-primary-foreground hover:opacity-90"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft'}
+            <ChevronDown className="ml-2 h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {opportunities.map(opp => (
+            <DropdownMenuItem key={opp.id} onClick={() => handleDraftClick(contact, opp)} disabled={isGenerating}>
+              For: {opp.role}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   return (
@@ -95,7 +94,7 @@ export function ViewContactsDialog({
         <DialogHeader>
           <DialogTitle>Key Contacts for {companyName}</DialogTitle>
           <DialogDescription>
-            Select a contact and a role to draft a personalized outreach email.
+            Reveal contact information and draft personalized outreach emails.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto pr-4 py-4">
@@ -110,7 +109,13 @@ export function ViewContactsDialog({
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold truncate">{contact.name}</p>
                       <p className="text-sm text-muted-foreground truncate">{contact.job_title}</p>
-                      {renderEmailInfo(contact)}
+                      {revealedContactIds.has(contact.id) && contact.email && (
+                         <div className="flex items-center gap-2">
+                          <Mail size={14} className="text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground truncate" title={contact.email}>{contact.email}</span>
+                          <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -122,27 +127,7 @@ export function ViewContactsDialog({
                         </a>
                       </Button>
                     )}
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          size="sm" 
-                          disabled={(isGenerating && generatingContactId === contact.id) || !contact.email}
-                          className="coogi-gradient-bg text-primary-foreground hover:opacity-90"
-                        >
-                          <Mail className="mr-2 h-4 w-4" />
-                          {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft'}
-                          <ChevronDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {opportunities.map(opp => (
-                          <DropdownMenuItem key={opp.id} onClick={() => handleDraftClick(contact, opp)} disabled={isGenerating}>
-                            For: {opp.role}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {renderContactActions(contact)}
                   </div>
                 </li>
               ))}
