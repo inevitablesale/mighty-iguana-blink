@@ -15,13 +15,23 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Send, Loader2 } from "lucide-react";
+import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import ReactMarkdown from "react-markdown";
+import { Separator } from "./ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
 
 interface GenerateContractDialogProps {
   opportunity: Opportunity;
   children: React.ReactNode;
+}
+
+interface Analysis {
+  score: number;
+  positive_signals: string[];
+  negative_signals: string[];
+  summary: string;
 }
 
 const feeOptions = [
@@ -41,6 +51,8 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
 
   const resetState = () => {
     setStep(1);
@@ -52,32 +64,29 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
     setIsLoading(false);
     setIsGenerating(false);
     setIsSending(false);
+    setAnalysis(null);
+    setIsAnalysisLoading(false);
   };
 
   useEffect(() => {
-    if (isOpen && step === 1 && contacts.length === 0) {
-      const findContacts = async () => {
-        setIsLoading(true);
+    if (isOpen) {
+      const fetchInitialData = async () => {
+        setIsAnalysisLoading(true);
         try {
-          const { data: existingContacts, error: existingError } = await supabase.from('contacts').select('*').eq('opportunity_id', opportunity.id);
-          if (existingError) throw existingError;
-          if (existingContacts && existingContacts.length > 0) {
-            setContacts(existingContacts);
-          } else {
-            const { data, error } = await supabase.functions.invoke('find-contacts-for-opportunity', { body: { opportunityId: opportunity.id } });
-            if (error) throw new Error(error.message);
-            if (!data.contacts || data.contacts.length === 0) toast.info("No contacts with emails could be found for this company.");
-            setContacts(data.contacts);
-          }
+          const { data, error } = await supabase.functions.invoke('analyze-propensity-to-switch', {
+            body: { opportunityId: opportunity.id }
+          });
+          if (error) throw new Error(error.message);
+          setAnalysis(data.analysis);
         } catch (err) {
-          toast.error("Failed to find contacts", { description: (err as Error).message });
+          toast.error("Failed to get opportunity analysis", { description: (err as Error).message });
         } finally {
-          setIsLoading(false);
+          setIsAnalysisLoading(false);
         }
       };
-      findContacts();
+      fetchInitialData();
     }
-  }, [isOpen, opportunity.id, step]);
+  }, [isOpen, opportunity.id]);
 
   const handleContactNext = async () => {
     if (!selectedContact) return;
@@ -136,7 +145,6 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
       });
       if (error) throw error;
       
-      // Also update the campaign status
       await supabase.from('campaigns').update({ status: 'contacted' }).eq('id', campaign.id);
 
       toast.success("Proposal sent successfully!");
@@ -156,51 +164,45 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Generate Contract for {opportunity.company_name}</DialogTitle>
+          <DialogTitle>Opportunity Details: {opportunity.company_name}</DialogTitle>
           <DialogDescription>
-            {step === 1 && "First, select the best contact to send the proposal to."}
-            {step === 2 && "Next, choose the fee structure for this engagement."}
-            {step === 3 && "Finally, review the generated proposal and send it."}
+            Review the AI-powered analysis below, then follow the steps to generate and send a contract.
           </DialogDescription>
         </DialogHeader>
         
-        {step === 1 && (
-          <div>
-            {isLoading ? (
-              <div className="space-y-4 py-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-            ) : (
-              <RadioGroup onValueChange={(id) => setSelectedContact(contacts.find(c => c.id === id) || null)} className="py-4 max-h-[40vh] overflow-y-auto pr-2 space-y-2">
-                {contacts.length > 0 ? contacts.map((contact) => (
-                  <Label key={contact.id} htmlFor={contact.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent">
-                    <RadioGroupItem value={contact.id} id={contact.id} />
-                    <div><p className="font-semibold">{contact.name}</p><p className="text-sm text-muted-foreground">{contact.job_title}</p></div>
-                  </Label>
-                )) : <p className="text-sm text-muted-foreground text-center py-8">No contacts found.</p>}
-              </RadioGroup>
-            )}
-          </div>
-        )}
-
-        {step === 2 && (
-          <RadioGroup onValueChange={setSelectedFee} className="py-4 space-y-2">
-            {feeOptions.map((option) => (
-              <Label key={option.id} htmlFor={option.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent">
-                <RadioGroupItem value={option.value} id={option.id} />
-                <p className="font-semibold">{option.label}</p>
-              </Label>
-            ))}
-          </RadioGroup>
-        )}
-
-        {step === 3 && (
-          <ScrollArea className="h-[50vh] my-4 rounded-md border p-4">
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{generatedProposal}</ReactMarkdown>
+        <div className="my-4">
+          <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Propensity Analysis</h3>
+          {isAnalysisLoading ? (
+            <div className="space-y-3"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-16 w-full" /><div className="grid grid-cols-2 gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div></div>
+          ) : analysis ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3"><Badge className="text-base px-3 py-1"><BarChart className="h-4 w-4 mr-2" />Propensity Score: {analysis.score}/10</Badge><p className="text-sm text-muted-foreground">{analysis.summary}</p></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsUp className="text-green-500" /> Positive Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.positive_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
+                <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsDown className="text-red-500" /> Negative Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.negative_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
+              </div>
             </div>
-          </ScrollArea>
-        )}
+          ) : <p className="text-sm text-muted-foreground">Could not load analysis.</p>}
+        </div>
+
+        <Separator className="my-6" />
+
+        <div>
+          <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Step {step}: {step === 1 ? "Select Contact" : step === 2 ? "Choose Fee Structure" : "Review Proposal"}</h3>
+          {step === 1 && (
+            <div>
+              {isLoading ? <div className="space-y-4 py-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
+                <RadioGroup onValueChange={(id) => setSelectedContact(contacts.find(c => c.id === id) || null)} className="py-4 max-h-[40vh] overflow-y-auto pr-2 space-y-2">
+                  {contacts.length > 0 ? contacts.map((contact) => <Label key={contact.id} htmlFor={contact.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent"><RadioGroupItem value={contact.id} id={contact.id} /><div><p className="font-semibold">{contact.name}</p><p className="text-sm text-muted-foreground">{contact.job_title}</p></div></Label>) : <p className="text-sm text-muted-foreground text-center py-8">No contacts found.</p>}
+                </RadioGroup>
+              )}
+            </div>
+          )}
+          {step === 2 && <RadioGroup onValueChange={setSelectedFee} className="py-4 space-y-2">{feeOptions.map((option) => <Label key={option.id} htmlFor={option.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent"><RadioGroupItem value={option.value} id={option.id} /><p className="font-semibold">{option.label}</p></Label>)}</RadioGroup>}
+          {step === 3 && <ScrollArea className="h-[50vh] my-4 rounded-md border p-4"><div className="prose prose-sm dark:prose-invert max-w-none"><ReactMarkdown>{generatedProposal}</ReactMarkdown></div></ScrollArea>}
+        </div>
 
         <DialogFooter>
           {step === 1 && <Button onClick={handleContactNext} disabled={!selectedContact || isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'} <ArrowRight className="ml-2 h-4 w-4" /></Button>}

@@ -1,7 +1,7 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity } from "@/types";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, DollarSign, Clock } from "lucide-react";
 import { GenerateContractDialog } from "./GenerateContractDialog";
 
 interface OpportunityCardProps {
@@ -30,13 +30,23 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-white/80 line-clamp-2">
+          <p className="text-sm text-white/80 line-clamp-2 mb-4">
             {opportunity.key_signal_for_outreach}
           </p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline" className="border-white/20 text-white/80">
+              <DollarSign className="h-3 w-3 mr-1.5" />
+              {opportunity.contract_value_assessment}
+            </Badge>
+            <Badge variant="outline" className="border-white/20 text-white/80">
+              <Clock className="h-3 w-3 mr-1.5" />
+              {opportunity.hiring_urgency}
+            </Badge>
+          </div>
         </CardContent>
-        <CardFooter className="flex justify-end">
+        <CardFooter className="flex justify-end pt-4">
           <div className="flex items-center text-white font-semibold text-sm hover:text-primary transition-colors">
-            Generate Contract <ArrowRight className="ml-2 h-4 w-4" />
+            View Details & Generate Contract <ArrowRight className="ml-2 h-4 w-4" />
           </div>
         </CardFooter>
       </Card>
