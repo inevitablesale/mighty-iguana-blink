@@ -11,6 +11,7 @@ import { ExtensionProvider } from "./context/ExtensionContext";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import Agents from "./pages/Agents";
+import Pipeline from "./pages/Pipeline";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 
@@ -55,6 +56,7 @@ const App = () => {
               >
                 <Route index element={<Index />} />
                 <Route path="agents" element={<Agents />} />
+                <Route path="pipeline" element={<Pipeline />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
