@@ -114,10 +114,21 @@ serve(async (req) => {
 
         // Step 1: Classify Intent
         const intentPrompt = `
-          Classify the user's intent. Is the user asking to "find new opportunities" or to "find contacts" for a company they mention?
+          Classify the user's intent based on their query. The two possible intents are "find_opportunities" and "find_contacts".
+
+          - Use "find_contacts" ONLY if the user explicitly asks to find contacts, people, or decision-makers for a SPECIFIC, NAMED company.
+          - For all other queries related to searching for jobs, deals, or companies, use "find_opportunities".
+
           User Query: "${query}"
-          Return a JSON object with "intent" (either "find_opportunities" or "find_contacts") and, if the intent is "find_contacts", a "company_name".
-          If the user is just making a general statement or asking a question, default the intent to "find_opportunities".
+
+          Return a JSON object with "intent" (either "find_opportunities" or "find_contacts").
+          If and ONLY IF the intent is "find_contacts", also include a "company_name" key with the name of the company mentioned.
+
+          Examples:
+          - Query: "find me contacts at Microsoft" -> {"intent": "find_contacts", "company_name": "Microsoft"}
+          - Query: "who are the hiring managers at Google for engineering roles?" -> {"intent": "find_contacts", "company_name": "Google"}
+          - Query: "Show me B2B SaaS companies in New York hiring for senior sales roles" -> {"intent": "find_opportunities"}
+          - Query: "any remote fintech jobs?" -> {"intent": "find_opportunities"}
         `;
         const { intent, company_name } = await callGemini(intentPrompt, GEMINI_API_KEY);
 
