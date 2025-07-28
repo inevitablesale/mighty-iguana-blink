@@ -55,7 +55,7 @@ export function DealCard({ opportunity }: DealCardProps) {
       <CardContent className="p-4 pt-0">
         <div className="flex flex-wrap gap-2">
             <TooltipProvider>
-            {opportunity.deal_signals.map((signal, index) => (
+            {(opportunity.deal_signals || []).map((signal, index) => (
                 <Tooltip key={index} delayDuration={100}>
                     <TooltipTrigger>
                         <Badge variant="outline" className={`font-normal ${getSignalColor(signal.type)}`}>
