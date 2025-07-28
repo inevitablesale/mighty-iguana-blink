@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
-import { ChatMessage as ChatMessageType } from '@/types';
+import { ChatMessage as ChatMessageType, Opportunity } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -59,34 +59,65 @@ export default function Index() {
     }
   }, [messages]);
 
-  const fetchHistory = useCallback(async () => {
-    const { data, error } = await supabase
+  const fetchHistoryAndFeatured = useCallback(async () => {
+    setIsHistoryLoading(true);
+    
+    // Fetch chat history
+    const { data: historyData, error: historyError } = await supabase
       .from('feed_items')
       .select('*')
       .order('created_at', { ascending: true });
 
-    if (error) {
+    if (historyError) {
       toast.error("Failed to load chat history.");
-    } else if (data) {
-      if (data.length === 0) {
-        setMessages([{
-          id: uuidv4(),
-          role: 'assistant',
-          type: 'chat',
+      setIsHistoryLoading(false);
+      return;
+    }
+
+    let allMessages: ChatMessageType[] = historyData || [];
+
+    // Fetch featured opportunities
+    try {
+      const { data: featuredData, error: featuredError } = await supabase.functions.invoke('get-featured-opportunities');
+      if (featuredError) throw featuredError;
+
+      if (featuredData.opportunities && featuredData.opportunities.length > 0) {
+        const featuredMessages: ChatMessageType[] = featuredData.opportunities.map((opp: Opportunity) => ({
+          id: opp.id || uuidv4(),
+          role: 'system',
+          type: 'featured_opportunity',
           created_at: new Date().toISOString(),
           content: {
-            text: "Hello! I'm Coogi, your AI partner. What should we focus on right now?",
+            summary: "Here's a high-value opportunity from today's market scan you might be interested in.",
+            opportunity: opp,
           }
-        }]);
-      } else {
-        setMessages(data as ChatMessageType[]);
+        }));
+        allMessages = [...allMessages, ...featuredMessages];
       }
+    } catch (err) {
+      console.warn("Could not fetch featured opportunities:", (err as Error).message);
     }
+
+    if (allMessages.length === 0) {
+      allMessages.push({
+        id: uuidv4(),
+        role: 'assistant',
+        type: 'chat',
+        created_at: new Date().toISOString(),
+        content: {
+          text: "Hello! I'm Coogi, your AI partner. What should we focus on right now?",
+        }
+      });
+    }
+    
+    // Sort all messages by date before setting state
+    allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    setMessages(allMessages);
     setIsHistoryLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistoryAndFeatured();
 
     const channel = supabase
       .channel('feed-items-channel')
@@ -100,7 +131,7 @@ export default function Index() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchHistory]);
+  }, [fetchHistoryAndFeatured]);
 
   const submitQuery = async (query: string) => {
     if (!query.trim() || isLoading) return;
@@ -108,10 +139,8 @@ export default function Index() {
     setIsLoading(true);
     const userMessageContent = { text: query };
     
-    // Optimistically add user message to UI
-    const tempUserMessageId = uuidv4();
     const userMessageForUI: ChatMessageType = {
-      id: tempUserMessageId,
+      id: uuidv4(),
       role: 'user',
       type: 'chat',
       created_at: new Date().toISOString(),
@@ -119,7 +148,6 @@ export default function Index() {
     };
     setMessages(prev => [...prev, userMessageForUI]);
 
-    // Save user message to DB
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase.from('feed_items').insert({
@@ -130,7 +158,6 @@ export default function Index() {
       });
     }
 
-    // Add loading indicator
     const loadingMessageId = uuidv4();
     const loadingMessage: ChatMessageType = {
       id: loadingMessageId,
@@ -155,7 +182,6 @@ export default function Index() {
         searchParams: functionData.searchParams,
       };
 
-      // Save assistant message to DB
       if (user) {
         await supabase.from('feed_items').insert({
           user_id: user.id,
@@ -165,7 +191,6 @@ export default function Index() {
         });
       }
       
-      // The real-time subscription will add the assistant message, so we just need to remove the loader.
       setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId));
 
     } catch (err) {
