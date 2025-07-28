@@ -9,50 +9,62 @@ export interface UserProfile {
   calendly_url: string | null;
 }
 
+export interface UserCredits {
+  contact_credits: number;
+  export_credits: number;
+}
+
 export function useUserProfile() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [credits, setCredits] = useState<UserCredits | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async () => {
+  const fetchProfileAndCredits = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
 
     if (user) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const [profileRes, creditsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('credits').select('*').eq('user_id', user.id).single()
+      ]);
 
-      if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
-        console.error('Error fetching profile:', error);
+      if (profileRes.error && profileRes.error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileRes.error);
       } else {
-        setProfile(data);
+        setProfile(profileRes.data);
+      }
+
+      if (creditsRes.error && creditsRes.error.code !== 'PGRST116') {
+        console.error('Error fetching credits:', creditsRes.error);
+      } else {
+        setCredits(creditsRes.data);
       }
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchProfile();
+    fetchProfileAndCredits();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         setUser(session?.user ?? null);
-        fetchProfile();
+        fetchProfileAndCredits();
       }
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
+        setCredits(null);
       }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfileAndCredits]);
 
-  return { user, profile, loading, refresh: fetchProfile };
+  return { user, profile, credits, loading, refresh: fetchProfileAndCredits };
 }

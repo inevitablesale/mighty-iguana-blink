@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "./ui/badge";
+import { useState } from "react";
 
 interface ViewContactsDialogProps {
   companyName: string;
@@ -25,7 +26,7 @@ interface ViewContactsDialogProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGenerating: boolean;
   generatingContactId: string | null;
-  onRevealContact: (contactId: string) => void;
+  onRevealContact: (contactId: string) => Promise<void>;
   revealedContactIds: Set<string>;
   children: React.ReactNode;
 }
@@ -41,6 +42,8 @@ export function ViewContactsDialog({
   revealedContactIds,
   children 
 }: ViewContactsDialogProps) {
+  const [revealingId, setRevealingId] = useState<string | null>(null);
+
   const getInitials = (name: string | null) => {
     if (!name) return "?";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -51,14 +54,25 @@ export function ViewContactsDialog({
     onGenerateCampaign(campaignContact);
   };
 
+  const handleRevealClick = async (contactId: string) => {
+    setRevealingId(contactId);
+    await onRevealContact(contactId);
+    setRevealingId(null);
+  };
+
   const renderContactActions = (contact: Contact) => {
     const isRevealed = revealedContactIds.has(contact.id);
 
     if (!isRevealed) {
       return (
-        <Button size="sm" variant="outline" onClick={() => onRevealContact(contact.id)}>
-          <Eye className="mr-2 h-4 w-4" />
-          Reveal Contact Info
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => handleRevealClick(contact.id)}
+          disabled={revealingId === contact.id}
+        >
+          {revealingId === contact.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+          {revealingId === contact.id ? 'Revealing...' : 'Reveal Contact Info'}
         </Button>
       );
     }

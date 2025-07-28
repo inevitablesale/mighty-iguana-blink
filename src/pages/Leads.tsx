@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LeadCard } from "@/components/LeadCard";
 import { SearchSummary } from "@/components/SearchSummary";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface SearchParams {
   search_query: string;
@@ -28,6 +29,7 @@ const Leads = () => {
   const [searchSummary, setSearchSummary] = useState<{ query: string; params: SearchParams } | null>(null);
   const [revealedContactIds, setRevealedContactIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  const { credits, refresh: refreshUser } = useUserProfile();
 
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
@@ -129,10 +131,26 @@ const Leads = () => {
     }
   };
 
-  const handleRevealContact = (contactId: string) => {
-    setRevealedContactIds(prev => new Set(prev).add(contactId));
-    // This is where we would decrement a contact credit in the future.
-    toast.success("Contact information revealed.");
+  const handleRevealContact = async (contactId: string) => {
+    if (revealedContactIds.has(contactId)) return;
+
+    if (credits && credits.contact_credits <= 0) {
+      toast.error("You have no contact credits left.", {
+        description: "Please upgrade your plan to get more credits.",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('decrement-contact-credit');
+      if (error) throw new Error(error.message);
+
+      setRevealedContactIds(prev => new Set(prev).add(contactId));
+      refreshUser(); // To update credit count in UI
+      toast.success("Contact revealed. 1 credit used.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
   };
 
   const opportunitiesByCompany = useMemo(() => {

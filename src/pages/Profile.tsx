@@ -8,9 +8,10 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Mail, FileOutput } from 'lucide-react';
 
 const Profile = () => {
-  const { user, profile, loading, refresh } = useUserProfile();
+  const { user, profile, credits, loading, refresh } = useUserProfile();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [calendlyUrl, setCalendlyUrl] = useState('');
@@ -75,35 +76,65 @@ const Profile = () => {
     <div className="flex flex-col">
       <Header title="Profile" />
       <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile & Integrations</CardTitle>
-            <CardDescription>Update your personal information and connect your tools.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" value={user?.email || ''} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="calendlyUrl">Calendly URL</Label>
-              <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </CardFooter>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile & Integrations</CardTitle>
+              <CardDescription>Update your personal information and connect your tools.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={user?.email || ''} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="calendlyUrl">Calendly URL</Label>
+                <Input id="calendlyUrl" value={calendlyUrl} onChange={(e) => setCalendlyUrl(e.target.value)} placeholder="https://calendly.com/your-name" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardFooter>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Credit Usage</CardTitle>
+              <CardDescription>Your available credits for this billing cycle.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-6 w-6 text-primary" />
+                  <div>
+                    <p className="font-semibold">Contact Credits</p>
+                    <p className="text-sm text-muted-foreground">Used to reveal contact info.</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold">{credits?.contact_credits ?? 0}</p>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  <FileOutput className="h-6 w-6 text-primary" />
+                  <div>
+                    <p className="font-semibold">Export Credits</p>
+                    <p className="text-sm text-muted-foreground">Used to export leads to CSV.</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold">{credits?.export_credits ?? 0}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );

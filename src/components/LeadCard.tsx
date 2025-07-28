@@ -14,7 +14,7 @@ interface LeadCardProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
-  onRevealContact: (contactId: string) => void;
+  onRevealContact: (contactId: string) => Promise<void>;
   revealedContactIds: Set<string>;
 }
 
