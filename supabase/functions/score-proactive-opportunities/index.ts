@@ -71,7 +71,9 @@ serve(async (req) => {
 
     const genericRecruiterProfile = "A top-tier, generalist recruiter focused on identifying high-value, high-growth opportunities in the tech sector across North America. They are interested in roles with clear hiring signals, significant contract value, and strong company fundamentals.";
     
-    let scoredCount = 0;
+    let acceptedCount = 0;
+    let dismissedCount = 0;
+    let errorCount = 0;
     console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against the generic profile.`);
 
     for (const opportunity of opportunities) {
@@ -108,20 +110,23 @@ serve(async (req) => {
 
           if (updateError) {
             console.error(`Failed to update opportunity ${opportunity.id}:`, updateError.message);
+            errorCount++;
           } else {
-            scoredCount++;
+            acceptedCount++;
           }
         } else {
           // No good match found, mark as dismissed to avoid re-processing
           await supabaseAdmin.from('proactive_opportunities').update({ status: 'dismissed' }).eq('id', opportunity.id);
+          dismissedCount++;
         }
       } catch (e) {
         console.error(`Error scoring opportunity ${opportunity.id}:`, e.message);
         await supabaseAdmin.from('proactive_opportunities').update({ status: 'error', relevance_reasoning: e.message }).eq('id', opportunity.id);
+        errorCount++;
       }
     }
 
-    const finalMessage = `Scoring complete. Reviewed ${scoredCount} of ${opportunities.length} opportunities for the general Market Radar.`;
+    const finalMessage = `Scoring complete. Accepted: ${acceptedCount}, Dismissed: ${dismissedCount}, Errored: ${errorCount}. Total reviewed: ${opportunities.length}.`;
     console.log(`[score-proactive-opportunities] ${finalMessage}`);
     return new Response(JSON.stringify({ message: finalMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
