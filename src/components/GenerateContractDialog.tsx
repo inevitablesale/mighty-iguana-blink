@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart } from "lucide-react";
+import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart, Search } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import { Separator } from "./ui/separator";
@@ -49,6 +49,7 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
   const [selectedFee, setSelectedFee] = useState<string | null>(null);
   const [generatedProposal, setGeneratedProposal] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFindingContacts, setIsFindingContacts] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -62,6 +63,7 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
     setSelectedFee(null);
     setGeneratedProposal(null);
     setIsLoading(false);
+    setIsFindingContacts(false);
     setIsGenerating(false);
     setIsSending(false);
     setAnalysis(null);
@@ -71,22 +73,57 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
   useEffect(() => {
     if (isOpen) {
       const fetchInitialData = async () => {
+        setIsLoading(true);
         setIsAnalysisLoading(true);
         try {
-          const { data, error } = await supabase.functions.invoke('analyze-propensity-to-switch', {
+          const analysisPromise = supabase.functions.invoke('analyze-propensity-to-switch', {
             body: { opportunityId: opportunity.id }
           });
-          if (error) throw new Error(error.message);
-          setAnalysis(data.analysis);
+          const contactsPromise = supabase.from('contacts').select('*').eq('opportunity_id', opportunity.id);
+
+          const [analysisResult, contactsResult] = await Promise.all([analysisPromise, contactsPromise]);
+
+          if (analysisResult.error) throw new Error(analysisResult.error.message);
+          setAnalysis(analysisResult.data.analysis);
+
+          if (contactsResult.error) throw new Error(contactsResult.error.message);
+          setContacts(contactsResult.data || []);
+
         } catch (err) {
-          toast.error("Failed to get opportunity analysis", { description: (err as Error).message });
+          toast.error("Failed to load opportunity data", { description: (err as Error).message });
         } finally {
+          setIsLoading(false);
           setIsAnalysisLoading(false);
         }
       };
       fetchInitialData();
     }
   }, [isOpen, opportunity.id]);
+
+  const handleFindContacts = async () => {
+    setIsFindingContacts(true);
+    const toastId = toast.loading("Searching for contacts...", {
+      description: "This can take a minute or two. Please wait."
+    });
+    try {
+      const { data, error } = await supabase.functions.invoke('find-contacts-for-opportunity', {
+        body: { opportunityId: opportunity.id }
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (data.contacts && data.contacts.length > 0) {
+        setContacts(data.contacts);
+        toast.success(`Found ${data.contacts.length} new contacts!`, { id: toastId });
+      } else {
+        toast.info("No new contacts found.", { id: toastId, description: "The search completed, but didn't find anyone new." });
+      }
+    } catch (err) {
+      toast.error("Failed to find contacts", { id: toastId, description: (err as Error).message });
+    } finally {
+      setIsFindingContacts(false);
+    }
+  };
 
   const handleContactNext = async () => {
     if (!selectedContact) return;
@@ -193,10 +230,39 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
           <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Step {step}: {step === 1 ? "Select Contact" : step === 2 ? "Choose Fee Structure" : "Review Proposal"}</h3>
           {step === 1 && (
             <div>
-              {isLoading ? <div className="space-y-4 py-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
-                <RadioGroup onValueChange={(id) => setSelectedContact(contacts.find(c => c.id === id) || null)} className="py-4 max-h-[40vh] overflow-y-auto pr-2 space-y-2">
-                  {contacts.length > 0 ? contacts.map((contact) => <Label key={contact.id} htmlFor={contact.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent"><RadioGroupItem value={contact.id} id={contact.id} /><div><p className="font-semibold">{contact.name}</p><p className="text-sm text-muted-foreground">{contact.job_title}</p></div></Label>) : <p className="text-sm text-muted-foreground text-center py-8">No contacts found.</p>}
-                </RadioGroup>
+              {isLoading ? (
+                <div className="space-y-4 py-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+              ) : (
+                <div className="py-4">
+                  <RadioGroup onValueChange={(id) => setSelectedContact(contacts.find(c => c.id === id) || null)} className="max-h-[30vh] overflow-y-auto pr-2 space-y-2">
+                    {contacts.map((contact) => (
+                      <Label key={contact.id} htmlFor={contact.id} className="flex items-center gap-4 rounded-md border p-3 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[input:checked]:border-primary has-[input:checked]:bg-accent">
+                        <RadioGroupItem value={contact.id} id={contact.id} />
+                        <div>
+                          <p className="font-semibold">{contact.name}</p>
+                          <p className="text-sm text-muted-foreground">{contact.job_title}</p>
+                        </div>
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                  
+                  {contacts.length === 0 && !isFindingContacts && (
+                    <div className="text-center py-8 border border-dashed rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-4">No contacts found for this opportunity yet.</p>
+                      <Button onClick={handleFindContacts} disabled={isFindingContacts}>
+                        <Search className="mr-2 h-4 w-4" />
+                        Find Contacts Now
+                      </Button>
+                    </div>
+                  )}
+
+                  {isFindingContacts && (
+                     <div className="text-center py-8">
+                       <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                       <p className="text-sm text-muted-foreground mt-4">Searching for contacts, please wait...</p>
+                     </div>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -205,7 +271,7 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
         </div>
 
         <DialogFooter>
-          {step === 1 && <Button onClick={handleContactNext} disabled={!selectedContact || isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'} <ArrowRight className="ml-2 h-4 w-4" /></Button>}
+          {step === 1 && <Button onClick={handleContactNext} disabled={!selectedContact || isLoading || isFindingContacts}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Next'} <ArrowRight className="ml-2 h-4 w-4" /></Button>}
           {step === 2 && <Button onClick={handleGenerateProposal} disabled={!selectedFee || isGenerating}>{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Generate Proposal'} <ArrowRight className="ml-2 h-4 w-4" /></Button>}
           {step === 3 && <Button onClick={handleSendProposal} disabled={isSending}>{isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Send Proposal'} <Send className="ml-2 h-4 w-4" /></Button>}
         </DialogFooter>
