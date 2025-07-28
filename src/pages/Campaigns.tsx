@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 
 const pipelineStatuses: CampaignStatus[] = ['draft', 'contacted', 'replied', 'sourcing', 'interviewing', 'hired'];
 
-export default function Pipeline() {
+export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
@@ -33,7 +33,7 @@ export default function Pipeline() {
         setCampaigns(data as Campaign[]);
 
       } catch (err) {
-        toast.error("Failed to fetch pipeline data", { description: (err as Error).message });
+        toast.error("Failed to fetch campaign data", { description: (err as Error).message });
       } finally {
         setLoading(false);
       }
@@ -94,9 +94,9 @@ export default function Pipeline() {
   return (
     <div className="p-4 md:p-6 h-full flex flex-col">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Deal Pipeline</h1>
+        <h1 className="text-3xl font-bold text-white">AI Campaigns</h1>
         <p className="text-white/80 mt-1">
-          Your automated deal flow. Drag campaigns to update their status.
+          Manage your AI-driven outreach campaigns. Drag cards to update their status.
         </p>
       </header>
       <div className="flex-grow overflow-x-auto pb-4">

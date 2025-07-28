@@ -38,11 +38,11 @@ export default function MarketInsights() {
       });
       if (error) throw error;
       
-      toast.success("Deal accepted and added to your pipeline!", {
+      toast.success("Deal accepted and added to your campaigns!", {
         description: `The ${data.campaign.company_name} opportunity is now in your drafts.`,
         action: {
-          label: "View Pipeline",
-          onClick: () => navigate('/pipeline'),
+          label: "View Campaigns",
+          onClick: () => navigate('/campaigns'),
         },
       });
       setOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));

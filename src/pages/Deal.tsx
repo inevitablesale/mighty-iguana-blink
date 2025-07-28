@@ -121,7 +121,7 @@ export default function Deal() {
       if (error) throw error;
       toast.success(data.message, {
         id: toastId,
-        action: { label: "View Pipeline", onClick: () => navigate('/pipeline') }
+        action: { label: "View Campaigns", onClick: () => navigate('/campaigns') }
       });
     } catch (err) {
       toast.error("Failed to generate outreach", { id: toastId, description: (err as Error).message });

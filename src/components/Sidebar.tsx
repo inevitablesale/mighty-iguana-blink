@@ -57,9 +57,9 @@ export function Sidebar() {
             <PlusCircle className="mr-3 h-5 w-5" />
             New Chat
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/pipeline')}>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/campaigns')}>
             <Briefcase className="mr-3 h-5 w-5" />
-            Pipeline
+            AI Campaigns
           </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market-insights')}>
             <Flame className="mr-3 h-5 w-5" />

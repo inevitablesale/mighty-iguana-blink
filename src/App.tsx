@@ -10,7 +10,7 @@ import { ExtensionProvider } from "./context/ExtensionContext";
 
 import AppLayout from "./components/AppLayout";
 import ContractFinder from "./pages/ContractFinder";
-import Pipeline from "./pages/Pipeline";
+import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
 import MarketInsights from "./pages/MarketInsights";
 import Deal from "./pages/Deal";
@@ -59,7 +59,7 @@ const App = () => {
                 <Route index element={<ContractFinder />} />
                 <Route path="c/:conversationId" element={<ContractFinder />} />
                 <Route path="market-insights" element={<MarketInsights />} />
-                <Route path="pipeline" element={<Pipeline />} />
+                <Route path="campaigns" element={<Campaigns />} />
                 <Route path="opportunities" element={<Opportunities />} />
                 <Route path="deal/:opportunityId" element={<Deal />} />
               </Route>
