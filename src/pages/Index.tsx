@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/components/ChatMessage';
-import { Header } from '@/components/Header';
 
 export default function Index() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -75,8 +74,7 @@ export default function Index() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <Header title="Dashboard" />
+    <div className="flex flex-col h-[calc(100vh-60px)]">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((message) => (
