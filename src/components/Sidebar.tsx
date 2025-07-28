@@ -23,6 +23,7 @@ import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
 import { ExtensionLogDialog } from "./ExtensionLogDialog";
 import { ProfileDialog } from "./ProfileDialog";
 import { ChatHistory } from "./ChatHistory";
+import { SidebarAgentList } from "./SidebarAgentList";
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export function Sidebar() {
           <span className="text-lg">Coogi AI</span>
         </a>
       </div>
-      <div className="flex-1 space-y-6 overflow-y-auto flex flex-col">
+      <div className="flex-1 flex flex-col space-y-4 overflow-y-auto">
         <nav className="space-y-1">
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
             <PlusCircle className="mr-3 h-5 w-5" />
@@ -60,28 +61,30 @@ export function Sidebar() {
             <Briefcase className="mr-3 h-5 w-5" />
             Pipeline
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/agents')}>
-            <Bot className="mr-3 h-5 w-5" />
-            Agents
-          </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/market')}>
             <Flame className="mr-3 h-5 w-5" />
             Market Intel
           </Button>
         </nav>
-        <div className="flex-grow flex flex-col space-y-2 min-h-0">
+        
+        <div>
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Agents</h3>
+          <SidebarAgentList />
+        </div>
+
+        <div className="flex-1 flex flex-col min-h-0">
           <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">History</h3>
           <ChatHistory />
         </div>
-        <div>
+      </div>
+      <div className="mt-auto pt-6 border-t border-white/10">
+        <div className="mb-6">
           <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Extension Status</h3>
           <div className="flex items-center gap-2 px-3">
             <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
             <ExtensionLogDialog />
           </div>
         </div>
-      </div>
-      <div className="mt-auto pt-6 border-t border-white/10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start items-center gap-3 p-2 h-auto text-left">
