@@ -131,14 +131,16 @@ serve(async (req) => {
             Recruiter's specialty: "${recruiter_specialty}"
             Job Posting: ${JSON.stringify(job)}
             Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
+            
             **"match_score"**: MUST be an integer between 1 and 10.
-            **"contract_value_assessment"**: This field is CRITICAL.
-            - IF a salary range (e.g., "$100,000 - $120,000") is found in the job description:
-                1. Calculate the average salary. (e.g., $110,000)
-                2. Calculate 20% of the average salary. (e.g., $22,000)
-                3. Return a string formatted EXACTLY as 'Est. Fee: $22,000'.
-            - IF no salary is found, return ONLY the string 'High Value' or 'Medium Value'.
-            - **DO NOT** write sentences. **DO NOT** explain your reasoning. **DO NOT** say "The salary range is...". Your entire response for this key must be either 'Est. Fee: $XX,XXX' or 'High Value' or 'Medium Value'.
+            
+            **"contract_value_assessment"**: This is the most critical field. Follow these rules precisely:
+            1.  **Detect Salary Range:** Analyze the job description for a salary range (e.g., "$123,400 - $185,100").
+            2.  **Calculate Fee:** If a range is found, you MUST use this formula: Estimated Fee = ( (Minimum Salary + Maximum Salary) / 2 ) * 0.20.
+            3.  **Format Output:** You MUST return the result as a string formatted *EXACTLY* as 'Est. Fee: $XX,XXX'. For example, if the fee is $30,850, return "Est. Fee: $30,850".
+            4.  **Handle Missing Salary:** If and ONLY if no salary range is found, return 'High Value' or 'Medium Value'.
+            5.  **CRITICAL:** DO NOT, under any circumstances, return a sentence like "The salary range is...". Your entire output for this key MUST be either the calculated fee string or a qualitative value. No other format is acceptable.
+
             **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
             **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
             **"recruiter_angle"**: A concise sentence describing the best way for a staffing agency to position their value.
