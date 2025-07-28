@@ -145,11 +145,22 @@ serve(async (req) => {
         });
 
         const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-        const enrichedOpportunities = settledEnrichments
-          .filter(r => r.status === 'fulfilled' && r.value)
-          .map(r => r.value);
+        const enrichedOpportunities = [];
+        for (const result of settledEnrichments) {
+          if (result.status === 'fulfilled' && result.value) {
+            enrichedOpportunities.push(result.value);
+          }
+        }
 
-        const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
+        const highQualityOpportunities = enrichedOpportunities
+          .filter(opp => opp.match_score >= 6)
+          .sort((a, b) => b.match_score - a.match_score);
+
+        if (highQualityOpportunities.length === 0) {
+            return new Response(JSON.stringify({ text: "I found some roles, but after analysis, none seemed to be a strong match. Try refining your search." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        const opportunitiesToInsert = highQualityOpportunities.map(opp => ({
             user_id: user.id,
             company_name: opp.companyName || opp.company_name,
             role: opp.role,
@@ -164,12 +175,10 @@ serve(async (req) => {
             linkedin_url_slug: opp.linkedin_url_slug || null,
         }));
 
-        if (opportunitiesToInsert.length === 0) {
-            return new Response(JSON.stringify({ text: "I found some roles, but after analysis, none seemed to be a strong match. Try refining your search." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-
         const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
         if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+
+        savedOpportunities.sort((a, b) => b.match_score - a.match_score);
 
         return new Response(JSON.stringify({
           text: `I found ${savedOpportunities.length} potential deals for you. Here are the top matches:`,

@@ -141,9 +141,12 @@ serve(async (req) => {
     });
 
     const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-    const enrichedOpportunities = settledEnrichments
-      .filter(r => r.status === 'fulfilled' && r.value)
-      .map(r => r.value);
+    const enrichedOpportunities = [];
+    for (const result of settledEnrichments) {
+      if (result.status === 'fulfilled' && result.value) {
+        enrichedOpportunities.push(result.value);
+      }
+    }
 
     const opportunitiesToInsert = enrichedOpportunities.map(opp => ({
         user_id: user.id,
