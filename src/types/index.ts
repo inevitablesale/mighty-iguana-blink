@@ -122,3 +122,10 @@ export interface Proposal {
     role: string;
   }
 }
+
+export interface PropensityToSwitchAnalysis {
+  score: number;
+  positive_signals: string[];
+  negative_signals: string[];
+  summary: string;
+}

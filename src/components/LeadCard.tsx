@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
-import { Sparkles, MessageSquare, Loader2, XCircle, SearchCheck, MoreVertical, FileText, Globe } from "lucide-react";
+import { Sparkles, MessageSquare, Loader2, XCircle, SearchCheck, MoreVertical, FileText, Globe, TrendingUp } from "lucide-react";
 import { LeadAnalysisDialog } from "./LeadAnalysisDialog";
 import { ViewContactsDialog } from "./ViewContactsDialog";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
 import { DeepScrapeDialog } from "./DeepScrapeDialog";
+import { PropensityToSwitchDialog } from "./PropensityToSwitchDialog";
 
 interface LeadCardProps {
   opportunity: Opportunity;
@@ -98,6 +99,12 @@ export function LeadCard({
                   View AI Analysis
                 </DropdownMenuItem>
               </LeadAnalysisDialog>
+              <PropensityToSwitchDialog opportunityId={opportunity.id} companyName={opportunity.company_name}>
+                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Propensity Analysis
+                </DropdownMenuItem>
+              </PropensityToSwitchDialog>
               <CompanyBriefingDialog companyName={opportunity.company_name}>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   <FileText className="mr-2 h-4 w-4" />
