@@ -2,9 +2,18 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
-import { Sparkles, MessageSquare, Loader2, XCircle, SearchCheck } from "lucide-react";
+import { Sparkles, MessageSquare, Loader2, XCircle, SearchCheck, MoreVertical, FileText, Globe } from "lucide-react";
 import { LeadAnalysisDialog } from "./LeadAnalysisDialog";
 import { ViewContactsDialog } from "./ViewContactsDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CompanyBriefingDialog } from "./CompanyBriefingDialog";
+import { DeepScrapeDialog } from "./DeepScrapeDialog";
 
 interface LeadCardProps {
   opportunity: Opportunity;
@@ -71,15 +80,38 @@ export function LeadCard({
     <Card className="flex flex-col justify-between">
       <CardHeader>
         <div className="flex justify-between items-start gap-2">
-          <div>
-            <CardTitle className="text-lg">{opportunity.company_name}</CardTitle>
-            <CardDescription>{opportunity.location}</CardDescription>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg truncate" title={opportunity.company_name}>{opportunity.company_name}</CardTitle>
+            <CardDescription className="truncate">{opportunity.location}</CardDescription>
           </div>
-          <LeadAnalysisDialog opportunity={opportunity}>
-            <Button variant="ghost" size="icon" className="flex-shrink-0">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </Button>
-          </LeadAnalysisDialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="flex-shrink-0">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>AI Research Tools</DropdownMenuLabel>
+              <LeadAnalysisDialog opportunity={opportunity}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  View AI Analysis
+                </DropdownMenuItem>
+              </LeadAnalysisDialog>
+              <CompanyBriefingDialog companyName={opportunity.company_name}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Generate Briefing
+                </DropdownMenuItem>
+              </CompanyBriefingDialog>
+              <DeepScrapeDialog companyName={opportunity.company_name}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  Deep Web Scrape
+                </DropdownMenuItem>
+              </DeepScrapeDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
