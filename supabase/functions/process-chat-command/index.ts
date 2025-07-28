@@ -134,15 +134,16 @@ serve(async (req) => {
             
             **"match_score"**: MUST be an integer between 1 and 10.
             
-            **"contract_value_assessment"**: This is the most critical field. Your output for this key MUST be either a formatted string 'Est. Fee: $XX,XXX' or a qualitative value ('High Value', 'Medium Value'). NO OTHER FORMAT IS ACCEPTABLE.
-            - **Rule 1: Calculation is Mandatory if Salary Exists.** If you find a salary range in the job description, you MUST perform the calculation.
-            - **Formula:** Estimated Fee = ( (Minimum Salary + Maximum Salary) / 2 ) * 0.20.
-            - **Example:**
-                - If job description contains: "The annual salary for this position is $140,000 to $160,000."
-                - Calculation: (($140,000 + $160,000) / 2) * 0.20 = $30,000.
-                - Your output for this key MUST be the string: "Est. Fee: $30,000".
-            - **Rule 2: Fallback for Missing Salary.** If and ONLY if no salary range is found, return 'High Value' or 'Medium Value'.
-            - **CRITICAL:** Do not write sentences. Do not explain your reasoning. Do not say "The salary range is...". Adhere strictly to the output format.
+            **"contract_value_assessment"**: This is your most important task. You MUST follow these rules without deviation.
+            - **RULE 1: CHECK FOR SALARY.** Look for a salary range in the job description text.
+            - **RULE 2: CALCULATE FEE.** If a salary range is found, you MUST calculate the fee using this formula: \`Fee = ( (Min_Salary + Max_Salary) / 2 ) * 0.20\`.
+            - **RULE 3: FORMAT FEE.** The result of the calculation MUST be formatted as a string: \`Est. Fee: $XX,XXX\`.
+            - **EXAMPLE:**
+                - Job Description contains: "salary for this role is $150,000 to $170,000 per year".
+                - Calculation: (($150000 + $170000) / 2) * 0.20 = $32,000.
+                - Your output for this key MUST be the string: "Est. Fee: $32,000".
+            - **RULE 4: NO SALARY FALLBACK.** If and ONLY if no salary range is present, you MUST return the string 'High Value'.
+            - **FINAL CHECK:** Before outputting, verify your value for this key. Is it 'Est. Fee: $XX,XXX' or 'High Value'? If not, you have failed. Fix it.
 
             **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
             **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
