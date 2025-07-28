@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/Sidebar";
 
 const AppLayout = () => {
   return (
-    <div className="flex min-h-screen w-full coogi-gradient-bg text-white">
+    <div className="flex min-h-screen w-full bg-muted/40">
       <Sidebar />
       <main className="flex-1">
         <Outlet />

@@ -29,27 +29,27 @@ export function ChatMessage({ message }: ChatMessageProps) {
     >
       {isAssistant && (
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="bg-primary">
-            <SweaterIcon className="h-5 w-5 text-primary-foreground" />
+          <AvatarFallback className="bg-primary text-primary-foreground">
+            <SweaterIcon className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
       )}
       <div
         className={cn(
-          "rounded-lg p-3 text-white backdrop-blur-sm border border-white/10",
+          "rounded-lg p-3",
           hasOpportunities ? "w-full max-w-3xl" : "max-w-xl",
-          isAssistant ? "bg-black/20" : "bg-white/10"
+          isAssistant ? "bg-card border" : "bg-primary text-primary-foreground"
         )}
       >
         {isLoading ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Thinking...</span>
           </div>
         ) : (
           <>
             {text && (
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div className="prose prose-sm prose-invert max-w-none dark:prose-invert">
                 <ReactMarkdown>{text}</ReactMarkdown>
               </div>
             )}
@@ -60,10 +60,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
                     <OpportunityCard key={opp.id} opportunity={opp} />
                   ))}
                 </div>
-                <div className="border-t border-white/10 pt-3 flex flex-col sm:flex-row gap-2">
+                <div className="border-t pt-3 flex flex-col sm:flex-row gap-2">
                   {searchParams && (
                     <SaveAgentDialog searchParams={searchParams}>
-                      <Button variant="outline" className="bg-transparent hover:bg-white/10 border-white/20 w-full justify-center">
+                      <Button variant="outline" className="w-full justify-center">
                         <Save className="mr-2 h-4 w-4" />
                         Automate this Search
                       </Button>
