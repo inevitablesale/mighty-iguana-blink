@@ -77,7 +77,7 @@ serve(async (req) => {
     }
 
     // 2. Query Apollo.io
-    const apolloInput = { "company_names": [opportunity.company_name], "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], "max_people_per_company": 5, "include_email": true };
+    const apolloInput = { "company_names": [opportunity.company_name], "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], "max_people_per_company": 10, "include_email": true };
     const apolloResults = await callApifyActor('microworlds~apollo-io-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
     allContacts.push(...apolloResults.map(r => ({ name: r.name, job_title: r.title, email: r.email, source: 'Apollo' })).filter(c => c.email));
 
@@ -98,17 +98,17 @@ serve(async (req) => {
     }
 
     // 4. AI Ranking and Selection
-    const rankingPrompt = `From the following list of contacts from multiple sources, select the top 1-3 most relevant individuals for the role of "${opportunity.role}". Prioritize contacts from LinkedIn and Apollo over general website emails. Return a JSON object with a "recommended_contacts" key, containing an array of the full contact objects you selected.`;
+    const rankingPrompt = `You are an expert recruitment researcher. You have been given a list of potential contacts from various sources (LinkedIn, Apollo, Website). Your task is to intelligently rank all of these contacts from most to least relevant for the role of "${opportunity.role}" at "${opportunity.company_name}". Consider the contact's job title and the reliability of their source (LinkedIn and Apollo are more reliable than a generic website email). Return a single, valid JSON object with one key: "ranked_contacts". The value should be an array of ALL the original contact objects, sorted by relevance (most relevant first).`;
     const rankedResult = await callGemini(rankingPrompt, GEMINI_API_KEY);
-    const recommendedContacts = rankedResult.recommended_contacts;
+    const rankedContacts = (rankedResult.ranked_contacts || []).slice(0, 10);
 
-    if (!recommendedContacts || recommendedContacts.length === 0) {
+    if (rankedContacts.length === 0) {
         await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'AI found contacts but none were deemed relevant.' }).eq('id', taskId);
         return new Response(JSON.stringify({ message: "No relevant contacts identified." }), { status: 200, headers: corsHeaders });
     }
 
     // 5. Save to DB
-    const contactsToInsert = recommendedContacts.map(c => ({
+    const contactsToInsert = rankedContacts.map(c => ({
         task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
         name: c.name, job_title: c.job_title, email: c.email, linkedin_profile_url: c.linkedin_profile_url,
         email_status: c.email ? 'verified' : null
@@ -117,7 +117,7 @@ serve(async (req) => {
     if (insertError) throw new Error(`Failed to save contacts: ${insertError.message}`);
 
     await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete' }).eq('id', taskId);
-    return new Response(JSON.stringify({ message: `Successfully found and saved ${recommendedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
+    return new Response(JSON.stringify({ message: `Successfully found and saved ${rankedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
 
   } catch (error) {
     if (taskId) {
