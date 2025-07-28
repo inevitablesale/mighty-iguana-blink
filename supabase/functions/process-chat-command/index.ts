@@ -85,17 +85,6 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
-    // Decrement discovery credit before proceeding
-    const supabaseUserClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    );
-    const { error: creditError } = await supabaseUserClient.rpc('decrement_discovery_credit');
-    if (creditError) {
-      throw new Error(`Not enough discovery credits. Please contact support.`);
-    }
-
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 

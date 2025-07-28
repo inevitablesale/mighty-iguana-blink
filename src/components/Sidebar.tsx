@@ -25,7 +25,7 @@ import { ProfileDialog } from "./ProfileDialog";
 
 export function Sidebar() {
   const navigate = useNavigate();
-  const { profile, credits, loading } = useUserProfile();
+  const { profile, loading } = useUserProfile();
   const { extensionStatus, extensionMessage } = useExtension();
 
   const handleLogout = async () => {
@@ -69,19 +69,6 @@ export function Sidebar() {
           <div className="flex items-center gap-2 px-3">
             <ExtensionStatusIndicator status={extensionStatus} message={extensionMessage} />
             <ExtensionLogDialog />
-          </div>
-        </div>
-        <div>
-          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Credit Usage</h3>
-          <div className="space-y-2 px-3">
-            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-              <div className="flex items-center gap-2"><Search className="h-4 w-4" /><span>Discovery Credits</span></div>
-              {loading ? <Skeleton className="h-5 w-8" /> : <span className="font-bold">{credits?.discovery_credits ?? 0}</span>}
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
-              <div className="flex items-center gap-2"><FileOutput className="h-4 w-4" /><span>Export Credits</span></div>
-              {loading ? <Skeleton className="h-5 w-8" /> : <span className="font-bold">{credits?.export_credits ?? 0}</span>}
-            </div>
           </div>
         </div>
       </div>
