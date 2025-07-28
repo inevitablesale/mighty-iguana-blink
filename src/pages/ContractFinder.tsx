@@ -70,12 +70,13 @@ export default function ContractFinder() {
     }
 
     const userQueryItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, type: 'user_search', role: 'user', content: { query }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
-    setFeedItems(prev => [...prev, userQueryItem]);
-    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
-
+    
     const systemResponseId = crypto.randomUUID();
     const systemResponseItem: FeedItem = { id: systemResponseId, user_id: user.id, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: 'Thinking...' }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
-    setFeedItems(prev => [...prev, systemResponseItem]);
+    
+    setFeedItems(prev => [...prev, userQueryItem, systemResponseItem]);
+
+    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
 
     try {
       const response = await fetch(`https://dbtdplhlatnlzcvdvptn.supabase.co/functions/v1/process-chat-command`, {
