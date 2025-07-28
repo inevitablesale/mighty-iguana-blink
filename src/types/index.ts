@@ -30,6 +30,19 @@ export interface Opportunity {
   likely_decision_maker?: string | null;
 }
 
+export interface ProactiveOpportunity {
+  id: string;
+  relevance_reasoning: string;
+  relevance_score: number;
+  job_data: {
+    company: string;
+    title: string;
+    location: string;
+    description: string;
+  };
+  user_id: string;
+}
+
 export interface Contact {
   id: string;
   task_id: string;
