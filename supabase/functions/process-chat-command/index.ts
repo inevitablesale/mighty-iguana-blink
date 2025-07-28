@@ -171,7 +171,10 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({
           text: `I found ${savedOpportunities.length} potential deals for you. Here are the top matches:`,
-          opportunities: savedOpportunities
+          opportunities: savedOpportunities,
+          searchParams: {
+            recruiter_specialty: recruiter_specialty
+          }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,

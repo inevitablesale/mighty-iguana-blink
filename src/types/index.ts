@@ -73,6 +73,10 @@ export interface Proposal {
   }
 }
 
+export interface SearchParams {
+  recruiter_specialty: string;
+}
+
 // Types for the new Chat UI
 export type MessageRole = 'user' | 'assistant';
 
@@ -82,4 +86,5 @@ export interface ChatMessage {
   text?: string;
   opportunities?: Opportunity[];
   isLoading?: boolean;
+  searchParams?: SearchParams;
 }

@@ -3,15 +3,17 @@ import { ChatMessage as ChatMessageType } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SweaterIcon } from "./SweaterIcon";
 import { OpportunityCard } from "./OpportunityCard";
-import { Loader2 } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { SaveAgentDialog } from "./SaveAgentDialog";
+import { Button } from "./ui/button";
 
 interface ChatMessageProps {
   message: ChatMessageType;
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
-  const { role, text, opportunities, isLoading } = message;
+  const { role, text, opportunities, isLoading, searchParams } = message;
   const isAssistant = role === "assistant";
 
   return (
@@ -53,6 +55,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 {opportunities.map((opp) => (
                   <OpportunityCard key={opp.id} opportunity={opp} />
                 ))}
+              </div>
+            )}
+            {searchParams && opportunities && opportunities.length > 0 && (
+              <div className="mt-4 border-t border-white/10 pt-3">
+                <SaveAgentDialog searchParams={searchParams}>
+                  <Button variant="outline" className="bg-transparent hover:bg-white/10 border-white/20 w-full">
+                    <Save className="mr-2 h-4 w-4" />
+                    Save this Search as an Agent
+                  </Button>
+                </SaveAgentDialog>
               </div>
             )}
           </>

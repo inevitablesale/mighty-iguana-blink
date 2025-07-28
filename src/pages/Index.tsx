@@ -59,6 +59,7 @@ export default function Index() {
         role: 'assistant',
         text: data.text,
         opportunities: data.opportunities,
+        searchParams: data.searchParams,
       };
 
       setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
