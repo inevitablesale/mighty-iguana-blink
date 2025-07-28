@@ -104,7 +104,7 @@ serve(async (req) => {
         const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
         if (!search_query || !location || !sites || !recruiter_specialty) throw new Error("AI failed to extract search parameters from your query.");
 
-        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=5`; // Limit to 5 for chat
+        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=10`; // Limit for chat
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
         if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
         const scrapingData = await scrapingResponse.json();
@@ -131,6 +131,7 @@ serve(async (req) => {
             Job Posting: ${JSON.stringify(job)}
             Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
             **The "match_score" MUST be an integer between 1 and 10.**
+            **For "contract_value_assessment" and "hiring_urgency", provide a qualitative assessment (e.g., "High", "Medium", "Standard", "Low") based on the role's seniority, salary, and any other signals in the job description. Do NOT say "Cannot be determined".**
           `;
           const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
           
