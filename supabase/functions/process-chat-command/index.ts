@@ -131,19 +131,42 @@ serve(async (req) => {
             Recruiter's specialty: "${recruiter_specialty}"
             Job Posting: ${JSON.stringify(job)}
             
-            Your task is to return a single, valid JSON object with the following keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", and "placement_difficulty".
+            Your task is to return a single, valid JSON object with the following keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "estimated_time_to_fill", "client_demand_signal", "location_flexibility", "seniority_level", "likely_decision_maker".
 
-            **Instructions for "contract_value_assessment":**
-            1.  First, check the job posting data for an explicit salary range (e.g., min/max salary).
-            2.  **If a salary range is found:** Calculate the average salary. The estimated placement fee is 20% of this average. Return a string formatted as "Est. Fee: $XX,XXX".
-            3.  **If no salary range is found:** You MUST estimate a realistic market-rate salary range for the given role, location, and company profile. Then, perform the same calculation (20% of the average of your estimated range) and return the formatted string.
-            4.  **Do NOT return "High Value" or other qualitative labels.** The output for this key must always be a dollar amount string.
+            **Detailed Instructions for Intelligence Fields:**
 
-            **Other Key Instructions:**
-            - "match_score": MUST be an integer between 1 and 10.
-            - "placement_difficulty": MUST be one of 'Low', 'Medium', or 'High'.
-            - "hiring_urgency": MUST be one of 'Low', 'Medium', or 'High'.
-            - "recruiter_angle": A concise sentence describing the best way for a staffing agency to position their value.
+            - "contract_value_assessment":
+              1. Check for an explicit salary range in the job data.
+              2. If found, calculate the average and take 20% for the fee. Return "Est. Fee: $XX,XXX".
+              3. If not found, YOU MUST estimate a realistic market-rate salary for the role/location, then do the same calculation.
+              4. DO NOT return qualitative labels like "High Value".
+
+            - "hiring_urgency":
+              1. Analyze job age (from \`date_posted\`), if it's a repost, and company hiring velocity (inferred from description).
+              2. Return one of: 'High', 'Medium', or 'Low'.
+
+            - "placement_difficulty":
+              1. Analyze the required skills. Count niche technologies as increasing difficulty.
+              2. Return one of: 'High', 'Medium', or 'Low'.
+
+            - "estimated_time_to_fill":
+              1. Based on role category, complexity, and urgency, model a likely fill window.
+              2. Return a string like "25-40 days".
+
+            - "client_demand_signal":
+              1. Infer from the job description if the company is hiring for multiple roles or is in a growth phase.
+              2. Return a descriptive string like "High - multiple roles open" or "Standard - single position".
+
+            - "location_flexibility":
+              1. Based on the job data, determine if the role is "Remote", "Hybrid", or "Onsite".
+
+            - "seniority_level":
+              1. Determine the job's seniority from its title and description.
+              2. Return one of: "Executive", "Senior", "Mid-level", "Entry-level".
+
+            - "likely_decision_maker":
+              1. Infer the most likely job title of the hiring manager or decision-maker for this role.
+              2. Example: For a "Software Engineer" role, this might be "Engineering Manager" or "Director of Engineering".
           `;
           const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
           
@@ -185,6 +208,11 @@ serve(async (req) => {
             key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
             linkedin_url_slug: opp.linkedin_url_slug || null,
             placement_difficulty: opp.placement_difficulty || 'Medium',
+            estimated_time_to_fill: opp.estimated_time_to_fill || null,
+            client_demand_signal: opp.client_demand_signal || null,
+            location_flexibility: opp.location_flexibility || null,
+            seniority_level: opp.seniority_level || null,
+            likely_decision_maker: opp.likely_decision_maker || null,
         }));
 
         const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();

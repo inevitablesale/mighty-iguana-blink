@@ -23,6 +23,11 @@ export interface Opportunity {
   linkedin_url_slug?: string | null;
   placement_difficulty: string;
   company_data_scraped?: CrunchbaseData | null;
+  estimated_time_to_fill?: string | null;
+  client_demand_signal?: string | null;
+  location_flexibility?: string | null;
+  seniority_level?: string | null;
+  likely_decision_maker?: string | null;
 }
 
 export interface Contact {

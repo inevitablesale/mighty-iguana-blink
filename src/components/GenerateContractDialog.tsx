@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart, Search, Star } from "lucide-react";
+import { ArrowRight, Send, Loader2, ThumbsUp, ThumbsDown, BarChart, Search, Star, Clock, Users, MapPin, Briefcase, BrainCircuit, Target } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import { Separator } from "./ui/separator";
@@ -48,6 +48,19 @@ const feeOptions = [
   { id: "fee2", label: "Contingency: 25% of First-Year Base Salary", value: "25% of the candidate's first-year base salary, payable upon the candidate's start date." },
   { id: "fee3", label: "Retained: 30% of First-Year OTE", value: "30% of the candidate's first-year on-target earnings (OTE), payable in three installments: one-third upon signing this agreement, one-third upon presentation of a candidate shortlist, and the final third upon the candidate's start date." },
 ];
+
+const IntelligenceDetail = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined | null }) => {
+  if (!value) return null;
+  return (
+    <div>
+      <dt className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+        {icon}
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm text-foreground font-semibold">{value}</dd>
+    </div>
+  );
+};
 
 export function GenerateContractDialog({ opportunity, children }: GenerateContractDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -231,7 +244,7 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Opportunity Details: {opportunity.company_name}</DialogTitle>
           <DialogDescription>
@@ -239,19 +252,32 @@ export function GenerateContractDialog({ opportunity, children }: GenerateContra
           </DialogDescription>
         </DialogHeader>
         
-        <div className="my-4">
-          <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Propensity Analysis</h3>
-          {isAnalysisLoading ? (
-            <div className="space-y-3"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-16 w-full" /><div className="grid grid-cols-2 gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div></div>
-          ) : analysis ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3"><Badge className="text-base px-3 py-1"><BarChart className="h-4 w-4 mr-2" />Propensity Score: {analysis.score}/10</Badge><p className="text-sm text-muted-foreground">{analysis.summary}</p></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsUp className="text-green-500" /> Positive Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.positive_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
-                <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsDown className="text-red-500" /> Negative Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.negative_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6 my-4">
+          <div>
+            <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Propensity Analysis</h3>
+            {isAnalysisLoading ? (
+              <div className="space-y-3"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-16 w-full" /><div className="grid grid-cols-2 gap-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div></div>
+            ) : analysis ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3"><Badge className="text-base px-3 py-1"><BarChart className="h-4 w-4 mr-2" />Propensity Score: {analysis.score}/10</Badge><p className="text-sm text-muted-foreground">{analysis.summary}</p></div>
+                <div className="grid grid-cols-1 gap-4">
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsUp className="text-green-500" /> Positive Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.positive_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
+                  <Card><CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ThumbsDown className="text-red-500" /> Negative Signals</CardTitle></CardHeader><CardContent><ul className="list-disc pl-5 text-sm space-y-1">{analysis.negative_signals.map((signal, i) => <li key={i}>{signal}</li>)}</ul></CardContent></Card>
+                </div>
               </div>
-            </div>
-          ) : <p className="text-sm text-muted-foreground">Could not load analysis.</p>}
+            ) : <p className="text-sm text-muted-foreground">Could not load analysis.</p>}
+          </div>
+          <div>
+            <h3 className="text-base font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Enriched Deal Intelligence</h3>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-6">
+              <IntelligenceDetail icon={<Briefcase size={14} />} label="Seniority Level" value={opportunity.seniority_level} />
+              <IntelligenceDetail icon={<MapPin size={14} />} label="Location Flexibility" value={opportunity.location_flexibility} />
+              <IntelligenceDetail icon={<Clock size={14} />} label="Est. Time to Fill" value={opportunity.estimated_time_to_fill} />
+              <IntelligenceDetail icon={<Users size={14} />} label="Client Demand" value={opportunity.client_demand_signal} />
+              <IntelligenceDetail icon={<BrainCircuit size={14} />} label="Placement Difficulty" value={opportunity.placement_difficulty} />
+              <IntelligenceDetail icon={<Target size={14} />} label="Likely Decision Maker" value={opportunity.likely_decision_maker} />
+            </dl>
+          </div>
         </div>
 
         <Separator className="my-6" />
