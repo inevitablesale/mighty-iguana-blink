@@ -54,21 +54,36 @@ export default function DealStream() {
     setInput('');
     setIsSearching(true);
     
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        toast.error("You must be logged in to search.");
+        setIsSearching(false);
+        return;
+    }
 
-      const newFeedItem: FeedItem = {
-        id: crypto.randomUUID(),
+    const userQueryItem: FeedItem = {
+      id: crypto.randomUUID(),
+      user_id: user.id,
+      type: 'user_search',
+      role: 'user',
+      content: { query },
+      created_at: new Date().toISOString(),
+    };
+    setFeedItems(prev => [...prev, userQueryItem]);
+    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
+
+    const thinkingId = crypto.randomUUID();
+    const thinkingItem: FeedItem = {
+        id: thinkingId,
         user_id: user.id,
-        type: 'user_search',
-        role: 'user',
-        content: { query },
+        type: 'agent_run_summary',
+        role: 'system',
+        content: { agentName: 'Coogi Assistant', summary: 'Thinking...' },
         created_at: new Date().toISOString(),
-      };
-      setFeedItems(prev => [...prev, newFeedItem]);
-      await supabase.from('feed_items').insert({ ...newFeedItem, id: undefined });
+    };
+    setFeedItems(prev => [...prev, thinkingItem]);
 
+    try {
       const { data, error } = await supabase.functions.invoke('process-chat-command', {
         body: { query },
       });
@@ -89,7 +104,8 @@ export default function DealStream() {
         },
         created_at: new Date().toISOString(),
       };
-      setFeedItems(prev => [...prev, systemResponse]);
+      
+      setFeedItems(prev => [...prev.filter(item => item.id !== thinkingId), systemResponse]);
       await supabase.from('feed_items').insert({ ...systemResponse, id: undefined });
 
       if (data.opportunities && data.opportunities.length > 0) {
@@ -100,8 +116,8 @@ export default function DealStream() {
         toast.info("No new deals found.", { description: "Try broadening your search." });
       }
     } catch (err) {
+      setFeedItems(prev => prev.filter(item => item.id !== thinkingId));
       toast.error("Search failed", { description: (err as Error).message });
-      setFeedItems(prev => prev.filter(item => item.content.query !== query));
     } finally {
       setIsSearching(false);
     }

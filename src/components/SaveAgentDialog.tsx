@@ -26,6 +26,7 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
   const [isOpen, setIsOpen] = useState(false);
   const [agentName, setAgentName] = useState('');
   const [autonomyLevel, setAutonomyLevel] = useState<Agent['autonomy_level']>('semi-automatic');
+  const [frequency, setFrequency] = useState(24); // Default to Daily (24 hours)
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -47,6 +48,8 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
         name: agentName,
         prompt: searchParams.recruiter_specialty,
         autonomy_level: autonomyLevel,
+        search_lookback_hours: frequency,
+        max_results: 20,
       });
 
       if (error) throw error;
@@ -95,6 +98,23 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
                 </div>
               )}
             </div>
+          </div>
+          <div className="space-y-3">
+            <Label>Run Frequency</Label>
+            <RadioGroup value={String(frequency)} onValueChange={(value) => setFrequency(Number(value))} className="flex gap-4">
+              <Label htmlFor="hourly" className="flex-1 flex items-center gap-2 rounded-md border p-3 cursor-pointer hover:bg-accent has-[input:checked]:border-primary">
+                <RadioGroupItem value="1" id="hourly" />
+                <span>Hourly</span>
+              </Label>
+              <Label htmlFor="daily" className="flex-1 flex items-center gap-2 rounded-md border p-3 cursor-pointer hover:bg-accent has-[input:checked]:border-primary">
+                <RadioGroupItem value="24" id="daily" />
+                <span>Daily</span>
+              </Label>
+              <Label htmlFor="weekly" className="flex-1 flex items-center gap-2 rounded-md border p-3 cursor-pointer hover:bg-accent has-[input:checked]:border-primary">
+                <RadioGroupItem value="168" id="weekly" />
+                <span>Weekly</span>
+              </Label>
+            </RadioGroup>
           </div>
           <div className="space-y-3">
             <Label>Autonomy Level</Label>

@@ -31,7 +31,8 @@ const SystemResponse = ({ item }: { item: FeedItem }) => (
                 ))}
             </div>
             {item.content.searchParams && (
-                <div className="flex justify-end">
+                <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between">
+                    <p className="text-sm font-medium text-white/90">Want me to run this search for you automatically?</p>
                     <SaveAgentDialog searchParams={item.content.searchParams}>
                         <Button variant="secondary">
                             <Save className="mr-2 h-4 w-4" />
