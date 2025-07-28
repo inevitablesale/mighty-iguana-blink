@@ -75,6 +75,17 @@ serve(async (req) => {
 
     const assignedOppIds = new Set();
 
+    const enrichmentPromptTemplate = (jobData) => `
+        You are a recruiting analyst. Analyze the following job data and extract key intelligence points.
+        Job Data: ${JSON.stringify(jobData)}
+        
+        Return a single, valid JSON object with the following keys:
+        - "contract_value_assessment": If salary is present, calculate a 20% fee (e.g., "Est. Fee: $XX,XXX"). If not, estimate a value based on the role and return the same format.
+        - "hiring_urgency": 'High', 'Medium', or 'Low'.
+        - "placement_difficulty": 'High', 'Medium', or 'Low'.
+        - "seniority_level": 'Executive', 'Senior', 'Mid-level', 'Entry-level'.
+      `;
+
     // First pass: Score against user profiles
     if (profiles && profiles.length > 0) {
         for (const profile of profiles) {
@@ -100,13 +111,19 @@ serve(async (req) => {
                     const result = await callGemini(scoringPrompt, GEMINI_API_KEY);
                     
                     if (result && result.relevance_score >= 7) { // Higher threshold for personal assignment
+                        const enrichedData = await callGemini(enrichmentPromptTemplate(opportunity.job_data), GEMINI_API_KEY);
+
                         await supabaseAdmin
                         .from('proactive_opportunities')
                         .update({
                             relevance_score: result.relevance_score,
                             relevance_reasoning: result.relevance_reasoning,
                             status: 'reviewed',
-                            user_id: profile.id // Assign to the matched user
+                            user_id: profile.id, // Assign to the matched user
+                            contract_value_assessment: enrichedData.contract_value_assessment,
+                            hiring_urgency: enrichedData.hiring_urgency,
+                            placement_difficulty: enrichedData.placement_difficulty,
+                            seniority_level: enrichedData.seniority_level,
                         })
                         .eq('id', opportunity.id);
                         assignedOppIds.add(opportunity.id);
@@ -137,6 +154,7 @@ serve(async (req) => {
         try {
             const result = await callGemini(generalScoringPrompt, GEMINI_API_KEY);
             if (result && result.relevance_score >= 7) {
+                const enrichedData = await callGemini(enrichmentPromptTemplate(opportunity.job_data), GEMINI_API_KEY);
                 // It's a hot market opportunity
                 await supabaseAdmin
                     .from('proactive_opportunities')
@@ -144,7 +162,11 @@ serve(async (req) => {
                         relevance_score: result.relevance_score,
                         relevance_reasoning: result.relevance_reasoning,
                         status: 'reviewed',
-                        user_id: null // Explicitly unassigned
+                        user_id: null, // Explicitly unassigned
+                        contract_value_assessment: enrichedData.contract_value_assessment,
+                        hiring_urgency: enrichedData.hiring_urgency,
+                        placement_difficulty: enrichedData.placement_difficulty,
+                        seniority_level: enrichedData.seniority_level,
                     })
                     .eq('id', opportunity.id);
             } else {
