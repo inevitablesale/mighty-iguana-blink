@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ChatMessage } from '@/components/ChatMessage';
 import { MarketRadar } from '@/components/MarketRadar';
+import { ExamplePrompts } from '@/components/ExamplePrompts';
 
 export default function Index() {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -91,11 +92,22 @@ export default function Index() {
     setInput('');
   };
 
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
+    submitQuery(prompt);
+    setInput('');
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-60px)]">
       <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 1 && !isLoading && <MarketRadar />}
+          {messages.length === 1 && !isLoading && (
+            <div className="space-y-8">
+              <MarketRadar />
+              <ExamplePrompts onPromptClick={handlePromptClick} />
+            </div>
+          )}
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
