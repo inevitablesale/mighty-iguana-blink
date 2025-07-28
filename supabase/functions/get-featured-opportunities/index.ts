@@ -33,21 +33,6 @@ async function callGemini(prompt, apiKey) {
   }
 }
 
-async function createJobHash(job) {
-  const jobString = `${job.title}|${job.company}|${job.location}|${job.description?.substring(0, 500)}`;
-  const data = new TextEncoder().encode(jobString);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-const FEATURED_QUERIES = [
-  { query: "VP of Engineering", location: "USA" },
-  { query: "Director of Sales", location: "USA" },
-  { query: "Head of Product", location: "Remote" },
-  { query: "Chief Marketing Officer", location: "USA" },
-];
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -62,74 +47,57 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
-    const search = FEATURED_QUERIES[Math.floor(Math.random() * FEATURED_QUERIES.length)];
+    // Fetch top 4 highest-scored proactive opportunities, regardless of user
+    const { data: topProactive, error: fetchError } = await supabaseAdmin
+      .from('proactive_opportunities')
+      .select('job_data, relevance_score')
+      .not('relevance_score', 'is', null)
+      .order('relevance_score', { ascending: false })
+      .limit(4);
 
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search.query)}&location=${encodeURIComponent(search.location)}&sites=linkedin,google,zip_recruiter&results=25&enforce_annual_salary=true`;
-    const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
-    if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
-    const scrapingData = await scrapingResponse.json();
-    const rawJobResults = scrapingData?.jobs;
-
-    if (!rawJobResults || rawJobResults.length === 0) {
+    if (fetchError) throw new Error(`Failed to fetch featured opportunities: ${fetchError.message}`);
+    if (!topProactive || topProactive.length === 0) {
       return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
 
-    const sortedJobs = rawJobResults
-      .filter(job => job.max_amount && job.max_amount > 0)
-      .sort((a, b) => b.max_amount - a.max_amount);
-
-    const topJobs = sortedJobs.slice(0, 10);
-
-    const enrichmentPromises = topJobs.map(async (job) => {
-      const jobHash = await createJobHash(job);
-      const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
+    // Enrich each one to match the `Opportunity` type for the UI card
+    const enrichmentPromises = topProactive.map(async (proactiveOpp) => {
+      const job = proactiveOpp.job_data;
       
-      if (cached) {
-        cached.analysis_data.match_score = 10;
-        return cached.analysis_data;
-      }
-
-      const singleEnrichmentPrompt = `
-        You are a world-class recruiting strategist. Analyze the following job posting.
-        Job Posting: ${JSON.stringify(job)}
-        Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "seniority_level".
-        **The "contract_value_assessment" is the most important field. Analyze the job description for salary information. If a salary range is found (e.g., $200k - $250k), calculate the average salary ($225k), take 20% of that to estimate the placement fee ($45k), and return a string like 'Est. Fee: $45,000'. If no salary is found, YOU MUST estimate a realistic market-rate salary for this executive role and location, then do the same calculation. Be generous in your estimation.**
-        **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
+      const enrichmentPrompt = `
+        You are a recruiting analyst. Analyze the following job data and format it for display on a summary card.
+        Job Data: ${JSON.stringify(job)}
+        
+        Return a single, valid JSON object with the following keys:
+        - "company_name": The company name.
+        - "role": The job title.
+        - "location": The job location.
+        - "contract_value_assessment": If salary is present, calculate a 20% fee (e.g., "Est. Fee: $XX,XXX"). If not, estimate a value based on the role and return the same format.
+        - "hiring_urgency": 'High', 'Medium', or 'Low'.
+        - "placement_difficulty": 'High', 'Medium', or 'Low'.
+        - "company_overview": A brief, one-sentence overview of the company.
+        - "pain_points": A brief summary of likely pain points.
+        - "recruiter_angle": A brief summary of the recruiter angle.
+        - "key_signal_for_outreach": A brief summary of the key signal.
+        - "seniority_level": 'Executive', 'Senior', 'Mid-level', or 'Entry-level'.
       `;
-      const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
       
-      analysisData.match_score = 10;
+      const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
       
-      await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
-      
-      return analysisData;
+      // Combine with data we already have
+      return {
+        id: crypto.randomUUID(), // Generate a temp ID for the key prop
+        ...analysisData,
+        match_score: proactiveOpp.relevance_score,
+      };
     });
 
     const settledEnrichments = await Promise.allSettled(enrichmentPromises);
-    const enrichedOpportunities = [];
-    for (const result of settledEnrichments) {
-      if (result.status === 'fulfilled' && result.value) {
-        enrichedOpportunities.push(result.value);
-      }
-    }
+    const opportunities = settledEnrichments
+      .filter(res => res.status === 'fulfilled' && res.value)
+      .map(res => res.value);
 
-    const opportunitiesToReturn = enrichedOpportunities.map(opp => ({
-        id: crypto.randomUUID(),
-        company_name: opp.companyName,
-        role: opp.role,
-        location: opp.location,
-        company_overview: opp.company_overview,
-        contract_value_assessment: opp.contract_value_assessment,
-        hiring_urgency: opp.hiring_urgency,
-        pain_points: opp.pain_points,
-        recruiter_angle: opp.recruiter_angle,
-        key_signal_for_outreach: opp.key_signal_for_outreach,
-        placement_difficulty: opp.placement_difficulty,
-        seniority_level: opp.seniority_level,
-        match_score: opp.match_score,
-    })).slice(0, 4);
-
-    return new Response(JSON.stringify({ opportunities: opportunitiesToReturn }), {
+    return new Response(JSON.stringify({ opportunities }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
