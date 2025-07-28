@@ -1,3 +1,12 @@
+export interface CrunchbaseData {
+  name: string;
+  categories?: string[];
+  company_type?: string;
+  num_employees?: string;
+  revenue_range?: string;
+  [key: string]: any; // Allow other properties
+}
+
 export interface Opportunity {
   id: string;
   agent_id: string;
@@ -13,6 +22,7 @@ export interface Opportunity {
   key_signal_for_outreach: string;
   linkedin_url_slug?: string | null;
   placement_difficulty: string;
+  company_data_scraped?: CrunchbaseData | null;
 }
 
 export interface Contact {

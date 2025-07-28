@@ -16,7 +16,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message }: ChatMessageProps) {
   const { role, text, opportunities, isLoading, searchParams } = message;
   const isAssistant = role === "assistant";
-  const opportunitiesToShow = opportunities?.slice(0, 4) || [];
+  const opportunitiesToShow = opportunities?.slice(0, 2) || [];
   const totalOpportunities = opportunities?.length || 0;
   const hasOpportunities = totalOpportunities > 0;
 
