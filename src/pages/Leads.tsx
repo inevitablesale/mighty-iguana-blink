@@ -6,10 +6,9 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Opportunity, Contact, ContactEnrichmentTask } from "@/types/index";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { LeadsTable } from "@/components/LeadsTable";
+import { LeadCard } from "@/components/LeadCard";
 
 const Leads = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -19,6 +18,7 @@ const Leads = () => {
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const navigate = useNavigate();
 
   const fetchInitialData = useCallback(async () => {
@@ -38,12 +38,13 @@ const Leads = () => {
     if (oppsRes.error || contactsRes.error || tasksRes.error) {
       toast.error("Failed to load initial data.");
     } else {
-      setOpportunities(oppsRes.data || []);
+      const fetchedOpps = oppsRes.data || [];
+      setOpportunities(fetchedOpps);
       
       const allContacts = contactsRes.data as Contact[];
       const groupedByCompany = new Map<string, Contact[]>();
       allContacts.forEach(contact => {
-        const companyName = opportunities.find(o => o.id === contact.opportunity_id)?.company_name;
+        const companyName = fetchedOpps.find(o => o.id === contact.opportunity_id)?.company_name;
         if (companyName) {
           const companyContacts = groupedByCompany.get(companyName) || [];
           if (!companyContacts.some(c => c.id === contact.id)) companyContacts.push(contact);
@@ -63,14 +64,13 @@ const Leads = () => {
       setTasksByCompany(groupedTasks);
     }
     setLoading(false);
-  }, [opportunities]);
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
     
     const changes = supabase.channel('leads-page-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-        console.log('Change received!', payload)
         fetchInitialData();
       })
       .subscribe()
@@ -78,12 +78,13 @@ const Leads = () => {
     return () => {
       supabase.removeChannel(changes);
     }
-  }, []);
+  }, [fetchInitialData]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
+    setHasSearched(true);
     const toastId = toast.loading("Searching for new opportunities...");
     try {
       const { data, error } = await supabase.functions.invoke('natural-language-search', {
@@ -129,56 +130,79 @@ const Leads = () => {
     return companyMap;
   }, [opportunities]);
 
+  const renderContent = () => {
+    if (isSearching || (loading && hasSearched)) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
+        </div>
+      );
+    }
+
+    if (hasSearched && opportunities.length === 0) {
+      return (
+        <div className="text-center py-16">
+          <h3 className="text-xl font-bold tracking-tight">No Leads Found</h3>
+          <p className="text-sm text-muted-foreground">
+            Try a different search query to discover new opportunities.
+          </p>
+        </div>
+      );
+    }
+
+    if (opportunities.length > 0) {
+      return (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {opportunities.map((opportunity) => (
+            <LeadCard
+              key={opportunity.id}
+              opportunity={opportunity}
+              allCompanyOpportunities={opportunitiesByCompany.get(opportunity.company_name) || []}
+              companyContacts={contactsByCompany.get(opportunity.company_name) || []}
+              task={tasksByCompany.get(opportunity.company_name)}
+              onGenerateCampaign={handleGenerateCampaignForContact}
+              isGeneratingCampaign={!!generatingCampaignForContactId}
+              generatingContactId={generatingCampaignForContactId}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-center py-16">
+        <Target className="h-12 w-12 text-muted-foreground mx-auto" />
+        <h3 className="mt-4 text-xl font-bold tracking-tight">Find Your Next Lead</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Use the search bar above to find new opportunities.
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col">
       <Header title="Leads" />
-      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Lead Discovery</CardTitle>
-            <CardDescription>Use natural language to find new recruitment opportunities in real-time.</CardDescription>
-            <form onSubmit={handleSearch} className="flex w-full items-center space-x-2 pt-4">
-              <Input
-                type="text"
-                placeholder="e.g., 'Series B fintech companies in London hiring for senior engineers...'"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                disabled={isSearching}
-              />
-              <Button type="submit" disabled={isSearching}>
-                {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-                Search
-              </Button>
-            </form>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-              </div>
-            ) : opportunities.length > 0 ? (
-              <LeadsTable
-                opportunities={opportunities}
-                opportunitiesByCompany={opportunitiesByCompany}
-                contactsByCompany={contactsByCompany}
-                tasksByCompany={tasksByCompany}
-                onGenerateCampaign={handleGenerateCampaignForContact}
-                isGeneratingCampaign={!!generatingCampaignForContactId}
-                generatingContactId={generatingCampaignForContactId}
-              />
-            ) : (
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <Target className="h-10 w-10 text-muted-foreground" />
-                  <h3 className="text-2xl font-bold tracking-tight">No Leads Found</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Run a playbook or try a new search to discover opportunities.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <main className="flex flex-1 flex-col gap-6 p-4 lg:p-8">
+        <div className="max-w-2xl mx-auto w-full">
+          <form onSubmit={handleSearch} className="flex w-full items-center space-x-2">
+            <Input
+              type="text"
+              placeholder="e.g., 'Series B fintech companies in London hiring for senior engineers...'"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isSearching}
+              className="h-12 text-base"
+            />
+            <Button type="submit" disabled={isSearching} size="lg">
+              {isSearching ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Search className="mr-2 h-5 w-5" />}
+              Search
+            </Button>
+          </form>
+        </div>
+        <div className="mt-4">
+          {renderContent()}
+        </div>
       </main>
     </div>
   );
