@@ -20,7 +20,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Ensure the user is authenticated to use this function
     const userRes = await supabaseAdmin.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', ''));
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
@@ -28,12 +27,11 @@ serve(async (req) => {
     const { contact_id } = await req.json();
     if (!contact_id) throw new Error("Contact ID is required.");
 
-    // 1. Fetch contact details
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('contacts')
-      .select('id, linkedin_profile_url, job_title')
+      .select('id, name, linkedin_profile_url, job_title')
       .eq('id', contact_id)
-      .eq('user_id', user.id) // Security check
+      .eq('user_id', user.id)
       .single();
 
     if (contactError) throw new Error(`Failed to fetch contact: ${contactError.message}`);
@@ -41,11 +39,12 @@ serve(async (req) => {
       await supabaseAdmin.from('contacts').update({ email_status: 'error_no_linkedin_url' }).eq('id', contact_id);
       throw new Error("Contact does not have a LinkedIn profile URL.");
     }
+    if (!contact.name) {
+      await supabaseAdmin.from('contacts').update({ email_status: 'error_no_name' }).eq('id', contact_id);
+      throw new Error("Contact does not have a name to verify against.");
+    }
 
-    // 2. Construct Apollo URL
     const apolloUrl = `https://app.apollo.io/#/people?q=${encodeURIComponent(contact.linkedin_profile_url)}`;
-
-    // 3. Call Apify API
     const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     if (!APIFY_API_TOKEN) throw new Error("APIFY_API_TOKEN secret is not set in Supabase.");
 
@@ -53,7 +52,7 @@ serve(async (req) => {
     
     const apifyInput = {
       "url": apolloUrl,
-      "max_result": 1,
+      "max_result": 5, // Fetch up to 5 results to verify
       "include_email": true,
       "contact_email_status_v2_verified": true,
       "contact_email_exclude_catch_all": true
@@ -72,40 +71,44 @@ serve(async (req) => {
 
     const results = await apifyResponse.json();
 
-    // 4. Process response and update DB
     if (results && results.length > 0) {
-      const enrichedData = results[0];
-      const updatePayload = {
-        email: enrichedData.email,
-        email_status: enrichedData.email_status || 'verified',
-        phone_number: enrichedData.phone,
-        job_title: enrichedData.title || contact.job_title, 
-      };
+      // --- Verification Step ---
+      const originalName = contact.name.toLowerCase().trim();
+      const matchedResult = results.find(r => 
+        r.name && r.name.toLowerCase().trim().includes(originalName)
+      );
 
-      const { data: updatedContact, error: updateError } = await supabaseAdmin
-        .from('contacts')
-        .update(updatePayload)
-        .eq('id', contact_id)
-        .select()
-        .single();
+      if (matchedResult) {
+        // We found a confident match
+        const updatePayload = {
+          email: matchedResult.email,
+          email_status: matchedResult.email_status || 'verified',
+          phone_number: matchedResult.phone,
+          job_title: matchedResult.title || contact.job_title, 
+        };
 
-      if (updateError) throw new Error(`Failed to update contact in DB: ${updateError.message}`);
+        const { data: updatedContact, error: updateError } = await supabaseAdmin
+          .from('contacts')
+          .update(updatePayload)
+          .eq('id', contact_id)
+          .select()
+          .single();
 
-      const responsePayload = { status: 'success', data: updatedContact };
-      return new Response(JSON.stringify(responsePayload), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
+        if (updateError) throw new Error(`Failed to update contact in DB: ${updateError.message}`);
 
-    } else {
-      // No contact found in Apollo
-      await supabaseAdmin.from('contacts').update({ email_status: 'not_found' }).eq('id', contact_id);
-      const responsePayload = { status: 'not_found', message: "Contact not found in Apollo." };
-      return new Response(JSON.stringify(responsePayload), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
+        return new Response(JSON.stringify({ status: 'success', data: updatedContact }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
     }
+    
+    // If we reach here, either no results or no confident match was found
+    await supabaseAdmin.from('contacts').update({ email_status: 'not_found' }).eq('id', contact_id);
+    return new Response(JSON.stringify({ status: 'not_found', message: "Could not find a verified match in Apollo." }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
 
   } catch (error) {
     console.error("Edge Function error:", error.message);
