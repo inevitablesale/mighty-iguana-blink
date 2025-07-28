@@ -69,13 +69,23 @@ export default function Pipeline() {
 
   const handleAcceptOpportunity = async (opportunityId: string) => {
     setProcessingOpp({ id: opportunityId, type: 'accept' });
-    // This is where you would convert the proactive opportunity into a real opportunity/campaign
-    // For now, we'll just remove it from the list as a placeholder for success
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke('accept-proactive-opportunity', {
+        body: { proactiveOpportunityId: opportunityId }
+      });
+
+      if (error) throw new Error(error.message);
+
+      setCampaigns(prev => [data.campaign, ...prev]);
       setProactiveOpportunities(prev => prev.filter(opp => opp.id !== opportunityId));
-      toast.success("Opportunity accepted and moved to pipeline!");
+
+      toast.success("Opportunity accepted and moved to your draft pipeline!");
+
+    } catch (err) {
+      toast.error("Failed to accept opportunity", { description: (err as Error).message });
+    } finally {
       setProcessingOpp(null);
-    }, 1000);
+    }
   };
 
   const handleDismissOpportunity = async (opportunityId: string) => {
@@ -153,7 +163,7 @@ export default function Pipeline() {
                 <div className="flex-grow overflow-y-auto space-y-2 pr-1">
                   {loading ? (
                     <Skeleton className="h-40 w-full bg-white/10" />
-                  ) : (
+                  ) : proactiveOpportunities.length > 0 ? (
                     proactiveOpportunities.map(opp => (
                       <ProactiveOpportunityCard
                         key={opp.id}
@@ -164,6 +174,10 @@ export default function Pipeline() {
                         isDismissing={processingOpp?.id === opp.id && processingOpp?.type === 'dismiss'}
                       />
                     ))
+                  ) : (
+                    <div className="text-center text-sm text-muted-foreground p-4 h-full flex items-center justify-center">
+                      <p>No new opportunities match your profile right now. Check back soon!</p>
+                    </div>
                   )}
                 </div>
               </div>
