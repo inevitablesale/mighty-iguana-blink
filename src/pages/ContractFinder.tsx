@@ -74,7 +74,7 @@ export default function ContractFinder() {
     await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
 
     const systemResponseId = crypto.randomUUID();
-    const systemResponseItem: FeedItem = { id: systemResponseId, user_id: user.id, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: 'AI Search powered by ContractGPT...' }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
+    const systemResponseItem: FeedItem = { id: systemResponseId, user_id: user.id, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: 'Thinking...' }, created_at: new Date().toISOString(), conversation_id: currentConversationId };
     setFeedItems(prev => [...prev, systemResponseItem]);
 
     try {
@@ -87,29 +87,37 @@ export default function ContractFinder() {
       if (!response.body) throw new Error("The response body is empty.");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
       let finalResultSaved = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n\n');
+        
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const jsonString = line.substring(6);
+        for (const part of parts) {
+          if (part.startsWith('data: ')) {
+            const jsonString = part.substring(6);
             if (!jsonString) continue;
-            const data = JSON.parse(jsonString);
+            
+            try {
+              const data = JSON.parse(jsonString);
 
-            if (data.type === 'status') {
-              setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: { ...item.content, summary: data.message } } : item));
-            } else if (data.type === 'result' && !finalResultSaved) {
-              const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
-              setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: finalContent } : item));
-              await supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent });
-              finalResultSaved = true;
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
+              if (data.type === 'status') {
+                setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: { ...item.content, summary: data.message } } : item));
+              } else if (data.type === 'result' && !finalResultSaved) {
+                const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
+                setFeedItems(prev => prev.map(item => item.id === systemResponseId ? { ...item, content: finalContent } : item));
+                await supabase.from('feed_items').insert({ user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent });
+                finalResultSaved = true;
+              } else if (data.type === 'error') {
+                throw new Error(data.message);
+              }
+            } catch (e) {
+              console.error("Failed to parse stream chunk:", jsonString, e);
             }
           }
         }
