@@ -24,13 +24,13 @@ export default function Pipeline() {
 
         const { data, error } = await supabase
           .from('campaigns')
-          .select('*')
+          .select('*, opportunities(contract_value_assessment)')
           .eq('user_id', user.id)
           .in('status', pipelineStatuses)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setCampaigns(data);
+        setCampaigns(data as Campaign[]);
 
       } catch (err) {
         toast.error("Failed to fetch pipeline data", { description: (err as Error).message });
@@ -102,7 +102,6 @@ export default function Pipeline() {
       <div className="flex-grow overflow-x-auto pb-4">
         <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 h-full">
-            {/* Campaign Columns */}
             <SortableContext items={pipelineStatuses}>
               {pipelineStatuses.map(status => (
                 <CampaignColumn

@@ -51,7 +51,6 @@ export interface Opportunity {
   likely_decision_maker?: string | null;
 }
 
-// Other types remain largely the same but will interact with the new Opportunity type
 export interface ProactiveOpportunity {
   id: string;
   relevance_reasoning: string;
@@ -97,6 +96,9 @@ export interface Campaign {
   status: CampaignStatus;
   contact_name: string | null;
   contact_email: string | null;
+  opportunities?: {
+    contract_value_assessment: string;
+  } | null;
 }
 
 export interface SearchParams {

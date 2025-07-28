@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Campaign } from "@/types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, DollarSign } from "lucide-react";
 
 interface CampaignCardProps {
   campaign: Campaign;
@@ -36,6 +36,12 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <CardContent className="p-3 pt-0">
           <p className="text-xs text-muted-foreground">{campaign.role}</p>
           <p className="text-xs mt-2">{campaign.contact_name}</p>
+          {campaign.opportunities?.contract_value_assessment && (
+            <div className="flex items-center text-xs mt-2 text-green-400 font-semibold">
+              <DollarSign size={12} className="mr-1" />
+              <span>{campaign.opportunities.contract_value_assessment}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
