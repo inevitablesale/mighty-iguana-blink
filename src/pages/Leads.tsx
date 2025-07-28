@@ -16,6 +16,7 @@ const Leads = () => {
   const [contactsByCompany, setContactsByCompany] = useState<Map<string, Contact[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [generatingCampaignForContactId, setGeneratingCampaignForContactId] = useState<string | null>(null);
+  const [enrichingContactId, setEnrichingContactId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const navigate = useNavigate();
   const { isExtensionInstalled } = useExtension();
@@ -97,6 +98,58 @@ const Leads = () => {
       }
     };
   }, [fetchData]);
+
+  const handleEnrichContact = async (contact: Contact) => {
+    setEnrichingContactId(contact.id);
+    const toastId = toast.loading(`Searching for ${contact.name}'s email...`);
+
+    try {
+      const { data: responseData, error } = await supabase.functions.invoke('enrich-contact-with-apollo', {
+        body: { contact_id: contact.id },
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (responseData.status === 'not_found') {
+        toast.info(`Could not find a verified email for ${contact.name}.`, { id: toastId });
+        setContactsByCompany(prevMap => {
+          const newMap = new Map(prevMap);
+          for (const [company, contacts] of newMap.entries()) {
+            const contactIndex = contacts.findIndex(c => c.id === contact.id);
+            if (contactIndex > -1) {
+              const newContacts = [...contacts];
+              newContacts[contactIndex] = { ...newContacts[contactIndex], email_status: 'not_found' };
+              newMap.set(company, newContacts);
+              break;
+            }
+          }
+          return newMap;
+        });
+      } else if (responseData.status === 'success' && responseData.data.email) {
+        const updatedContact = responseData.data;
+        toast.success(`Found email for ${updatedContact.name}!`, { id: toastId });
+        setContactsByCompany(prevMap => {
+          const newMap = new Map(prevMap);
+          for (const [company, contacts] of newMap.entries()) {
+            const contactIndex = contacts.findIndex(c => c.id === contact.id);
+            if (contactIndex > -1) {
+              const newContacts = [...contacts];
+              newContacts[contactIndex] = { ...newContacts[contactIndex], ...updatedContact };
+              newMap.set(company, newContacts);
+              break;
+            }
+          }
+          return newMap;
+        });
+      } else {
+        toast.error('An unexpected response was received from the enrichment service.', { id: toastId });
+      }
+    } catch (e) {
+      toast.error((e as Error).message, { id: toastId });
+    } finally {
+      setEnrichingContactId(null);
+    }
+  };
 
   const handleGenerateCampaignForContact = async (contact: Contact) => {
     setGeneratingCampaignForContactId(contact.id);
@@ -215,6 +268,8 @@ const Leads = () => {
                     onGenerateCampaign={handleGenerateCampaignForContact}
                     isGeneratingCampaign={!!generatingCampaignForContactId}
                     generatingContactId={generatingCampaignForContactId}
+                    onEnrichContact={handleEnrichContact}
+                    enrichingContactId={enrichingContactId}
                   />
                 ))}
               </div>

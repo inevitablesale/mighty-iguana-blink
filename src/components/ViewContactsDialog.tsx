@@ -9,13 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Contact, Opportunity } from "@/types/index";
-import { Linkedin, Mail, ChevronDown } from "lucide-react";
+import { Linkedin, Mail, ChevronDown, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "./ui/badge";
 
 interface ViewContactsDialogProps {
   companyName: string;
@@ -24,10 +25,22 @@ interface ViewContactsDialogProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGenerating: boolean;
   generatingContactId: string | null;
+  onEnrichContact: (contact: Contact) => void;
+  enrichingContactId: string | null;
   children: React.ReactNode;
 }
 
-export function ViewContactsDialog({ companyName, opportunities, contacts, onGenerateCampaign, isGenerating, generatingContactId, children }: ViewContactsDialogProps) {
+export function ViewContactsDialog({ 
+  companyName, 
+  opportunities, 
+  contacts, 
+  onGenerateCampaign, 
+  isGenerating, 
+  generatingContactId,
+  onEnrichContact,
+  enrichingContactId,
+  children 
+}: ViewContactsDialogProps) {
   const getInitials = (name: string | null) => {
     if (!name) return "?";
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -37,6 +50,17 @@ export function ViewContactsDialog({ companyName, opportunities, contacts, onGen
     const campaignContact = { ...contact, opportunity_id: opportunity.id };
     onGenerateCampaign(campaignContact);
   };
+
+  const getEmailStatusBadge = (status: string | null | undefined) => {
+    switch (status) {
+      case 'verified':
+        return <Badge variant="default" className="bg-green-600 text-white">Verified</Badge>;
+      case 'not_found':
+        return <Badge variant="destructive">Not Found</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  }
 
   return (
     <Dialog>
@@ -71,15 +95,34 @@ export function ViewContactsDialog({ companyName, opportunities, contacts, onGen
                         </a>
                       </Button>
                     )}
+
+                    {contact.email ? (
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-foreground truncate" title={contact.email}>{contact.email}</p>
+                        {contact.email_status && getEmailStatusBadge(contact.email_status)}
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => onEnrichContact(contact)}
+                        disabled={enrichingContactId === contact.id || contact.email_status === 'not_found'}
+                      >
+                        <Search className="mr-2 h-4 w-4" />
+                        {enrichingContactId === contact.id ? 'Searching...' : 
+                         contact.email_status === 'not_found' ? 'Not Found' : 'Get Email'}
+                      </Button>
+                    )}
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 
                           size="sm" 
-                          disabled={isGenerating && generatingContactId === contact.id}
+                          disabled={(isGenerating && generatingContactId === contact.id) || !contact.email}
                           className="coogi-gradient-bg text-primary-foreground hover:opacity-90"
                         >
                           <Mail className="mr-2 h-4 w-4" />
-                          {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft Email'}
+                          {isGenerating && generatingContactId === contact.id ? 'Drafting...' : 'Draft'}
                           <ChevronDown className="ml-2 h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

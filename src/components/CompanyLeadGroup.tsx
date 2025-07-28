@@ -16,6 +16,8 @@ interface CompanyLeadGroupProps {
   onGenerateCampaign: (contact: Contact) => void;
   isGeneratingCampaign: boolean;
   generatingContactId: string | null;
+  onEnrichContact: (contact: Contact) => void;
+  enrichingContactId: string | null;
 }
 
 export function CompanyLeadGroup({
@@ -26,6 +28,8 @@ export function CompanyLeadGroup({
   onGenerateCampaign,
   isGeneratingCampaign,
   generatingContactId,
+  onEnrichContact,
+  enrichingContactId,
 }: CompanyLeadGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const ROLE_LIMIT = 5;
@@ -58,6 +62,8 @@ export function CompanyLeadGroup({
               onGenerateCampaign={onGenerateCampaign}
               isGenerating={isGeneratingCampaign}
               generatingContactId={generatingContactId}
+              onEnrichContact={onEnrichContact}
+              enrichingContactId={enrichingContactId}
             >
               <Button className="coogi-gradient-bg text-primary-foreground hover:opacity-90">
                 <MessageSquare className="mr-2 h-4 w-4" /> Draft Outreach ({companyContacts.length})

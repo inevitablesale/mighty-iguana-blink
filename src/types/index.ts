@@ -23,6 +23,9 @@ export interface Contact {
   job_title: string | null;
   linkedin_profile_url: string | null;
   created_at: string;
+  email?: string | null;
+  email_status?: string | null;
+  phone_number?: string | null;
 }
 
 export interface SearchCriteria {
