@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Opportunity, EvaluatedContact } from '@/types';
+import { Opportunity, EvaluatedContact, Campaign } from '@/types';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { OutreachEditor } from '@/components/OutreachEditor';
 
 interface Analysis {
   score: number;
@@ -38,11 +39,13 @@ export default function Deal() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [contacts, setContacts] = useState<EvaluatedContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<EvaluatedContact | null>(null);
+  const [draftCampaign, setDraftCampaign] = useState<Campaign | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
   const [isFindingContacts, setIsFindingContacts] = useState(false);
   const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     const fetchOpportunityData = async () => {
@@ -50,7 +53,6 @@ export default function Deal() {
       setLoading(true);
       setIsAnalysisLoading(true);
       try {
-        // Fetch all data in parallel
         const oppPromise = supabase.from('opportunities').select('*').eq('id', opportunityId).single();
         const analysisPromise = supabase.functions.invoke('analyze-propensity-to-switch', { body: { opportunityId } });
         const contactsPromise = supabase.from('contacts').select('*').eq('opportunity_id', opportunityId);
@@ -68,7 +70,6 @@ export default function Deal() {
         const initialContacts = contactsResult.data || [];
         setContacts(initialContacts.map(c => ({ ...c, isEvaluating: true })));
 
-        // Asynchronously evaluate each contact
         const evaluatedContacts = await Promise.all(initialContacts.map(async (contact) => {
           try {
             const { data, error } = await supabase.functions.invoke('evaluate-contact-fit', { body: { contact, opportunityId } });
@@ -119,14 +120,32 @@ export default function Deal() {
         body: { opportunityId, contact: selectedContact, isAutomatic: false }
       });
       if (error) throw error;
-      toast.success(data.message, {
-        id: toastId,
-        action: { label: "View Campaigns", onClick: () => navigate('/campaigns') }
-      });
+      setDraftCampaign(data.campaign);
+      toast.success(data.message, { id: toastId });
     } catch (err) {
       toast.error("Failed to generate outreach", { id: toastId, description: (err as Error).message });
     } finally {
       setIsGeneratingOutreach(false);
+    }
+  };
+
+  const handleSendEmail = async (campaignId: string, subject: string, body: string) => {
+    setIsSending(true);
+    const toastId = toast.loading("Sending email...");
+    try {
+      const { error } = await supabase.functions.invoke('send-campaign-email', {
+        body: { campaignId, subject, body }
+      });
+      if (error) throw error;
+      toast.success("Email sent successfully!", {
+        id: toastId,
+        action: { label: "View Campaigns", onClick: () => navigate('/campaigns') }
+      });
+      setDraftCampaign(null); // Clear the editor on success
+    } catch (err) {
+      toast.error("Failed to send email", { id: toastId, description: (err as Error).message });
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -222,15 +241,19 @@ export default function Deal() {
                 {isFindingContacts && <div className="text-center py-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></div>}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
-              <CardContent>
-                <Button className="w-full" disabled={!selectedContact || isGeneratingOutreach} onClick={handleGenerateOutreach}>
-                  {isGeneratingOutreach ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                  Generate Outreach Draft
-                </Button>
-              </CardContent>
-            </Card>
+            {draftCampaign ? (
+              <OutreachEditor campaign={draftCampaign} onSend={handleSendEmail} isSending={isSending} />
+            ) : (
+              <Card>
+                <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
+                <CardContent>
+                  <Button className="w-full" disabled={!selectedContact || isGeneratingOutreach} onClick={handleGenerateOutreach}>
+                    {isGeneratingOutreach ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Generate Outreach Draft
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

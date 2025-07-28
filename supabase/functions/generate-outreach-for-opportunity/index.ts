@@ -128,7 +128,7 @@ serve(async (req) => {
 
     const campaignStatus = isAutomatic ? 'contacted' : 'draft';
 
-    const { error: insertError } = await supabaseAdmin.from('campaigns').insert({
+    const { data: newCampaign, error: insertError } = await supabaseAdmin.from('campaigns').insert({
       user_id: user.id,
       opportunity_id: opportunity.id,
       company_name: opportunity.company_name,
@@ -138,7 +138,7 @@ serve(async (req) => {
       status: campaignStatus,
       contact_name: contact.name,
       contact_email: contact.email,
-    });
+    }).select().single();
 
     if (insertError) throw new Error(`Failed to save campaign: ${insertError.message}`);
 
@@ -146,7 +146,7 @@ serve(async (req) => {
       ? "Outreach automatically generated and sent."
       : "Outreach draft created successfully.";
 
-    return new Response(JSON.stringify({ message: successMessage }), {
+    return new Response(JSON.stringify({ message: successMessage, campaign: newCampaign }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
