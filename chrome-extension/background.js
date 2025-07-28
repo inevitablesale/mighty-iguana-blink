@@ -102,6 +102,39 @@ chrome.runtime.onMessageExternal.addListener(async (message, sender, sendRespons
   }
 });
 
+// Listener for results from content script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "peopleSearchResults") {
+        handleScrapedData(message);
+        // Close the tab we opened for scraping
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.remove(sender.tab.id);
+        }
+    }
+});
+
+async function handleScrapedData({ taskId, opportunityId, html, error }) {
+    if (error) {
+        logger.error(`Scraping failed for task ${taskId}: ${error}`);
+        await updateTaskStatus(taskId, "error", `Scraping failed: ${error}`);
+        finalizeTask();
+        return;
+    }
+
+    try {
+        logger.log(`Data scraped for task ${taskId}, invoking enrichment function.`);
+        const { error: functionError } = await supabase.functions.invoke('find-and-enrich-contacts', {
+            body: { opportunityId, linkedinHtml: html },
+        });
+        if (functionError) throw new Error(functionError.message);
+    } catch (e) {
+        logger.error(`Enrichment function failed for task ${taskId}: ${e.message}`);
+        await updateTaskStatus(taskId, "error", `Enrichment failed: ${e.message}`);
+    } finally {
+        finalizeTask();
+    }
+}
+
 function enqueueTask(task) {
   if (!taskQueue.some(t => t.id === task.id)) {
     taskQueue.push(task);
@@ -125,21 +158,48 @@ async function handleTask(task) {
   
   try {
     await updateTaskStatus(task.id, "processing");
-    broadcastStatus('active', `Searching for contacts for ${task.company_name}...`);
+    broadcastStatus('active', `Scraping LinkedIn for ${task.company_name}...`);
 
-    const { error } = await supabase.functions.invoke('automated-contact-discovery', {
-      body: { opportunityId: task.opportunity_id, taskId: task.id },
+    const { data: opportunity, error: oppError } = await supabase
+        .from('opportunities')
+        .select('linkedin_url_slug')
+        .eq('id', task.opportunity_id)
+        .single();
+
+    if (oppError || !opportunity?.linkedin_url_slug) {
+        throw new Error(oppError?.message || "Opportunity has no LinkedIn URL slug.");
+    }
+
+    const searchUrl = `https://www.linkedin.com/company/${opportunity.linkedin_url_slug}/people/`;
+    
+    const tab = await chrome.tabs.create({ url: searchUrl, active: false });
+
+    // Wait for the tab to finish loading
+    chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
+        if (info.status === 'complete' && tabId === tab.id) {
+            chrome.tabs.onUpdated.removeListener(listener);
+            // Now inject the script
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (currentTaskId, currentOppId) => {
+                    // This code runs in the content script context
+                    const resultsHtml = document.documentElement.outerHTML;
+                    chrome.runtime.sendMessage({ 
+                        action: "peopleSearchResults",
+                        taskId: currentTaskId, 
+                        opportunityId: currentOppId,
+                        html: resultsHtml
+                    });
+                },
+                args: [task.id, task.opportunity_id]
+            });
+        }
     });
 
-    if (error) throw new Error(error.message);
-    logger.log(`Successfully invoked contact discovery for task ${task.id}.`);
-
   } catch (e) {
-    const errorMessage = `Failed to start contact discovery: ${e.message}`;
+    const errorMessage = `Failed to start LinkedIn scrape: ${e.message}`;
     logger.error(errorMessage);
     await updateTaskStatus(task.id, "error", errorMessage);
-    broadcastStatus('error', errorMessage);
-  } finally {
     finalizeTask();
   }
 }
