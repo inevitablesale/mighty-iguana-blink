@@ -112,7 +112,7 @@ serve(async (req) => {
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
 
-    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}`;
+    let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}&enforce_annual_salary=true`;
     if (agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
     if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
     if (agent.is_remote) scrapingUrl += `&is_remote=true`;
@@ -128,7 +128,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const enrichmentPromises = rawJobResults.map(async (job) => {
+    const sortedJobs = rawJobResults
+      .filter(job => job.max_amount && job.max_amount > 0)
+      .sort((a, b) => b.max_amount - a.max_amount);
+
+    const enrichmentPromises = sortedJobs.map(async (job) => {
       const jobHash = await createJobHash(job);
       const { data: cached, error: cacheError } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
       

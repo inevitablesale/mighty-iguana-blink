@@ -64,7 +64,7 @@ serve(async (req) => {
 
     const search = FEATURED_QUERIES[Math.floor(Math.random() * FEATURED_QUERIES.length)];
 
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search.query)}&location=${encodeURIComponent(search.location)}&sites=linkedin,google,zip_recruiter&results=10`;
+    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search.query)}&location=${encodeURIComponent(search.location)}&sites=linkedin,google,zip_recruiter&results=25&enforce_annual_salary=true`;
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const scrapingData = await scrapingResponse.json();
@@ -74,7 +74,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
 
-    const enrichmentPromises = rawJobResults.map(async (job) => {
+    const sortedJobs = rawJobResults
+      .filter(job => job.max_amount && job.max_amount > 0)
+      .sort((a, b) => b.max_amount - a.max_amount);
+
+    const topJobs = sortedJobs.slice(0, 10);
+
+    const enrichmentPromises = topJobs.map(async (job) => {
       const jobHash = await createJobHash(job);
       const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
       

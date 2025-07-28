@@ -105,7 +105,7 @@ serve(async (req) => {
         const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
         if (!search_query || !location || !sites || !recruiter_specialty) throw new Error("AI failed to extract search parameters from your query.");
 
-        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=10`; // Limit for chat
+        const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=40&enforce_annual_salary=true`;
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
         if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
         const scrapingData = await scrapingResponse.json();
@@ -115,7 +115,13 @@ serve(async (req) => {
           return new Response(JSON.stringify({ text: "I couldn't find any open roles matching your request. Please try a different search." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        const enrichmentPromises = rawJobResults.map(async (job) => {
+        const sortedJobs = rawJobResults
+          .filter(job => job.max_amount && job.max_amount > 0)
+          .sort((a, b) => b.max_amount - a.max_amount);
+
+        const topJobs = sortedJobs.slice(0, 20);
+
+        const enrichmentPromises = topJobs.map(async (job) => {
           const jobHash = await createJobHash(job);
           const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
           
