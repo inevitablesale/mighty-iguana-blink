@@ -128,6 +128,7 @@ serve(async (req) => {
         Job Posting: ${JSON.stringify(job)}
         Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
         **The "match_score" MUST be an integer between 1 and 10.**
+        **For "contract_value_assessment", analyze the job description for salary information. If a salary range is provided, state it and comment on its competitiveness. For example: "The salary range of $100,000 - $120,000 is competitive for this role." If no salary is provided, give a qualitative assessment (e.g., "High", "Medium") based on the role's seniority and industry standards.**
         **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
       `;
       const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
