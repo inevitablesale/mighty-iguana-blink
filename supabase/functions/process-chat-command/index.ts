@@ -169,36 +169,31 @@ serve(async (req) => {
           .filter(opp => opp.match_score >= 5)
           .sort((a, b) => b.match_score - a.match_score);
         
-        let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches:`;
+        let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches. I've started finding key contacts for these companies in the background.`;
 
-        // If no high-quality matches, look for similar ones
         if (opportunitiesToReturn.length === 0) {
           opportunitiesToReturn = enrichedOpportunities
             .filter(opp => opp.match_score >= 3)
             .sort((a, b) => b.match_score - a.match_score);
           
           if (opportunitiesToReturn.length > 0) {
-            responseText = "I couldn't find any strong matches for your exact query, but here are some similar opportunities that might be worth a look:";
+            responseText = "I couldn't find any strong matches for your exact query, but here are some similar opportunities that might be worth a look. I've started finding contacts for them too.";
           }
         }
 
-        // If still no results, ask for clarification
         if (opportunitiesToReturn.length === 0) {
             const followUpPrompt = `
               You are a helpful AI recruitment assistant. A search was performed based on the user's query, but after analysis, no high-quality or similar matches were found. Your task is to provide a helpful response that guides the user toward a more successful search.
-
               Original User Query: "${query}"
               Interpreted Search Parameters:
               - Job Title/Keywords: "${search_query}"
               - Location: "${location}"
               - Recruiter Specialty: "${recruiter_specialty}"
-
               Instructions:
               1.  Start by acknowledging that the initial search was too specific or that no strong matches were found in the current market.
               2.  Provide 2-3 concrete, actionable suggestions for how the user could refine their search. Frame these as bullet points.
               3.  The suggestions should be based on the interpreted search parameters. For example, suggest broadening the location, simplifying the job title, or removing a specific industry constraint from their specialty.
               4.  Keep the tone encouraging and helpful.
-
               Return a single JSON object with one key: "text". The value should be your complete, formatted response.
             `;
             
@@ -233,6 +228,18 @@ serve(async (req) => {
 
         const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
         if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
+
+        // ** NEW: Automatically create contact enrichment tasks **
+        const tasksToInsert = savedOpportunities.map(opp => ({
+            user_id: user.id,
+            opportunity_id: opp.id,
+            company_name: opp.company_name,
+            status: 'pending'
+        }));
+
+        if (tasksToInsert.length > 0) {
+            await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
+        }
 
         savedOpportunities.sort((a, b) => b.match_score - a.match_score);
 
