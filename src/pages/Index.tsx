@@ -31,43 +31,55 @@ export default function Index() {
     if (!query.trim() || isLoading) return;
 
     setIsLoading(true);
-    const userMessage: ChatMessageType = {
-      id: uuidv4(),
-      role: 'user',
-      text: query,
-    };
-
-    const loadingMessage: ChatMessageType = {
-      id: uuidv4(),
-      role: 'assistant',
-      isLoading: true,
-    };
-
-    setMessages((prev) => [...prev, userMessage, loadingMessage]);
+    const userMessage: ChatMessageType = { id: uuidv4(), role: 'user', text: query };
+    setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const { data, error } = await supabase.functions.invoke('process-chat-command', {
+      // First, show some featured opportunities so the user isn't waiting.
+      const { data: previewData } = await supabase.functions.invoke('get-featured-opportunities');
+      if (previewData?.opportunities && previewData.opportunities.length > 0) {
+        const previewMessage: ChatMessageType = {
+          id: uuidv4(),
+          role: 'assistant',
+          text: `While I search for opportunities related to "${query}", here are some of today's top-rated deals from the market radar:`,
+          opportunities: previewData.opportunities,
+        };
+        setMessages(prev => [...prev, previewMessage]);
+      }
+
+      // Now, add the loading indicator for the main search.
+      const loadingMessageId = uuidv4();
+      const loadingMessage: ChatMessageType = {
+        id: loadingMessageId,
+        role: 'assistant',
+        isLoading: true,
+      };
+      setMessages(prev => [...prev, loadingMessage]);
+
+      // Then, perform the main, slow search.
+      const { data: mainData, error: mainError } = await supabase.functions.invoke('process-chat-command', {
         body: { query },
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (mainError) {
+        throw new Error(mainError.message);
       }
-      
-      const assistantMessage: ChatMessageType = {
+
+      // Finally, replace the loading indicator with the final results.
+      const finalMessage: ChatMessageType = {
         id: uuidv4(),
         role: 'assistant',
-        text: data.text,
-        opportunities: data.opportunities,
-        searchParams: data.searchParams,
+        text: mainData.text,
+        opportunities: mainData.opportunities,
+        searchParams: mainData.searchParams,
       };
-
-      setMessages((prev) => [...prev.slice(0, -1), assistantMessage]);
+      setMessages(prev => prev.map(msg => msg.id === loadingMessageId ? finalMessage : msg));
 
     } catch (err) {
       const errorMessage = (err as Error).message;
       toast.error(errorMessage);
-      setMessages((prev) => prev.slice(0, -1));
+      // Clean up any leftover loading messages on error
+      setMessages(prev => prev.filter(msg => !msg.isLoading));
     } finally {
       setIsLoading(false);
     }
