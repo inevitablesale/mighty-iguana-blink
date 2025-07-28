@@ -152,6 +152,20 @@ serve(async (req) => {
       analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
       analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
 
+      // New Step: Get Crunchbase data
+      try {
+        const findCrunchbasePrompt = `What is the official Crunchbase company URL for "${analysisData.companyName}"? Return a single valid JSON object with one key: "crunchbaseUrl". If you cannot find it, return null for the value.`;
+        const crunchbaseResult = await callGemini(findCrunchbasePrompt, GEMINI_API_KEY);
+        if (crunchbaseResult && crunchbaseResult.crunchbaseUrl) {
+          const { data: crunchbaseData } = await supabaseAdmin.functions.invoke('get-crunchbase-data', {
+            body: { crunchbase_url: crunchbaseResult.crunchbaseUrl }
+          });
+          analysisData.company_data_scraped = crunchbaseData;
+        }
+      } catch (e) {
+        console.error(`Failed to get Crunchbase data for ${analysisData.companyName}:`, e.message);
+      }
+
       const { error: insertCacheError } = await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
       if (insertCacheError) console.error(`Failed to cache analysis for ${job.title}:`, insertCacheError.message);
       
@@ -183,6 +197,7 @@ serve(async (req) => {
           recruiter_angle: opp.recruiter_angle || 'N/A',
           key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
           linkedin_url_slug: opp.linkedin_url_slug || null,
+          company_data_scraped: opp.company_data_scraped || null,
         };
       })
       .filter(opp => opp !== null && opp.company_name && opp.role);
