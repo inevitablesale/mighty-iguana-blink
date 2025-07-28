@@ -55,15 +55,6 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
       if (error) throw error;
       toast.success(`Agent "${agent.name}" deleted.`, { id: toastId });
       onDelete(agent.id);
-
-      // Trigger intent profile update in the background
-      supabase.functions.invoke('update-user-intent-profile', {
-        body: { userId: agent.user_id },
-      }).then(({ error: funcError }) => {
-        if (funcError) console.error("Failed to update intent profile after deletion:", funcError.message);
-        else console.log("User intent profile update triggered after deletion.");
-      });
-
     } catch (err) {
       toast.error(`Failed to delete agent.`, { id: toastId, description: (err as Error).message });
     }
