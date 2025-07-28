@@ -94,6 +94,17 @@ serve(async (req) => {
     if (userRes.error) throw new Error("Authentication failed");
     const user = userRes.data.user;
 
+    // Decrement discovery credit before proceeding
+    const supabaseUserClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    );
+    const { error: creditError } = await supabaseUserClient.rpc('decrement_discovery_credit');
+    if (creditError) {
+      throw new Error(`Not enough discovery credits to run agent. Please contact support.`);
+    }
+
     const { data: agent, error: agentError } = await supabaseAdmin.from('agents').select('prompt, autonomy_level, search_lookback_hours, max_results, job_type, is_remote, country').eq('id', agentId).eq('user_id', user.id).single();
     if (agentError) throw new Error(`Failed to fetch agent: ${agentError.message}`);
 

@@ -11,7 +11,7 @@ export interface UserProfile {
 }
 
 export interface UserCredits {
-  contact_credits: number;
+  discovery_credits: number;
   export_credits: number;
 }
 
