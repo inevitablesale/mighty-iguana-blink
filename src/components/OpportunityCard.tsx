@@ -1,8 +1,8 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Opportunity } from "@/types";
 import { ArrowRight } from "lucide-react";
+import { GenerateContractDialog } from "./GenerateContractDialog";
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -16,28 +16,30 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">{opportunity.company_name}</CardTitle>
-            <CardDescription>{opportunity.role}</CardDescription>
+    <GenerateContractDialog opportunity={opportunity}>
+      <Card className="w-full cursor-pointer hover:border-primary transition-colors bg-card/50">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg">{opportunity.company_name}</CardTitle>
+              <CardDescription>{opportunity.role}</CardDescription>
+            </div>
+            <Badge className={`text-white ${getMatchColor(opportunity.match_score)}`}>
+              Match: {opportunity.match_score}/10
+            </Badge>
           </div>
-          <Badge className={`text-white ${getMatchColor(opportunity.match_score)}`}>
-            Match: {opportunity.match_score}/10
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {opportunity.key_signal_for_outreach}
-        </p>
-      </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button variant="outline" size="sm">
-          Generate Contract <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </CardFooter>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {opportunity.key_signal_for_outreach}
+          </p>
+        </CardContent>
+        <CardFooter className="flex justify-end">
+          <div className="flex items-center text-primary font-semibold text-sm">
+            Generate Contract <ArrowRight className="ml-2 h-4 w-4" />
+          </div>
+        </CardFooter>
+      </Card>
+    </GenerateContractDialog>
   );
 }
