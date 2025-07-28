@@ -32,10 +32,12 @@ export type CampaignStatus = 'draft' | 'contacted' | 'replied' | 'sourcing' | 'i
 
 export interface Campaign {
   id: string;
+  user_id: string;
+  opportunity_id: string;
   company_name: string;
   role: string;
-  subject: string;
-  body: string;
+  subject: string | null;
+  body: string | null;
   status: CampaignStatus;
   contact_name: string | null;
   contact_email: string | null;
