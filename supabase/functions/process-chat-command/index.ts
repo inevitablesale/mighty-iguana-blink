@@ -134,12 +134,15 @@ serve(async (req) => {
             
             **"match_score"**: MUST be an integer between 1 and 10.
             
-            **"contract_value_assessment"**: This is the most critical field. Follow these rules precisely:
-            1.  **Detect Salary Range:** Analyze the job description for a salary range (e.g., "$123,400 - $185,100").
-            2.  **Calculate Fee:** If a range is found, you MUST use this formula: Estimated Fee = ( (Minimum Salary + Maximum Salary) / 2 ) * 0.20.
-            3.  **Format Output:** You MUST return the result as a string formatted *EXACTLY* as 'Est. Fee: $XX,XXX'. For example, if the fee is $30,850, return "Est. Fee: $30,850".
-            4.  **Handle Missing Salary:** If and ONLY if no salary range is found, return 'High Value' or 'Medium Value'.
-            5.  **CRITICAL:** DO NOT, under any circumstances, return a sentence like "The salary range is...". Your entire output for this key MUST be either the calculated fee string or a qualitative value. No other format is acceptable.
+            **"contract_value_assessment"**: This is the most critical field. Your output for this key MUST be either a formatted string 'Est. Fee: $XX,XXX' or a qualitative value ('High Value', 'Medium Value'). NO OTHER FORMAT IS ACCEPTABLE.
+            - **Rule 1: Calculation is Mandatory if Salary Exists.** If you find a salary range in the job description, you MUST perform the calculation.
+            - **Formula:** Estimated Fee = ( (Minimum Salary + Maximum Salary) / 2 ) * 0.20.
+            - **Example:**
+                - If job description contains: "The annual salary for this position is $140,000 to $160,000."
+                - Calculation: (($140,000 + $160,000) / 2) * 0.20 = $30,000.
+                - Your output for this key MUST be the string: "Est. Fee: $30,000".
+            - **Rule 2: Fallback for Missing Salary.** If and ONLY if no salary range is found, return 'High Value' or 'Medium Value'.
+            - **CRITICAL:** Do not write sentences. Do not explain your reasoning. Do not say "The salary range is...". Adhere strictly to the output format.
 
             **"placement_difficulty"**: MUST be one of 'Low', 'Medium', or 'High'.
             **"hiring_urgency"**: MUST be one of 'Low', 'Medium', or 'High'.
