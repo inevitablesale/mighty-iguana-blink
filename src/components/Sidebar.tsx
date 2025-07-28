@@ -1,4 +1,4 @@
-import { Home, Target, Briefcase, Bot, Award, FileText } from "lucide-react";
+import { Home, Target, Briefcase, Bot, Award, FileText, Lightbulb } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { SweaterIcon } from "./SweaterIcon";
 import { useExtension } from "@/context/ExtensionContext";
@@ -39,6 +39,10 @@ export function Sidebar(): JSX.Element {
             <NavLink to="/playbooks" className={getLinkClassName}>
               <Bot className="h-4 w-4" />
               Playbooks
+            </NavLink>
+            <NavLink to="/insights" className={getLinkClassName}>
+              <Lightbulb className="h-4 w-4" />
+              Insights
             </NavLink>
             <NavLink to="/placements" className={getLinkClassName}>
               <Award className="h-4 w-4" />

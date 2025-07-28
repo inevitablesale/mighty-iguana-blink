@@ -135,3 +135,11 @@ export interface ContactEvaluation {
   status: 'Good Match' | 'Potential Fit' | 'Not a Match';
   reasoning: string;
 }
+
+export interface TalentPoolProfile {
+  name: string | null;
+  title: string | null;
+  company: string | null;
+  linkedin_url: string | null;
+  email: string | null;
+}
