@@ -7,19 +7,19 @@ interface ExamplePromptsProps {
 
 const prompts = [
   {
-    title: "Find Fintech Startups",
-    description: "in New York that just raised a Series B",
-    fullPrompt: "Find me fintech startups in New York that just raised a Series B",
+    title: "Find Recently Funded Startups",
+    description: "in SF that are hiring for sales leaders",
+    fullPrompt: "Find me recently funded startups in San Francisco that are hiring for sales leaders.",
   },
   {
-    title: "Search for Remote Sales Roles",
-    description: "at B2B SaaS companies for senior account executives",
-    fullPrompt: "Show me B2B SaaS companies hiring for remote senior account executives",
+    title: "Identify Remote-First Companies",
+    description: "hiring for senior software engineers",
+    fullPrompt: "Show me remote-first B2B SaaS companies hiring for senior software engineers.",
   },
   {
-    title: "Look for Gaming Jobs",
-    description: "in London for a Lead Producer position",
-    fullPrompt: "Are there any gaming companies in London looking for a Lead Producer?",
+    title: "Discover Biotech Opportunities",
+    description: "in Boston looking for research scientists",
+    fullPrompt: "Which biotech firms in Boston are looking for research scientists?",
   },
 ];
 
