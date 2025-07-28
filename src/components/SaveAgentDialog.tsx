@@ -47,6 +47,15 @@ export function SaveAgentDialog({ searchParams, children }: SaveAgentDialogProps
       toast.success(`Agent "${agentName}" saved successfully!`, {
         description: "It will now run in the background to find new opportunities for you.",
       });
+
+      // Trigger intent profile update in the background
+      supabase.functions.invoke('update-user-intent-profile', {
+        body: { userId: user.id },
+      }).then(({ error: funcError }) => {
+        if (funcError) console.error("Failed to update intent profile:", funcError.message);
+        else console.log("User intent profile update triggered.");
+      });
+
       setIsOpen(false);
       setAgentName('');
     } catch (err) {
