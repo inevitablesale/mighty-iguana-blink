@@ -36,7 +36,7 @@ const SystemResponse = ({ item }: { item: FeedItem }) => (
                     <SaveAgentDialog searchParams={item.content.searchParams}>
                         <Button variant="secondary">
                             <Save className="mr-2 h-4 w-4" />
-                            Automate this Search
+                            Create an Agent
                         </Button>
                     </SaveAgentDialog>
                 </div>

@@ -121,6 +121,13 @@ export interface Agent {
   autonomy_level: 'manual' | 'semi-automatic' | 'automatic';
 }
 
+export interface Conversation {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+}
+
 export interface FeedItem {
   id: string;
   user_id: string;
@@ -134,4 +141,5 @@ export interface FeedItem {
     searchParams?: SearchParams;
   };
   created_at: string;
+  conversation_id?: string;
 }

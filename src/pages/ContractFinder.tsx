@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FeedItem } from '@/types';
 import { toast } from 'sonner';
@@ -15,11 +15,18 @@ export default function ContractFinder() {
   const [input, setInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
+  const { conversationId } = useParams();
   const feedEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchFeedItems = async () => {
       setLoading(true);
+      setFeedItems([]);
+      if (!conversationId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -28,19 +35,19 @@ export default function ContractFinder() {
           .from('feed_items')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: true })
-          .limit(50);
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
-        setFeedItems(data);
+        setFeedItems(data || []);
       } catch (err) {
-        toast.error("Failed to fetch your activity feed.", { description: (err as Error).message });
+        toast.error("Failed to fetch chat history.", { description: (err as Error).message });
       } finally {
         setLoading(false);
       }
     };
     fetchFeedItems();
-  }, []);
+  }, [conversationId]);
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,6 +68,24 @@ export default function ContractFinder() {
         return;
     }
 
+    let currentConversationId = conversationId;
+
+    if (!currentConversationId) {
+      const { data: newConversation, error: newConvoError } = await supabase
+        .from('conversations')
+        .insert({ user_id: user.id, title: query })
+        .select()
+        .single();
+      
+      if (newConvoError) {
+        toast.error("Failed to create new chat.", { description: newConvoError.message });
+        setIsSearching(false);
+        return;
+      }
+      currentConversationId = newConversation.id;
+      navigate(`/c/${currentConversationId}`, { replace: true });
+    }
+
     const userQueryItem: FeedItem = {
       id: crypto.randomUUID(),
       user_id: user.id,
@@ -68,9 +93,10 @@ export default function ContractFinder() {
       role: 'user',
       content: { query },
       created_at: new Date().toISOString(),
+      conversation_id: currentConversationId,
     };
     setFeedItems(prev => [...prev, userQueryItem]);
-    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
+    await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined, conversation_id: currentConversationId });
 
     const thinkingId = crypto.randomUUID();
     const thinkingItem: FeedItem = {
@@ -80,6 +106,7 @@ export default function ContractFinder() {
         role: 'system',
         content: { agentName: 'Coogi Assistant', summary: 'Thinking...' },
         created_at: new Date().toISOString(),
+        conversation_id: currentConversationId,
     };
     setFeedItems(prev => [...prev, thinkingItem]);
 
@@ -103,18 +130,12 @@ export default function ContractFinder() {
           searchParams: data.searchParams,
         },
         created_at: new Date().toISOString(),
+        conversation_id: currentConversationId,
       };
       
       setFeedItems(prev => [...prev.filter(item => item.id !== thinkingId), systemResponse]);
       await supabase.from('feed_items').insert({ ...systemResponse, id: undefined });
 
-      if (data.opportunities && data.opportunities.length > 0) {
-        toast.success(`Found ${data.opportunities.length} new deals!`, {
-          description: "They are now in your feed below."
-        });
-      } else {
-        toast.info("No new deals found.", { description: "Try broadening your search." });
-      }
     } catch (err) {
       setFeedItems(prev => prev.filter(item => item.id !== thinkingId));
       toast.error("Search failed", { description: (err as Error).message });

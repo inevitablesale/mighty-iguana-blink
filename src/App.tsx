@@ -57,6 +57,7 @@ const App = () => {
                 element={session ? <AppLayout /> : <Navigate to="/login" />}
               >
                 <Route index element={<ContractFinder />} />
+                <Route path="c/:conversationId" element={<ContractFinder />} />
                 <Route path="market" element={<Market />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="pipeline" element={<Pipeline />} />

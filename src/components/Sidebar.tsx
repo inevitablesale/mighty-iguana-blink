@@ -6,7 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Settings, Bot, Briefcase, Flame, MessageSquare } from "lucide-react";
+import { LogOut, Settings, Bot, Briefcase, Flame, PlusCircle } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -22,6 +22,7 @@ import { useExtension } from "@/context/ExtensionContext";
 import { ExtensionStatusIndicator } from "./ExtensionStatusIndicator";
 import { ExtensionLogDialog } from "./ExtensionLogDialog";
 import { ProfileDialog } from "./ProfileDialog";
+import { ChatHistory } from "./ChatHistory";
 
 export function Sidebar() {
   const navigate = useNavigate();
@@ -49,11 +50,11 @@ export function Sidebar() {
           <span className="text-lg">Coogi AI</span>
         </a>
       </div>
-      <div className="flex-1 space-y-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 overflow-y-auto flex flex-col">
         <nav className="space-y-1">
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
-            <MessageSquare className="mr-3 h-5 w-5" />
-            Contract Finder
+            <PlusCircle className="mr-3 h-5 w-5" />
+            New Chat
           </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/pipeline')}>
             <Briefcase className="mr-3 h-5 w-5" />
@@ -68,6 +69,10 @@ export function Sidebar() {
             Market Intel
           </Button>
         </nav>
+        <div className="flex-grow flex flex-col space-y-2 min-h-0">
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">History</h3>
+          <ChatHistory />
+        </div>
         <div>
           <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Extension Status</h3>
           <div className="flex items-center gap-2 px-3">
@@ -76,7 +81,7 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <div className="mt-auto">
+      <div className="mt-auto pt-6 border-t border-white/10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start items-center gap-3 p-2 h-auto text-left">
@@ -88,7 +93,7 @@ export function Sidebar() {
                   <AvatarFallback className="bg-primary text-primary-foreground">{getInitials()}</AvatarFallback>
                 </Avatar>
               )}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 {loading ? (
                   <>
                     <Skeleton className="h-4 w-24 mb-1" />
@@ -96,7 +101,7 @@ export function Sidebar() {
                   </>
                 ) : (
                   <>
-                    <span className="font-semibold">{profile?.first_name} {profile?.last_name}</span>
+                    <span className="font-semibold truncate">{profile?.first_name} {profile?.last_name}</span>
                     <span className="text-xs text-muted-foreground truncate">{profile?.email}</span>
                   </>
                 )}
