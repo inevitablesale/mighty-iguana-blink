@@ -165,13 +165,27 @@ serve(async (req) => {
           }
         }
 
-        const highQualityOpportunities = enrichedOpportunities
+        let opportunitiesToReturn = enrichedOpportunities
           .filter(opp => opp.match_score >= 5)
           .sort((a, b) => b.match_score - a.match_score);
+        
+        let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches:`;
 
-        if (highQualityOpportunities.length === 0) {
+        // If no high-quality matches, look for similar ones
+        if (opportunitiesToReturn.length === 0) {
+          opportunitiesToReturn = enrichedOpportunities
+            .filter(opp => opp.match_score >= 3)
+            .sort((a, b) => b.match_score - a.match_score);
+          
+          if (opportunitiesToReturn.length > 0) {
+            responseText = "I couldn't find any strong matches for your exact query, but here are some similar opportunities that might be worth a look:";
+          }
+        }
+
+        // If still no results, ask for clarification
+        if (opportunitiesToReturn.length === 0) {
             const followUpPrompt = `
-              You are a helpful AI recruitment assistant. A search was performed based on the user's query, but after analysis, no high-quality matches were found. Your task is to provide a helpful response that guides the user toward a more successful search.
+              You are a helpful AI recruitment assistant. A search was performed based on the user's query, but after analysis, no high-quality or similar matches were found. Your task is to provide a helpful response that guides the user toward a more successful search.
 
               Original User Query: "${query}"
               Interpreted Search Parameters:
@@ -196,7 +210,7 @@ serve(async (req) => {
             });
         }
 
-        const opportunitiesToInsert = highQualityOpportunities.map(opp => ({
+        const opportunitiesToInsert = opportunitiesToReturn.map(opp => ({
             user_id: user.id,
             company_name: opp.companyName || opp.company_name,
             role: opp.role,
@@ -223,7 +237,7 @@ serve(async (req) => {
         savedOpportunities.sort((a, b) => b.match_score - a.match_score);
 
         return new Response(JSON.stringify({
-          text: `I found ${savedOpportunities.length} potential deals for you. Here are the top matches:`,
+          text: responseText,
           opportunities: savedOpportunities,
           searchParams: {
             recruiter_specialty: recruiter_specialty
