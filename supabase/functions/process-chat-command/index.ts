@@ -131,42 +131,21 @@ serve(async (req) => {
             Recruiter's specialty: "${recruiter_specialty}"
             Job Posting: ${JSON.stringify(job)}
             
-            Your task is to return a single, valid JSON object with the following keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "estimated_time_to_fill", "client_demand_signal", "location_flexibility", "seniority_level", "likely_decision_maker".
+            Your task is to return a single, valid JSON object with all the requested keys.
 
-            **Detailed Instructions for Intelligence Fields:**
+            **"match_score" Instructions:**
+            - This score (1-10) MUST reflect how relevant this job is to the recruiter's specialty.
+            - A score of 8-10 is a perfect bullseye.
+            - A score of 5-7 is a strong potential fit that is worth investigating.
+            - Be realistic. Do not be afraid to assign low scores if the job is a poor fit.
 
-            - "contract_value_assessment":
-              1. Check for an explicit salary range in the job data.
-              2. If found, calculate the average and take 20% for the fee. Return "Est. Fee: $XX,XXX".
-              3. If not found, YOU MUST estimate a realistic market-rate salary for the role/location, then do the same calculation.
-              4. DO NOT return qualitative labels like "High Value".
+            **"contract_value_assessment" Instructions:**
+            - If a salary is in the job data, calculate 20% of the average and return "Est. Fee: $XX,XXX".
+            - If no salary is found, YOU MUST estimate a realistic market-rate salary for the role/location, then do the same calculation.
+            - DO NOT return qualitative labels like "High Value".
 
-            - "hiring_urgency":
-              1. Analyze job age (from \`date_posted\`), if it's a repost, and company hiring velocity (inferred from description).
-              2. Return one of: 'High', 'Medium', or 'Low'.
-
-            - "placement_difficulty":
-              1. Analyze the required skills. Count niche technologies as increasing difficulty.
-              2. Return one of: 'High', 'Medium', or 'Low'.
-
-            - "estimated_time_to_fill":
-              1. Based on role category, complexity, and urgency, model a likely fill window.
-              2. Return a string like "25-40 days".
-
-            - "client_demand_signal":
-              1. Infer from the job description if the company is hiring for multiple roles or is in a growth phase.
-              2. Return a descriptive string like "High - multiple roles open" or "Standard - single position".
-
-            - "location_flexibility":
-              1. Based on the job data, determine if the role is "Remote", "Hybrid", or "Onsite".
-
-            - "seniority_level":
-              1. Determine the job's seniority from its title and description.
-              2. Return one of: "Executive", "Senior", "Mid-level", "Entry-level".
-
-            - "likely_decision_maker":
-              1. Infer the most likely job title of the hiring manager or decision-maker for this role.
-              2. Example: For a "Software Engineer" role, this might be "Engineering Manager" or "Director of Engineering".
+            **Other Fields to Generate:**
+            "companyName", "role", "location", "company_overview", "hiring_urgency" ('High', 'Medium', 'Low'), "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty" ('High', 'Medium', 'Low'), "estimated_time_to_fill", "client_demand_signal", "location_flexibility" ('Remote', 'Hybrid', 'Onsite'), "seniority_level" ('Executive', 'Senior', 'Mid-level', 'Entry-level'), "likely_decision_maker".
           `;
           const analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
           
@@ -187,11 +166,34 @@ serve(async (req) => {
         }
 
         const highQualityOpportunities = enrichedOpportunities
-          .filter(opp => opp.match_score >= 6)
+          .filter(opp => opp.match_score >= 5)
           .sort((a, b) => b.match_score - a.match_score);
 
         if (highQualityOpportunities.length === 0) {
-            return new Response(JSON.stringify({ text: "I found some roles, but after analysis, none seemed to be a strong match. Try refining your search." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            const followUpPrompt = `
+              You are a helpful AI recruitment assistant. A search was performed based on the user's query, but after analysis, no high-quality matches were found. Your task is to provide a helpful response that guides the user toward a more successful search.
+
+              Original User Query: "${query}"
+              Interpreted Search Parameters:
+              - Job Title/Keywords: "${search_query}"
+              - Location: "${location}"
+              - Recruiter Specialty: "${recruiter_specialty}"
+
+              Instructions:
+              1.  Start by acknowledging that the initial search was too specific or that no strong matches were found in the current market.
+              2.  Provide 2-3 concrete, actionable suggestions for how the user could refine their search. Frame these as bullet points.
+              3.  The suggestions should be based on the interpreted search parameters. For example, suggest broadening the location, simplifying the job title, or removing a specific industry constraint from their specialty.
+              4.  Keep the tone encouraging and helpful.
+
+              Return a single JSON object with one key: "text". The value should be your complete, formatted response.
+            `;
+            
+            const followUpResponse = await callGemini(followUpPrompt, GEMINI_API_KEY);
+
+            return new Response(JSON.stringify({ text: followUpResponse.text }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            });
         }
 
         const opportunitiesToInsert = highQualityOpportunities.map(opp => ({
