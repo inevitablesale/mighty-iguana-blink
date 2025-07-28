@@ -88,19 +88,24 @@ serve(async (req) => {
 
     let allContacts = [];
 
+    const companyNameEncoded = encodeURIComponent(opportunity.company_name);
+    const titles = [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"];
+    const titlesEncoded = titles.map(t => `personTitles[]=${encodeURIComponent(t)}`).join('&');
+    const apolloUrl = `https://app.apollo.io/#/people?organizationName=${companyNameEncoded}&${titlesEncoded}`;
+
     const apolloInput = { 
-        "company_names": [opportunity.company_name], 
-        "person_titles": [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"], 
-        "max_people_per_company": 10, 
-        "person_phone_numbers": "if_available",
-        "include_email": true 
+        "url": apolloUrl,
+        "max_result": 10,
+        "include_email": true
     };
-    const apolloResults = await callApifyActor('microworlds~apollo-io-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
+    
+    const apolloResults = await callApifyActor('microworlds~apollo-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
+    
     allContacts.push(...apolloResults.map(r => ({ 
         name: r.name, 
         job_title: r.title, 
         email: r.email, 
-        phone_number: r.phone,
+        phone_number: r.phone_numbers ? r.phone_numbers[0] : null,
         source: 'Apollo' 
     })).filter(c => c.email || c.phone_number));
 

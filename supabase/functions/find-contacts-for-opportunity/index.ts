@@ -55,20 +55,24 @@ serve(async (req) => {
     const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
     if (!APIFY_API_TOKEN) throw new Error("APIFY_API_TOKEN secret is not set.");
 
+    const companyNameEncoded = encodeURIComponent(opportunity.company_name);
+    const titles = [opportunity.role, "Hiring Manager", "Talent Acquisition", "Recruiter", "Head of Talent", "Chief People Officer", "VP of People"];
+    const titlesEncoded = titles.map(t => `personTitles[]=${encodeURIComponent(t)}`).join('&');
+    const apolloUrl = `https://app.apollo.io/#/people?organizationName=${companyNameEncoded}&${titlesEncoded}`;
+
     const apolloInput = { 
-        "company_names": [opportunity.company_name], 
-        "person_titles": [opportunity.role, "Hiring Manager", "Talent Acquisition", "Recruiter", "Head of Talent", "Chief People Officer", "VP of People"], 
-        "max_people_per_company": 10, 
-        "person_phone_numbers": "if_available",
-        "include_email": true 
+        "url": apolloUrl,
+        "max_result": 10,
+        "include_email": true
     };
-    const apolloResults = await callApifyActor('microworlds~apollo-io-scraper', apolloInput, APIFY_API_TOKEN);
+    
+    const apolloResults = await callApifyActor('microworlds~apollo-scraper', apolloInput, APIFY_API_TOKEN);
 
     const contacts = apolloResults.map(r => ({ 
         name: r.name, 
         job_title: r.title, 
         email: r.email,
-        phone_number: r.phone
+        phone_number: r.phone_numbers ? r.phone_numbers[0] : null
     })).filter(c => c.email);
 
     if (contacts.length > 0) {
