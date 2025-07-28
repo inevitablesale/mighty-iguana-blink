@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2, Bot } from 'lucide-react';
 import { FeedItemCard } from '@/components/FeedItemCard';
+import { PresetPrompts } from '@/components/PresetPrompts';
 
 export default function ContractFinder() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
@@ -45,11 +46,9 @@ export default function ContractFinder() {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [feedItems]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isSearching) return;
+  const executeSearch = async (query: string) => {
+    if (!query.trim() || isSearching) return;
     
-    const query = input;
     setInput('');
     setIsSearching(true);
     
@@ -123,6 +122,11 @@ export default function ContractFinder() {
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(input);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <main className="flex-1 overflow-y-auto p-4">
@@ -138,8 +142,11 @@ export default function ContractFinder() {
               <Bot className="h-12 w-12 mb-4 text-primary" />
               <h3 className="text-xl font-semibold text-foreground">AI Search powered by ContractGPT</h3>
               <p className="mt-2 max-w-md">
-                This is your command center. Tell me what kind of deals you're looking for, and I'll get to work. For example, try: "Find me senior sales roles at B2B SaaS companies in New York."
+                This is your command center. Tell me what kind of deals you're looking for, and I'll get to work.
               </p>
+              <div className="mt-8 w-full max-w-2xl">
+                <PresetPrompts onPromptSelect={executeSearch} />
+              </div>
             </div>
           )}
           <div ref={feedEndRef} />
@@ -147,7 +154,7 @@ export default function ContractFinder() {
       </main>
       <footer className="p-4 border-t border-white/10 bg-background/90 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto">
-            <form onSubmit={handleSearch} className="relative">
+            <form onSubmit={handleFormSubmit} className="relative">
               <Textarea
                 placeholder="Find new deals... e.g., 'Series A fintechs in NY hiring sales leaders'"
                 className="min-h-[48px] rounded-2xl resize-none p-4 pr-16 bg-black/30 border-white/20 text-white placeholder:text-white/60 focus-visible:ring-1 focus-visible:ring-primary"
@@ -156,7 +163,7 @@ export default function ContractFinder() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSearch(e);
+                    handleFormSubmit(e);
                   }
                 }}
                 disabled={isSearching}
