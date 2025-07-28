@@ -13,7 +13,6 @@ import DealStream from "./pages/DealStream";
 import Chat from "./pages/Chat";
 import Campaigns from "./pages/Campaigns";
 import Opportunities from "./pages/Opportunities";
-import CommunityBounties from "./pages/CommunityBounties";
 import Deal from "./pages/Deal";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -60,7 +59,6 @@ const App = () => {
                 <Route index element={<DealStream />} />
                 <Route path="c" element={<Chat />} />
                 <Route path="c/:conversationId" element={<Chat />} />
-                <Route path="community-bounties" element={<CommunityBounties />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="opportunities" element={<Opportunities />} />
                 <Route path="deal/:opportunityId" element={<Deal />} />
