@@ -128,12 +128,17 @@ serve(async (req) => {
     // Check for automatic outreach
     if (opportunity.agent_id) {
         const { data: agent } = await supabaseAdmin.from('agents').select('autonomy_level').eq('id', opportunity.agent_id).single();
-        if (agent && agent.autonomy_level === 'automatic') {
+        if (agent && (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic')) {
             const authHeader = req.headers.get('Authorization');
-            for (const contact of savedContacts) {
+            const topContact = savedContacts.find(c => c.email); // Find the first contact with an email
+            if (topContact) {
                 await supabaseAdmin.functions.invoke('generate-outreach-for-opportunity', {
                     headers: { 'Authorization': authHeader },
-                    body: { opportunityId, contact, isAutomatic: true }
+                    body: { 
+                      opportunityId, 
+                      contact: topContact, 
+                      isAutomatic: agent.autonomy_level === 'automatic' 
+                    }
                 });
             }
         }

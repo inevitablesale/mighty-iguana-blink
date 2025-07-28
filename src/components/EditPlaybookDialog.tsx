@@ -190,21 +190,21 @@ export function EditPlaybookDialog({ playbook, onPlaybookUpdated, children }: Ed
                 <RadioGroupItem value="manual" id="edit-manual" />
                 <Label htmlFor="edit-manual" className="font-normal">
                   <span className="font-semibold">Manual</span>
-                  <p className="text-sm text-muted-foreground">Playbook finds opportunities. I will manually approve them to draft outreach.</p>
+                  <p className="text-sm text-muted-foreground">Finds leads. I will manually find contacts and draft outreach.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
                 <RadioGroupItem value="semi-automatic" id="edit-semi-automatic" />
                 <Label htmlFor="edit-semi-automatic" className="font-normal">
                   <span className="font-semibold">Semi-Automatic</span>
-                  <p className="text-sm text-muted-foreground">Playbook finds opportunities and drafts outreach. I will review and send emails.</p>
+                  <p className="text-sm text-muted-foreground">Finds leads, finds contacts, and drafts outreach. I will review and send.</p>
                 </Label>
               </div>
               <div className="flex items-start space-x-3 rounded-md border p-3">
                 <RadioGroupItem value="automatic" id="edit-automatic" />
                 <Label htmlFor="automatic" className="font-normal">
                   <span className="font-semibold">Automatic</span>
-                  <p className="text-sm text-muted-foreground">Playbook finds opportunities, drafts outreach, and sends emails automatically.</p>
+                  <p className="text-sm text-muted-foreground">Finds leads, finds contacts, drafts outreach, and sends emails automatically.</p>
                 </Label>
               </div>
             </RadioGroup>
