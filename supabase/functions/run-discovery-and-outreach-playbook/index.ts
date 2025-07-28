@@ -112,6 +112,7 @@ serve(async (req) => {
     const { search_query: searchQuery, location, sites } = queryExtractionResult;
     if (!searchQuery || !location || !sites) throw new Error("AI failed to extract search parameters.");
 
+    // Per your instructions, using enforce_annual_salary=true to get roles with salary data.
     let scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}&enforce_annual_salary=true`;
     if (agent.country) scrapingUrl += `&country_indeed=${agent.country}`;
     if (agent.job_type) scrapingUrl += `&job_type=${agent.job_type}`;
@@ -128,6 +129,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: `Agent ran but found no new job opportunities.` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    // Per your instructions, filtering for roles with salary and sorting by highest amount first.
     const sortedJobs = rawJobResults
       .filter(job => job.max_amount && job.max_amount > 0)
       .sort((a, b) => b.max_amount - a.max_amount);
