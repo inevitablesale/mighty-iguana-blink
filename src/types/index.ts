@@ -128,6 +128,14 @@ export interface Agent {
   created_at: string;
   last_run_at: string | null;
   autonomy_level: 'manual' | 'semi-automatic' | 'automatic';
+  search_lookback_hours: number;
+  max_results: number;
+  job_type: string | null;
+  is_remote: boolean;
+  country: string | null;
+  site_names: string[];
+  distance: number;
+  google_search_term?: string | null;
 }
 
 export interface Conversation {

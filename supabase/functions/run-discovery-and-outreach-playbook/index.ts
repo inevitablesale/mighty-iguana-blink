@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- Helper functions from other files ---
+// --- Helper functions ---
 async function callGemini(prompt, apiKey) {
   const geminiResponse = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -73,11 +73,26 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     // Step 1: Find relevant jobs
-    const searchQueryPrompt = `Based on the following recruiter specialty, extract a search query and location. Specialty: "${agent.prompt}". Return JSON with "search_query", "location", "sites".`;
-    const { search_query, location, sites } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
+    const searchQueryPrompt = `Based on the following recruiter specialty, extract a search query and location. Specialty: "${agent.prompt}". Return JSON with "search_query" and "location".`;
+    const { search_query, location } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
     
-    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=${agent.max_results}&enforce_annual_salary=true&hours_old=24`;
-    const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
+    const params = new URLSearchParams({
+      query: search_query,
+      location: location,
+      results: agent.max_results || 20,
+      enforce_annual_salary: 'true',
+    });
+
+    if (agent.site_names && agent.site_names.length > 0) params.append('sites', agent.site_names.join(','));
+    if (agent.search_lookback_hours) params.append('hours_old', agent.search_lookback_hours);
+    if (agent.job_type) params.append('job_type', agent.job_type);
+    if (agent.is_remote) params.append('is_remote', 'true');
+    if (agent.distance) params.append('distance', agent.distance);
+    if (agent.country) params.append('country_indeed', agent.country);
+    if (agent.google_search_term) params.append('google_search_term', agent.google_search_term);
+
+    const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?${params.toString()}`;
+    const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(60000) });
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const rawJobResults = (await scrapingResponse.json())?.jobs;
 
