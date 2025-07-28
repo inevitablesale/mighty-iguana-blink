@@ -45,6 +45,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log("[score-proactive-opportunities] Function invoked.");
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -57,8 +58,12 @@ serve(async (req) => {
       .limit(20); // Process in batches
 
     if (oppError) throw new Error(`Failed to fetch new opportunities: ${oppError.message}`);
+    
+    console.log(`[score-proactive-opportunities] Found ${opportunities?.length || 0} new opportunities to score.`);
     if (!opportunities || opportunities.length === 0) {
-      return new Response(JSON.stringify({ message: "No new opportunities to score." }), { status: 200, headers: corsHeaders });
+      const message = "No new opportunities to score.";
+      console.log(`[score-proactive-opportunities] Exiting cleanly: ${message}`);
+      return new Response(JSON.stringify({ message }), { status: 200, headers: corsHeaders });
     }
 
     const { data: profiles, error: profileError } = await supabaseAdmin
@@ -67,14 +72,19 @@ serve(async (req) => {
       .not('intent_profile', 'is', null);
 
     if (profileError) throw new Error(`Failed to fetch user profiles: ${profileError.message}`);
+
+    console.log(`[score-proactive-opportunities] Found ${profiles?.length || 0} user profiles with intent.`);
     if (!profiles || profiles.length === 0) {
-      return new Response(JSON.stringify({ message: "No user profiles with intent found to score against." }), { status: 200, headers: corsHeaders });
+      const message = "No user profiles with intent found to score against.";
+      console.log(`[score-proactive-opportunities] Exiting cleanly: ${message}`);
+      return new Response(JSON.stringify({ message }), { status: 200, headers: corsHeaders });
     }
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     let scoredCount = 0;
+    console.log(`[score-proactive-opportunities] Starting to score ${opportunities.length} opportunities against ${profiles.length} profiles.`);
 
     for (const opportunity of opportunities) {
       const profilesForPrompt = profiles.map(p => ({ userId: p.id, profile: p.intent_profile.summary }));
@@ -128,7 +138,9 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ message: `Scoring complete. Matched ${scoredCount} opportunities to users.` }), {
+    const finalMessage = `Scoring complete. Matched ${scoredCount} of ${opportunities.length} opportunities to users.`;
+    console.log(`[score-proactive-opportunities] ${finalMessage}`);
+    return new Response(JSON.stringify({ message: finalMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

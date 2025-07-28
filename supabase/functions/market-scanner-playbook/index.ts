@@ -43,8 +43,11 @@ serve(async (req) => {
     const rawJobResults = scrapingData?.jobs;
 
     if (!rawJobResults || rawJobResults.length === 0) {
-      return new Response(JSON.stringify({ message: "Market scanner ran but found no new jobs in the last hour." }), { status: 200, headers: corsHeaders });
+      const message = "Market scanner ran but found no new jobs in the last hour.";
+      console.log(`[market-scanner-playbook] ${message}`);
+      return new Response(JSON.stringify({ message }), { status: 200, headers: corsHeaders });
     }
+    console.log(`[market-scanner-playbook] Fetched ${rawJobResults.length} raw jobs from JobSpy.`);
 
     // UPDATED: Calculate hash for each job before inserting.
     const opportunitiesToInsert = await Promise.all(rawJobResults.map(async (job) => {
@@ -56,6 +59,7 @@ serve(async (req) => {
         job_hash: hash,
       };
     }));
+    console.log(`[market-scanner-playbook] Prepared ${opportunitiesToInsert.length} jobs for insertion.`);
 
     // UPDATED: Use 'upsert' with 'ignore' to silently skip duplicates based on the unique job_hash.
     const { error: insertError } = await supabaseAdmin
@@ -68,7 +72,7 @@ serve(async (req) => {
     }
 
     const message = `Market Scanner Playbook finished. Processed ${opportunitiesToInsert.length} potential opportunities from the last hour.`;
-    console.log(message);
+    console.log(`[market-scanner-playbook] ${message}`);
 
     return new Response(JSON.stringify({ message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
