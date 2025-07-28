@@ -4,22 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Agent } from "@/types";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Play, Loader2, MoreVertical } from "lucide-react";
+import { Play, Loader2, MoreVertical, Pencil } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { EditAgentDialog } from './EditAgentDialog';
+import { Badge } from "@/components/ui/badge";
 
 interface AgentCardProps {
   agent: Agent;
   onDelete: (agentId: string) => void;
+  onUpdate: (updatedAgent: Agent) => void;
 }
 
-export function AgentCard({ agent, onDelete }: AgentCardProps) {
+export function AgentCard({ agent, onDelete, onUpdate }: AgentCardProps) {
   const [isRunning, setIsRunning] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const handleRunAgent = async () => {
     setIsRunning(true);
@@ -76,38 +81,54 @@ export function AgentCard({ agent, onDelete }: AgentCardProps) {
   };
 
   return (
-    <Card className="w-full bg-black/20 border border-white/10 text-white backdrop-blur-sm">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg text-white">{agent.name}</CardTitle>
-            <CardDescription className="text-white/60 text-xs mt-1">
-              Last run: {agent.last_run_at ? `${formatDistanceToNow(new Date(agent.last_run_at))} ago` : 'Never'}
-            </CardDescription>
+    <>
+      <Card className="w-full bg-black/20 border border-white/10 text-white backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-lg text-white">{agent.name}</CardTitle>
+              <CardDescription className="text-white/60 text-xs mt-1">
+                Last run: {agent.last_run_at ? `${formatDistanceToNow(new Date(agent.last_run_at))} ago` : 'Never'}
+              </CardDescription>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Agent
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDelete} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                  Delete Agent
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDelete} className="text-red-500">Delete Agent</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-white/80 bg-white/5 p-3 rounded-md border border-white/10">
-          {agent.prompt}
-        </p>
-      </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button onClick={handleRunAgent} disabled={isRunning}>
-          {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-          Run Now
-        </Button>
-      </CardFooter>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-white/80 bg-white/5 p-3 rounded-md border border-white/10">
+            {agent.prompt}
+          </p>
+        </CardContent>
+        <CardFooter className="flex justify-between items-center">
+          <Badge variant="outline" className="capitalize">{agent.autonomy_level.replace('-', ' ')}</Badge>
+          <Button onClick={handleRunAgent} disabled={isRunning}>
+            {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            Run Now
+          </Button>
+        </CardFooter>
+      </Card>
+      <EditAgentDialog 
+        agent={agent}
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onAgentUpdate={onUpdate}
+      />
+    </>
   );
 }

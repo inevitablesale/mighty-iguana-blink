@@ -38,6 +38,10 @@ export default function Agents() {
     setAgents(prev => prev.filter(agent => agent.id !== agentId));
   };
 
+  const handleUpdateAgent = (updatedAgent: Agent) => {
+    setAgents(prev => prev.map(agent => agent.id === updatedAgent.id ? updatedAgent : agent));
+  };
+
   return (
     <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
@@ -56,7 +60,12 @@ export default function Agents() {
         ) : agents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onDelete={handleDeleteAgent} />
+              <AgentCard 
+                key={agent.id} 
+                agent={agent} 
+                onDelete={handleDeleteAgent}
+                onUpdate={handleUpdateAgent}
+              />
             ))}
           </div>
         ) : (
