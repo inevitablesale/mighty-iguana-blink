@@ -139,14 +139,19 @@ serve(async (req) => {
           // Step 4: For semi-auto or auto, find contacts and generate outreach
           const authHeader = req.headers.get('Authorization');
           for (const opp of savedOpportunities) {
-            const { error: taskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert({
+            const { data: newTask, error: taskError } = await supabaseAdmin.from('contact_enrichment_tasks').insert({
               user_id: user.id, opportunity_id: opp.id, company_name: opp.company_name, status: 'pending'
-            });
-            if (taskError) { console.error(`Failed to create task for opp ${opp.id}`); continue; }
+            }).select('id').single();
 
-            await supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
+            if (taskError || !newTask) { 
+              console.error(`Failed to create task for opp ${opp.id}`); 
+              continue; 
+            }
+
+            // This is a non-blocking call
+            supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
               headers: { 'Authorization': authHeader },
-              body: { opportunityId: opp.id, linkedinHtml: null }
+              body: { opportunityId: opp.id, taskId: newTask.id }
             });
           }
         }

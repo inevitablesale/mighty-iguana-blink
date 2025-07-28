@@ -201,6 +201,11 @@ serve(async (req) => {
 
         if (tasksToInsert.length > 0) {
             await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
+            // After creating tasks, kick off the queue processor to handle them.
+            // This is non-blocking so it doesn't delay the user's response.
+            supabaseAdmin.functions.invoke('process-enrichment-queue', {
+              headers: { 'Authorization': req.headers.get('Authorization') }
+            });
         }
 
         sendUpdate({ type: 'result', payload: { text: responseText, opportunities: savedOpportunities, searchParams: { recruiter_specialty } } });
