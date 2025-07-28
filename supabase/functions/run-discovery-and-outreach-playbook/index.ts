@@ -119,10 +119,12 @@ serve(async (req) => {
     if (agent.is_remote) scrapingUrl += `&is_remote=true`;
     if (agent.search_lookback_hours) scrapingUrl += `&hours_old=${agent.search_lookback_hours}`;
     
+    console.log(`[run-discovery-and-outreach-playbook] Calling JobSpy with URL: ${scrapingUrl}`);
     const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
     if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
     const scrapingData = await scrapingResponse.json();
     const rawJobResults = scrapingData?.jobs;
+    console.log(`[run-discovery-and-outreach-playbook] JobSpy returned ${rawJobResults?.length || 0} raw results.`);
 
     if (!rawJobResults || rawJobResults.length === 0) {
       await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
@@ -133,6 +135,7 @@ serve(async (req) => {
     const sortedJobs = rawJobResults
       .filter(job => job.max_amount && job.max_amount > 0)
       .sort((a, b) => b.max_amount - a.max_amount);
+    console.log(`[run-discovery-and-outreach-playbook] Filtered down to ${sortedJobs.length} top-paying jobs for enrichment.`);
 
     const enrichmentPromises = sortedJobs.map(async (job) => {
       const jobHash = await createJobHash(job);
@@ -274,6 +277,7 @@ serve(async (req) => {
 
     await supabaseAdmin.from('agents').update({ last_run_at: new Date().toISOString() }).eq('id', agentId);
     const message = `Agent ran complete. Found ${savedOpportunities.length} new opportunities and queued them for contact discovery.`;
+    console.log(`[run-discovery-and-outreach-playbook] ${message}`);
     return new Response(JSON.stringify({ message }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {

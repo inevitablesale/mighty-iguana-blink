@@ -68,6 +68,7 @@ serve(async (req) => {
     let sourceIsProactive = false;
 
     if (topProactive && topProactive.length > 0) {
+        console.log(`[get-featured-opportunities] Found ${topProactive.length} pre-scored proactive opportunities.`);
         opportunitiesToEnrich = topProactive.map(opp => ({ job: opp.job_data, score: opp.relevance_score }));
         sourceIsProactive = true;
     } else {
@@ -75,6 +76,7 @@ serve(async (req) => {
         const randomSearch = FALLBACK_SEARCHES[Math.floor(Math.random() * FALLBACK_SEARCHES.length)];
         const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(randomSearch.query)}&location=${encodeURIComponent(randomSearch.location)}&sites=linkedin,google&results=10&enforce_annual_salary=true`;
         
+        console.log(`[get-featured-opportunities] No proactive opportunities found. Performing live fallback search: ${scrapingUrl}`);
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(30000) });
         if (!scrapingResponse.ok) {
             console.error(`Fallback job scraping failed: ${await scrapingResponse.text()}`);
@@ -83,6 +85,7 @@ serve(async (req) => {
         
         const scrapingData = await scrapingResponse.json();
         const rawJobResults = scrapingData?.jobs;
+        console.log(`[get-featured-opportunities] Fallback search returned ${rawJobResults?.length || 0} raw results.`);
 
         if (rawJobResults && rawJobResults.length > 0) {
             const sortedJobs = rawJobResults
@@ -90,11 +93,13 @@ serve(async (req) => {
                 .sort((a, b) => b.max_amount - a.max_amount)
                 .slice(0, 4);
             
+            console.log(`[get-featured-opportunities] Filtered to ${sortedJobs.length} top-paying fallback jobs.`);
             opportunitiesToEnrich = sortedJobs.map(job => ({ job, score: null }));
         }
     }
 
     if (opportunitiesToEnrich.length === 0) {
+      console.log("[get-featured-opportunities] No opportunities to enrich. Returning empty array.");
       return new Response(JSON.stringify({ opportunities: [] }), { status: 200, headers: corsHeaders });
     }
 
@@ -135,6 +140,7 @@ serve(async (req) => {
       .filter(res => res.status === 'fulfilled' && res.value)
       .map(res => res.value);
 
+    console.log(`[get-featured-opportunities] Returning ${opportunities.length} enriched opportunities to the client.`);
     return new Response(JSON.stringify({ opportunities }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

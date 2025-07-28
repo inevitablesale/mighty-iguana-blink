@@ -107,10 +107,12 @@ serve(async (req) => {
 
         // Per your instructions, using enforce_annual_salary=true to get roles with salary data.
         const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=40&enforce_annual_salary=true`;
+        console.log(`[process-chat-command] Calling JobSpy with URL: ${scrapingUrl}`);
         const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
         if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
         const scrapingData = await scrapingResponse.json();
         const rawJobResults = scrapingData?.jobs;
+        console.log(`[process-chat-command] JobSpy returned ${rawJobResults?.length || 0} raw results.`);
 
         if (!rawJobResults || rawJobResults.length === 0) {
           return new Response(JSON.stringify({ text: "I couldn't find any open roles matching your request. Please try a different search." }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -122,6 +124,7 @@ serve(async (req) => {
           .sort((a, b) => b.max_amount - a.max_amount);
 
         const topJobs = sortedJobs.slice(0, 20);
+        console.log(`[process-chat-command] Filtered down to ${topJobs.length} top-paying jobs for enrichment.`);
 
         const enrichmentPromises = topJobs.map(async (job) => {
           const jobHash = await createJobHash(job);
@@ -250,6 +253,8 @@ serve(async (req) => {
         }
 
         savedOpportunities.sort((a, b) => b.match_score - a.match_score);
+        
+        console.log(`[process-chat-command] Returning ${savedOpportunities.length} enriched opportunities to the client.`);
 
         return new Response(JSON.stringify({
           text: responseText,
