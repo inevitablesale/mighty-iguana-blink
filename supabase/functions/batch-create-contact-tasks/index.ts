@@ -44,11 +44,10 @@ serve(async (req) => {
       user_id: user.id,
       opportunity_id: opp.id,
       company_name: opp.company_name,
-      status: 'pending'
+      status: 'processing' // Set to processing immediately
     }));
 
     if (tasksToInsert.length > 0) {
-      // Insert tasks and get them back
       const { data: savedTasks, error: insertError } = await supabaseAdmin
         .from('contact_enrichment_tasks')
         .insert(tasksToInsert)
@@ -56,17 +55,11 @@ serve(async (req) => {
       
       if (insertError) throw insertError;
 
-      const taskIds = savedTasks.map(t => t.id);
-
-      // Mark tasks as 'processing' immediately
-      await supabaseAdmin
-        .from('contact_enrichment_tasks')
-        .update({ status: 'processing' })
-        .in('id', taskIds);
-
       // Invoke the enrichment function for each task in the background
+      const authHeader = req.headers.get('Authorization');
       const processingPromises = savedTasks.map(task => 
         supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
+          headers: { 'Authorization': authHeader }, // Pass auth header for downstream functions
           body: { opportunityId: task.opportunity_id, taskId: task.id }
         })
       );
