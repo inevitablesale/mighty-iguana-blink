@@ -43,7 +43,7 @@ const Login = () => {
             <CardTitle className="text-3xl font-bold">Coogi</CardTitle>
           </div>
           <CardDescription className="text-white/70 pt-2">
-            Sign in with your business email provider to continue.
+            Sign in or create an account to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -53,9 +53,8 @@ const Login = () => {
               appearance={{
                 theme: ThemeSupa,
               }}
-              providers={['google', 'azure']}
+              providers={[]}
               theme="dark"
-              onlyThirdPartyProviders={true}
             />
           </div>
         </CardContent>
