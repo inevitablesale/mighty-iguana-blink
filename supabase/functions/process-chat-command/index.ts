@@ -137,233 +137,198 @@ serve(async (req) => {
         }
 
         const intentPrompt = `
-          You are an AI assistant classifying a user's query.
-          Query: "${query}"
-          Context: The last message from the AI ${hasPreviousResults ? 'contained a list of job opportunities' : 'did not contain a list of job opportunities'}.
+          You are an AI assistant that selects the correct action to take based on a user's query.
+          
+          **Available Actions:**
+          1.  **find_opportunities**: Use for any new search for jobs or companies.
+          2.  **find_contacts**: Use when the user asks to find people, employees, or specific roles at a named company.
+          3.  **refine_results**: Use ONLY if the user is asking to filter, sort, or modify the immediately preceding list of opportunities.
+          4.  **clarify**: Use if the user's intent is ambiguous or doesn't fit other actions.
 
-          Return a JSON object with one of the following structures:
-          1. For a new search for jobs:
-             { "intent": "find_opportunities" }
-          2. For a search for people at a company:
-             { "intent": "find_contacts", "company_name": "...", "keywords": "..." }
-          3. For a request to filter or sort the PREVIOUS list of opportunities:
-             { "intent": "refine_results", "refinement_type": "top_n" | "sort_by_score", "value": (e.g., 3) }
+          **User Query:** "${query}"
+          **Context:** The last AI message ${hasPreviousResults ? 'contained a list of job opportunities' : 'did not contain a list of job opportunities'}.
 
-          Examples:
-          - Query: "Find me sales roles" -> { "intent": "find_opportunities" }
-          - Query: "people at Google" -> { "intent": "find_contacts", "company_name": "Google", "keywords": "" }
-          - Query: "can you trim these to the top 3 opportunities" (Context: has results) -> { "intent": "refine_results", "refinement_type": "top_n", "value": 3 }
-          - Query: "show me the best ones" (Context: has results) -> { "intent": "refine_results", "refinement_type": "sort_by_score" }
+          **Output Format:**
+          Return a single, valid JSON object with the action and its parameters.
+
+          **Examples:**
+          - Query: "Find me sales roles" -> { "action": "find_opportunities", "parameters": { "query": "Find me sales roles" } }
+          - Query: "people at Google" -> { "action": "find_contacts", "parameters": { "company_name": "Google", "keywords": "" } }
+          - Query: "Who is the Head of Sales at Salesforce?" -> { "action": "find_contacts", "parameters": { "company_name": "Salesforce", "keywords": "Head of Sales" } }
+          - Query: "can you trim these to the top 3 opportunities" (Context: has results) -> { "action": "refine_results", "parameters": { "refinement_type": "top_n", "value": 3 } }
+          - Query: "show me the best ones" (Context: has results) -> { "action": "refine_results", "parameters": { "refinement_type": "sort_by_score" } }
+          - Query: "what can you do" -> { "action": "clarify", "parameters": {} }
         `;
         
-        const { intent, company_name, keywords, refinement_type, value } = await callGemini(intentPrompt, GEMINI_API_KEY);
+        const intent = await callGemini(intentPrompt, GEMINI_API_KEY);
 
-        if (intent === 'refine_results' && hasPreviousResults) {
-          sendUpdate({ type: 'status', message: 'Refining your previous results...' });
-          
-          let refinedOpportunities = [...previousOpportunities];
-          refinedOpportunities.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
-
-          if (refinement_type === 'top_n' && value) {
-            refinedOpportunities = refinedOpportunities.slice(0, value);
-          }
-          
-          if (refinedOpportunities.length > 0) {
-            sendUpdate({ type: 'result', payload: { text: `Here are the top ${refinedOpportunities.length} opportunities from your last search.`, opportunities: refinedOpportunities, searchParams: previousSearchParams } });
-          } else {
-            sendUpdate({ type: 'result', payload: { text: "I couldn't refine the results as requested. Please try a new search." } });
-          }
-
-        } else if (intent === 'find_contacts' && company_name) {
-          sendUpdate({ type: 'status', message: `Searching for contacts at ${company_name}...` });
-          
-          const { data: contactsData, error: contactsError } = await supabaseAdmin.functions.invoke('find-linkedin-contacts-by-company', {
-            body: { companyName: company_name, keywords: keywords || '' }
-          });
-
-          if (contactsError) throw new Error(contactsError.message);
-
-          const { contacts, message } = contactsData;
-
-          if (!contacts || contacts.length === 0) {
-            const responseText = message || `I couldn't find any contacts at ${company_name} matching your criteria.`;
-            sendUpdate({ type: 'result', payload: { text: responseText } });
-          } else {
-            let responseText = `I found ${contacts.length} contacts at ${company_name}. Here are the results:`;
-            if (keywords) {
-              responseText += `\n\n(Note: Keyword filtering is temporarily disabled, so I'm showing all contacts I found for this company.)`;
+        switch (intent.action) {
+          case 'refine_results':
+            if (!hasPreviousResults) {
+              sendUpdate({ type: 'result', payload: { text: "There are no results to refine. Please start a new search." } });
+              break;
             }
-            sendUpdate({ type: 'result', payload: { text: responseText, contacts: contacts } });
-          }
+            sendUpdate({ type: 'status', message: 'Refining your previous results...' });
+            
+            let refinedOpportunities = [...previousOpportunities];
+            refinedOpportunities.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
 
-        } else { // Default to find_opportunities
-          sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
-          const searchQueryPrompt = `
-            You are an AI recruiting analyst. Break down the query into structured parameters.
-
-            User Query: "${query}"
-
-            Return a JSON object with the following structure. Be thorough.
-            {
-              "search_query": "The core job title or skills to search for. E.g., 'senior sales roles'",
-              "location": "The city, state, or country. E.g., 'New York'",
-              "industry": "The company's industry. E.g., 'B2B SaaS'",
-              "seniority": "The seniority level. E.g., 'Senior'",
-              "recruiter_specialty": "A concise summary of the recruiter's focus. E.g., 'Sales placements in SaaS'",
-              "contractability_tags": ["An array of tags indicating contract viability. E.g., 'enterprise GTM', 'series B startup', 'urgent hire', 'no TA team'"],
-              "target_contact_role": "The ideal job title of the person to contact. E.g., 'VP of Sales'"
+            if (intent.parameters.refinement_type === 'top_n' && intent.parameters.value) {
+              refinedOpportunities = refinedOpportunities.slice(0, intent.parameters.value);
             }
-          `;
-          const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
-          
-          const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
-          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
-            user_id: user.id,
-            name: agentName,
-            prompt: recruiter_specialty,
-            autonomy_level: 'semi-automatic',
-            site_names: sites || ["linkedin", "indeed", "zip_recruiter", "google"],
-            max_results: 20,
-            search_lookback_hours: 72,
-          }).select().single();
+            
+            if (refinedOpportunities.length > 0) {
+              sendUpdate({ type: 'result', payload: { text: `Here are the top ${refinedOpportunities.length} opportunities from your last search.`, opportunities: refinedOpportunities, searchParams: previousSearchParams } });
+            } else {
+              sendUpdate({ type: 'result', payload: { text: "I couldn't refine the results as requested. Please try a new search." } });
+            }
+            break;
 
-          if (!agentInsertError && newAgent) {
-              sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
-              if (conversationId) {
-                await supabaseAdmin.from('feed_items').insert({
-                  user_id: user.id,
-                  conversation_id: conversationId,
-                  type: 'agent_created',
-                  role: 'system',
-                  content: { agentName: newAgent.name }
-                });
+          case 'find_contacts':
+            const { company_name, keywords } = intent.parameters;
+            sendUpdate({ type: 'status', message: `Searching for contacts at ${company_name}...` });
+            
+            const { data: contactsData, error: contactsError } = await supabaseAdmin.functions.invoke('find-linkedin-contacts-by-company', {
+              body: { companyName: company_name, keywords: keywords || '' }
+            });
+
+            if (contactsError) throw new Error(contactsError.message);
+
+            const { contacts, message } = contactsData;
+
+            if (!contacts || contacts.length === 0) {
+              const responseText = message || `I couldn't find any contacts at ${company_name} matching your criteria.`;
+              sendUpdate({ type: 'result', payload: { text: responseText } });
+            } else {
+              let responseText = `I found ${contacts.length} contacts at ${company_name}. Here are the results:`;
+              if (keywords) {
+                responseText += `\n\n(Note: Keyword filtering is temporarily disabled, so I'm showing all contacts I found for this company.)`;
               }
-          }
+              sendUpdate({ type: 'result', payload: { text: responseText, contacts: contacts } });
+            }
+            break;
 
-          sendUpdate({ type: 'status', message: `Searching for roles on ${sites || 'major job boards'}...` });
-          
-          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites || 'linkedin,indeed,zip_recruiter,google'}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
+          case 'find_opportunities':
+            sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
+            const searchQueryPrompt = `
+              You are an AI recruiting analyst. Break down the query into structured parameters.
 
-          const scrapingResponse = await scrapingPromise;
+              User Query: "${query}"
 
-          if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
-          const rawJobResults = (await scrapingResponse.json())?.jobs;
-
-          if (!rawJobResults || rawJobResults.length === 0) {
-            sendUpdate({ type: 'result', payload: { text: "I couldn't find any open roles matching your request. Please try a different search." } });
-            controller.close();
-            return;
-          }
-
-          sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} total listings. Removing duplicates...` });
-          const uniqueJobsMap = new Map();
-          rawJobResults.forEach(job => {
-              const key = `${job.company?.trim().toLowerCase()}|${job.title?.trim().toLowerCase()}`;
-              if (!uniqueJobsMap.has(key)) {
-                  uniqueJobsMap.set(key, job);
+              Return a JSON object with the following structure. Be thorough.
+              {
+                "search_query": "The core job title or skills to search for. E.g., 'senior sales roles'",
+                "location": "The city, state, or country. E.g., 'New York'",
+                "recruiter_specialty": "A concise summary of the recruiter's focus. E.g., 'Sales placements in SaaS'"
               }
-          });
-          const jobsToAnalyze = Array.from(uniqueJobsMap.values());
+            `;
+            const { search_query, location, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
+            
+            const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
+            const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
+              user_id: user.id, name: agentName, prompt: recruiter_specialty, autonomy_level: 'semi-automatic',
+              site_names: ["linkedin", "indeed", "zip_recruiter", "google"], max_results: 20, search_lookback_hours: 72,
+            }).select().single();
 
-          let finalJobsToAnalyze;
-          let resultWarning = null;
+            if (!agentInsertError && newAgent) {
+                sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
+            }
 
-          if (jobsToAnalyze.length > 75) {
-              resultWarning = `I found over ${jobsToAnalyze.length} unique jobs. To give you the best results quickly, I'm analyzing the top 75. You can always refine your search for a more targeted list.`;
-              finalJobsToAnalyze = [...jobsToAnalyze]
-                  .sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0))
-                  .slice(0, 75);
-          } else {
-              finalJobsToAnalyze = [...jobsToAnalyze].sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0));
-          }
+            sendUpdate({ type: 'status', message: `Searching for roles...` });
+            
+            const scrapingResponse = await fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=linkedin,indeed,zip_recruiter,google&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
+            if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
+            const rawJobResults = (await scrapingResponse.json())?.jobs;
 
-          sendUpdate({ type: 'status', message: `Found ${jobsToAnalyze.length} unique potential jobs. Now preparing for analysis...` });
-          
-          sendUpdate({ type: 'analysis_start', payload: { jobs: finalJobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
+            if (!rawJobResults || rawJobResults.length === 0) {
+              sendUpdate({ type: 'result', payload: { text: "I couldn't find any open roles matching your request. Please try a different search." } });
+              break;
+            }
 
-          const successfulOpportunities = [];
+            const uniqueJobsMap = new Map();
+            rawJobResults.forEach(job => {
+                const key = `${job.company?.trim().toLowerCase()}|${job.title?.trim().toLowerCase()}`;
+                if (!uniqueJobsMap.has(key)) uniqueJobsMap.set(key, job);
+            });
+            const jobsToAnalyze = Array.from(uniqueJobsMap.values());
 
-          for (const [index, job] of finalJobsToAnalyze.entries()) {
-            try {
-              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
-              const jobHash = await createJobHash(job);
-              const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
-              let analysisData;
-              if (cached) {
-                  analysisData = cached.analysis_data;
-              } else {
-                  const singleEnrichmentPrompt = `
-                    You are a contract recruiter assistant. Analyze the job below.
+            let finalJobsToAnalyze = jobsToAnalyze.sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0)).slice(0, 75);
+            
+            sendUpdate({ type: 'analysis_start', payload: { jobs: finalJobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
 
-                    Input:
-                    - Specialty: "${recruiter_specialty}"
-                    - Job: ${JSON.stringify(job)}
-
-                    Return JSON:
-                    {
-                      "companyName": "...",
-                      "role": "...",
-                      "location": "...",
-                      "match_score": 1–10,
-                      "contract_likelihood": "High" | "Low",
-                      "likely_contract_type": "Contingency" | "RPO" | "Freelance" | "Embedded",
-                      "ta_team_status": "None" | "Lean" | "Healthy" | "Unknown",
-                      "comp_band": "$120K–$160K",
-                      "urgency_signals": ["Backfill", "Product Launch", "Investor Pressure"],
-                      "recruiter_pitch": "Looks like this VP of Sales role has no recruiter assigned and is tied to recent product push—great time to reach out.",
-                      "decision_maker_title": "Chief Revenue Officer"
-                    }
-                  `;
-                  analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
-                  await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
-              }
-              analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
-              
-              if (analysisData.match_score >= 5) {
-                const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+            const successfulOpportunities = [];
+            for (const [index, job] of finalJobsToAnalyze.entries()) {
+              try {
+                sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
+                const jobHash = await createJobHash(job);
+                const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
                 
-                const opportunityToInsert = {
-                  user_id: user.id,
-                  company_name: analysisData.companyName,
-                  role: analysisData.role,
-                  location: analysisData.location,
-                  company_overview: analysisData.company_overview,
-                  match_score: analysisData.match_score,
-                  contract_value_assessment: analysisData.comp_band || analysisData.contract_value_assessment,
-                  hiring_urgency: Array.isArray(analysisData.urgency_signals) ? analysisData.urgency_signals.join(', ') : analysisData.hiring_urgency,
-                  pain_points: analysisData.pain_points,
-                  recruiter_angle: analysisData.recruiter_pitch || analysisData.recruiter_angle,
-                  key_signal_for_outreach: analysisData.key_signal_for_outreach,
-                  company_domain: domainData?.domain,
-                  ta_team_status: analysisData.ta_team_status,
-                  likely_decision_maker: analysisData.decision_maker_title,
-                };
-
-                const { data: savedOpportunity, error: insertError } = await supabaseAdmin.from('opportunities').insert(opportunityToInsert).select().single();
-                if (insertError) throw new Error(`Failed to save opportunity: ${insertError.message}`);
-                
-                if (savedOpportunity) {
-                  successfulOpportunities.push(savedOpportunity);
-                  sendUpdate({ type: 'opportunity_found', payload: savedOpportunity });
+                let analysisData;
+                if (cached) {
+                    analysisData = cached.analysis_data;
+                } else {
+                    const singleEnrichmentPrompt = `
+                      You are a contract recruiter assistant. Analyze the job below.
+                      Input:
+                      - Specialty: "${recruiter_specialty}"
+                      - Job: ${JSON.stringify(job)}
+                      Return JSON:
+                      {
+                        "companyName": "...", "role": "...", "location": "...", "match_score": 1–10,
+                        "contract_likelihood": "High" | "Low", "likely_contract_type": "Contingency" | "RPO",
+                        "ta_team_status": "None" | "Lean" | "Healthy", "comp_band": "$120K–$160K",
+                        "urgency_signals": ["Backfill", "Product Launch"], "recruiter_pitch": "...",
+                        "decision_maker_title": "Chief Revenue Officer"
+                      }
+                    `;
+                    analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+                    await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
                 }
-              }
+                
+                analysisData.match_score = sanitizeMatchScore(analysisData.match_score);
+                if (analysisData.match_score >= 5) {
+                  const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+                  
+                  const opportunityToInsert = {
+                    user_id: user.id,
+                    company_name: analysisData.companyName,
+                    role: analysisData.role,
+                    location: analysisData.location,
+                    company_overview: analysisData.company_overview,
+                    match_score: analysisData.match_score,
+                    contract_value_assessment: analysisData.comp_band || analysisData.contract_value_assessment,
+                    hiring_urgency: Array.isArray(analysisData.urgency_signals) ? analysisData.urgency_signals.join(', ') : analysisData.hiring_urgency,
+                    pain_points: analysisData.pain_points,
+                    recruiter_angle: analysisData.recruiter_pitch || analysisData.recruiter_angle,
+                    key_signal_for_outreach: analysisData.key_signal_for_outreach,
+                    company_domain: domainData?.domain,
+                    ta_team_status: analysisData.ta_team_status,
+                    likely_decision_maker: analysisData.decision_maker_title,
+                  };
 
-              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzed', match_score: analysisData.match_score } });
-            } catch (e) {
-              console.error(`Error enriching job at index ${index}:`, e.message);
-              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'error' } });
-            }
-          }
-          
-          if (successfulOpportunities.length === 0) {
-              sendUpdate({ type: 'result', payload: { text: "I analyzed all the jobs, but none were a strong enough fit to recommend. Please try a more specific search." } });
-          } else {
-              let responseText = `I found ${successfulOpportunities.length} potential deals for you. Here are the top matches.`;
-              if (resultWarning) {
-                  responseText = `${resultWarning}\n\n${responseText}`;
+                  const { data: savedOpportunity, error: insertError } = await supabaseAdmin.from('opportunities').insert(opportunityToInsert).select().single();
+                  if (insertError) throw new Error(`Failed to save opportunity: ${insertError.message}`);
+                  
+                  if (savedOpportunity) {
+                    successfulOpportunities.push(savedOpportunity);
+                  }
+                }
+                sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzed', match_score: analysisData.match_score } });
+              } catch (e) {
+                console.error(`Error enriching job at index ${index}:`, e.message);
+                sendUpdate({ type: 'analysis_progress', payload: { index, status: 'error' } });
               }
-              sendUpdate({ type: 'result', payload: { text: responseText, searchParams: { recruiter_specialty }, opportunities: successfulOpportunities } });
-          }
+            }
+            
+            if (successfulOpportunities.length > 0) {
+              sendUpdate({ type: 'result', payload: { text: `I found ${successfulOpportunities.length} potential deals.`, opportunities: successfulOpportunities, searchParams: { recruiter_specialty } } });
+            } else {
+              sendUpdate({ type: 'result', payload: { text: "Analysis complete, but no strong matches found." } });
+            }
+            break;
+
+          default: // 'clarify' or unknown
+            sendUpdate({ type: 'result', payload: { text: "I'm not sure how to handle that. Could you please rephrase? You can ask me to find opportunities or find contacts at a specific company." } });
         }
       } catch (error) {
         sendUpdate({ type: 'error', message: error.message });
