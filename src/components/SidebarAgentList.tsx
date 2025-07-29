@@ -21,7 +21,8 @@ export function SidebarAgentList() {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   const fetchAgents = useCallback(async () => {
-    setLoading(true);
+    // Don't show loading skeleton on refetch
+    // setLoading(true); 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -45,7 +46,7 @@ export function SidebarAgentList() {
     fetchAgents();
 
     const channel = supabase
-      .channel('public:agents')
+      .channel('sidebar-agents-list-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => {
         fetchAgents();
       })
@@ -82,7 +83,7 @@ export function SidebarAgentList() {
       const { error } = await supabase.from('agents').delete().eq('id', agentId);
       if (error) throw error;
       toast.success(`Agent "${agentToDelete.name}" deleted.`, { id: toastId });
-      setAgents(prev => prev.filter(agent => agent.id !== agentId));
+      // The real-time subscription will handle the UI update
     } catch (err)
 {
       toast.error(`Failed to delete agent.`, { id: toastId, description: (err as Error).message });

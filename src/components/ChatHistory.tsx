@@ -40,7 +40,7 @@ export function ChatHistory() {
     fetchConversations();
 
     const channel = supabase
-      .channel('public:conversations')
+      .channel('sidebar-chat-history-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
         fetchConversations();
       })
@@ -80,13 +80,11 @@ export function ChatHistory() {
 
       toast.success("Chat deleted successfully.", { id: toastId });
 
-      // Update local state
-      setConversations(prev => prev.filter(c => c.id !== convoToDeleteId));
-
       // If the active chat was deleted, navigate to home
       if (conversationId === convoToDeleteId) {
         navigate('/');
       }
+      // The real-time subscription will handle the UI update
 
     } catch (error) {
       toast.error("Failed to delete chat.", { id: toastId, description: (error as Error).message });
