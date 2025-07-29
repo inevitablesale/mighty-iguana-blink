@@ -8,25 +8,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callRapidApi(endpoint, params, apiKey) {
+// Helper to call the RapidAPI with retry logic
+async function callRapidApi(endpoint, params, apiKey, retries = 3, delay = 2000) {
     const url = new URL(`https://fresh-linkedin-scraper-api.p.rapidapi.com${endpoint}`);
     url.search = new URLSearchParams(params).toString();
 
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'x-rapidapi-key': apiKey,
-            'x-rapidapi-host': 'fresh-linkedin-scraper-api.p.rapidapi.com'
-        },
-        signal: AbortSignal.timeout(180000) // 3 minute timeout
-    });
+    for (let i = 0; i < retries; i++) {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-key': apiKey,
+                'x-rapidapi-host': 'fresh-linkedin-scraper-api.p.rapidapi.com'
+            },
+            signal: AbortSignal.timeout(180000) // 3 minute timeout
+        });
 
-    if (!response.ok) {
+        if (response.ok) {
+            return await response.json();
+        }
+
+        // If rate limited (429), wait and retry
+        if (response.status === 429 && i < retries - 1) {
+            console.warn(`RapidAPI rate limit hit for ${endpoint}. Retrying in ${delay / 1000}s...`);
+            await new Promise(res => setTimeout(res, delay));
+            delay *= 2; // Exponential backoff
+            continue;
+        }
+
+        // For other errors, or if it's the last retry
         const errorText = await response.text();
-        console.error(`RapidAPI endpoint ${endpoint} failed:`, errorText);
+        console.error(`RapidAPI endpoint ${endpoint} failed with status ${response.status}:`, errorText);
         throw new Error(`RapidAPI endpoint ${endpoint} failed: ${response.statusText}`);
     }
-    return await response.json();
+    throw new Error(`RapidAPI call for ${endpoint} failed after ${retries} retries.`);
 }
 
 serve(async (req) => {
