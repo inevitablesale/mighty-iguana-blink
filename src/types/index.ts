@@ -151,6 +151,12 @@ export interface AnalysisProgress {
   jobs: AnalysisProgressJob[];
 }
 
+export interface FeedContact {
+  name: string;
+  job_title: string;
+  linkedin_profile_url: string;
+}
+
 export interface FeedItem {
   id: string;
   user_id: string;
@@ -163,6 +169,7 @@ export interface FeedItem {
     opportunities?: Opportunity[];
     searchParams?: SearchParams;
     analysisProgress?: AnalysisProgress;
+    contacts?: FeedContact[];
   };
   created_at: string;
   conversation_id?: string;

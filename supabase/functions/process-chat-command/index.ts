@@ -145,21 +145,41 @@ serve(async (req) => {
 
           Query: "${query}"
 
-          Return a JSON object:
-          - "intent": one of ["find_opportunities", "find_contacts"]
-          - If intent is "find_contacts", also return "company_name".
+          Return a JSON object with the following structure:
+          - "intent": Must be one of ["find_opportunities", "find_contacts"].
+          - If intent is "find_contacts", you MUST also return "company_name" and "keywords". "keywords" should be a string of job titles or roles mentioned. If no specific role is mentioned, return an empty string for keywords.
 
           Examples:
           - Query: "Find me sales roles at Series A companies"
-            → { "intent": "find_opportunities" }
+            → { "intent": "find_opportunities", "company_name": null, "keywords": null }
 
           - Query: "Who’s the Head of Sales at Salesforce?"
-            → { "intent": "find_contacts", "company_name": "Shopify" }
+            → { "intent": "find_contacts", "company_name": "Salesforce", "keywords": "Head of Sales" }
+            
+          - Query: "Show me people who work at Google"
+            → { "intent": "find_contacts", "company_name": "Google", "keywords": "" }
         `;
-        const { intent, company_name } = await callGemini(intentPrompt, GEMINI_API_KEY);
+        const { intent, company_name, keywords } = await callGemini(intentPrompt, GEMINI_API_KEY);
 
         if (intent === 'find_contacts' && company_name) {
-          // Contact finding logic remains the same
+          sendUpdate({ type: 'status', message: `Searching for contacts at ${company_name}...` });
+          
+          const { data: contactsData, error: contactsError } = await supabaseAdmin.functions.invoke('find-linkedin-contacts-by-company', {
+            body: { companyName: company_name, keywords: keywords || '' }
+          });
+
+          if (contactsError) throw new Error(contactsError.message);
+
+          const { contacts, message } = contactsData;
+
+          if (!contacts || contacts.length === 0) {
+            const responseText = message || `I couldn't find any contacts at ${company_name} matching your criteria.`;
+            sendUpdate({ type: 'result', payload: { text: responseText } });
+          } else {
+            const responseText = `I found ${contacts.length} contacts at ${company_name}. Here are the top results:`;
+            sendUpdate({ type: 'result', payload: { text: responseText, contacts: contacts } });
+          }
+
         } else {
           sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
           const searchQueryPrompt = `

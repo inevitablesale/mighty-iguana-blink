@@ -10,6 +10,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { ContactListCard } from "./ContactListCard";
 
 interface FeedItemCardProps {
   item: FeedItem;
@@ -92,6 +93,10 @@ const SystemResponse = ({ item, isTransient }: { item: FeedItem, isTransient?: b
 
         {item.content.analysisProgress && (
           <AnalysisProgressView progress={item.content.analysisProgress} />
+        )}
+
+        {item.content.contacts && item.content.contacts.length > 0 && (
+          <ContactListCard contacts={item.content.contacts} />
         )}
         
         {item.content.opportunities && item.content.opportunities.length > 0 && (
