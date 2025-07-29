@@ -52,6 +52,7 @@ export default function Deal() {
   
   const [loading, setLoading] = useState(true);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  const [isFindingContacts, setIsFindingContacts] = useState(false);
   const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -114,7 +115,10 @@ export default function Deal() {
 
     const tasksChannel = supabase.channel(`tasks-${opportunityId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'contact_enrichment_tasks', filter: `opportunity_id=eq.${opportunityId}` }, (payload) => {
-        if (payload.new) setEnrichmentTask(payload.new as ContactEnrichmentTask);
+        if (payload.new) {
+          setEnrichmentTask(payload.new as ContactEnrichmentTask);
+          setIsFindingContacts(false);
+        }
       })
       .subscribe();
 
@@ -126,6 +130,7 @@ export default function Deal() {
 
   const handleFindContacts = async () => {
     if (!opportunityId) return;
+    setIsFindingContacts(true);
     const toastId = toast.loading("Adding contact search to the queue...");
     try {
       const { error } = await supabase.functions.invoke('batch-create-contact-tasks', {
@@ -135,6 +140,7 @@ export default function Deal() {
       toast.success("Contact search queued!", { id: toastId, description: "The system will start finding contacts shortly." });
     } catch (err) {
       toast.error("Failed to queue contact search", { id: toastId, description: (err as Error).message });
+      setIsFindingContacts(false);
     }
   };
 
@@ -182,7 +188,7 @@ export default function Deal() {
     return 'text-red-500';
   };
 
-  const isSearching = enrichmentTask?.status === 'pending' || enrichmentTask?.status === 'processing';
+  const isSearching = (enrichmentTask?.status === 'pending' || enrichmentTask?.status === 'processing') || isFindingContacts;
 
   if (loading) {
     return (
