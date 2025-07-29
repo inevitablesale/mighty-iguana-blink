@@ -137,27 +137,52 @@ serve(async (req) => {
         }
 
         const intentPrompt = `
-          You are an AI assistant that selects the correct action to take based on a user's query.
+          You are an AI assistant that selects the correct action from a playbook based on a user's query.
+
+          **ACTION PLAYBOOK (The Dictionary of Concepts):**
           
-          **Available Actions:**
-          1.  **find_opportunities**: Use for any new search for jobs or companies.
-          2.  **find_contacts**: Use when the user asks to find people, employees, or specific roles at a named company.
-          3.  **refine_results**: Use ONLY if the user is asking to filter, sort, or modify the immediately preceding list of opportunities.
-          4.  **clarify**: Use if the user's intent is ambiguous or doesn't fit other actions.
+          **1. Discovery & Search:**
+          - **find_opportunities**: For any new search for jobs, roles, or companies. (e.g., "Find me sales roles", "Show me fintechs hiring in NY")
+          - **find_contacts**: To find people, employees, or specific roles at a named company. (e.g., "people at Google", "Who is the Head of Sales at Salesforce?")
+          - **find_similar_opportunities**: To find jobs similar to a previous result. (e.g., "find more like the one at Acme Corp")
+
+          **2. Analysis & Intelligence:**
+          - **get_company_briefing**: For a detailed report on a company. (e.g., "give me a briefing on Microsoft", "tell me about Stripe")
+          - **analyze_propensity_to_switch**: To assess if a company is likely to need external recruiters. (e.g., "how likely is Figma to use a recruiter?", "should I pitch to this company?")
+          - **evaluate_contact_fit**: To score a specific person's relevance as a hiring manager. (e.g., "is John Doe a good contact for this role?")
+          - **summarize_deal**: To get a summary of a specific opportunity. (e.g., "summarize the deal with Oracle")
+
+          **3. Action & Outreach:**
+          - **create_outreach_from_opportunity**: To generate a cold email draft for a specific opportunity and contact. (e.g., "draft an email to Jane Smith for the Oracle deal")
+          - **generate_proposal**: To create a formal recruitment proposal for a campaign. (e.g., "create a proposal for the Oracle campaign")
+          - **send_email**: To send a previously drafted email. (e.g., "ok, send that email")
+
+          **4. Data Management & Refinement:**
+          - **refine_results**: To filter, sort, or modify the immediately preceding list of opportunities. (e.g., "trim these to the top 3", "show me the best ones", "only show remote jobs")
+          - **save_opportunity**: To save a specific opportunity to a list. (e.g., "save the Google opportunity")
+          - **dismiss_opportunity**: To remove an opportunity from view. (e.g., "dismiss the one from Apple")
+          - **create_campaign**: To manually create a new campaign from an opportunity. (e.g., "start a campaign for the Meta role")
+
+          **5. Agent Management:**
+          - **run_agent_by_name**: To manually trigger a saved agent to run. (e.g., "run my 'Fintech Sales' agent")
+          - **list_my_agents**: To see a list of all saved agents. (e.g., "show me my agents")
+          - **edit_agent**: To modify a saved agent. (e.g., "edit the 'Bay Area' agent")
+          - **delete_agent**: To delete a saved agent. (e.g., "delete the 'Fintech' agent")
+          - **pause_agent**: To temporarily stop an agent from running automatically. (e.g., "pause my main agent")
+          - **resume_agent**: To resume a paused agent. (e.g., "resume the 'SaaS' agent")
+
+          **6. Meta & Clarification:**
+          - **clarify**: If the user's intent is ambiguous or doesn't fit other actions. (e.g., "what can you do?", "help")
+          - **summarize_conversation**: To get a summary of the current chat. (e.g., "what have we talked about so far?")
 
           **User Query:** "${query}"
           **Context:** The last AI message ${hasPreviousResults ? 'contained a list of job opportunities' : 'did not contain a list of job opportunities'}.
 
           **Output Format:**
           Return a single, valid JSON object with the action and its parameters.
-
-          **Examples:**
-          - Query: "Find me sales roles" -> { "action": "find_opportunities", "parameters": { "query": "Find me sales roles" } }
-          - Query: "people at Google" -> { "action": "find_contacts", "parameters": { "company_name": "Google", "keywords": "" } }
-          - Query: "Who is the Head of Sales at Salesforce?" -> { "action": "find_contacts", "parameters": { "company_name": "Salesforce", "keywords": "Head of Sales" } }
-          - Query: "can you trim these to the top 3 opportunities" (Context: has results) -> { "action": "refine_results", "parameters": { "refinement_type": "top_n", "value": 3 } }
-          - Query: "show me the best ones" (Context: has results) -> { "action": "refine_results", "parameters": { "refinement_type": "sort_by_score" } }
-          - Query: "what can you do" -> { "action": "clarify", "parameters": {} }
+          Example for "trim to top 3": { "action": "refine_results", "parameters": { "refinement_type": "top_n", "value": 3 } }
+          Example for "people at Google": { "action": "find_contacts", "parameters": { "company_name": "Google", "keywords": "" } }
+          Example for "briefing on Microsoft": { "action": "get_company_briefing", "parameters": { "company_name": "Microsoft" } }
         `;
         
         const intent = await callGemini(intentPrompt, GEMINI_API_KEY);
