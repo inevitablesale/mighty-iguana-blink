@@ -5,7 +5,7 @@ import { Opportunity, EvaluatedContact, Campaign, ContactEnrichmentTask } from '
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Search, ThumbsUp, ThumbsDown, BarChart, Star, Briefcase, MapPin, Clock, Users, BrainCircuit, Target, Send, Globe } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, ThumbsUp, ThumbsDown, BarChart, Star, Briefcase, MapPin, Clock, Users, BrainCircuit, Target, Send, Globe, Mail, Linkedin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -252,6 +252,24 @@ export default function Deal() {
                       <div className="flex-grow">
                         <p className="font-semibold">{contact.name}</p>
                         <p className="text-sm text-muted-foreground">{contact.job_title}</p>
+                        
+                        <div className="mt-2 space-y-1 text-sm">
+                          {contact.email && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Mail size={14} />
+                              <span className="text-foreground">{contact.email}</span>
+                            </div>
+                          )}
+                          {contact.linkedin_profile_url && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Linkedin size={14} />
+                              <a href={contact.linkedin_profile_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                View Profile
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
                         {contact.isEvaluating ? <Skeleton className="h-4 w-3/4 mt-2" /> : contact.evaluation && (
                           <div className="mt-2 text-xs">
                             <Badge variant="secondary" className={`font-semibold ${getStatusColor(contact.evaluation.status)}`}><Star className="h-3 w-3 mr-1.5" />{contact.evaluation.score}/10 {contact.evaluation.status}</Badge>
