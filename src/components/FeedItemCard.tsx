@@ -1,5 +1,5 @@
 import { FeedItem, Opportunity } from "@/types";
-import { Bot, User, Users, Loader2 } from "lucide-react";
+import { Bot, User, Users, Loader2, LayoutGrid } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { DealCard } from "./DealCard";
 import { Button } from "./ui/button";
@@ -9,6 +9,7 @@ import { AnalysisProgressView } from "./AnalysisProgressView";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 
 interface FeedItemCardProps {
   item: FeedItem;
@@ -101,6 +102,14 @@ const SystemResponse = ({ item, isTransient }: { item: FeedItem, isTransient?: b
               <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
                   <p className="text-sm font-medium text-white/90">What's next?</p>
                   <div className="flex items-center gap-2">
+                    {item.content.opportunities && item.content.opportunities.length > 4 && (
+                      <Button asChild variant="outline">
+                        <Link to="/opportunities" state={{ opportunities: item.content.opportunities, searchParams: item.content.searchParams }}>
+                          <LayoutGrid className="mr-2 h-4 w-4" />
+                          View All {item.content.opportunities.length} Results
+                        </Link>
+                      </Button>
+                    )}
                     <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
                       {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
                       Find Contacts for All
