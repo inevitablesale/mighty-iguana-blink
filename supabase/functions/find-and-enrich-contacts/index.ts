@@ -74,21 +74,62 @@ serve(async (req) => {
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
     const researchPrompt = `
-      You are a recruiter’s AI assistant.
-      Identify decision-makers at "${opportunity.company_name}" for the open role of "${opportunity.role}".
+      You are an expert recruiter’s AI sourcing assistant. Your job is to find staffing decision-makers at "${opportunity.company_name}" for the open role of "${opportunity.role}".
 
-      Focus on buyers of staffing services (e.g., VP of [Department], COO, Hiring Manager).
+      Who to target:
+      Focus on people who are likely to own the hiring decision or benefit from recruiting help. Ideal titles include:
+      - Hiring manager (e.g., VP of Sales for a sales role)
+      - Department leads (e.g., Head of Engineering, Marketing Director)
+      - C-level (e.g., CEO, COO, CTO at small companies)
+      - Founders (for startups)
+      - HR / People Ops / Talent (only if no other signals exist)
 
-      For each:
-      - name, title, email, LinkedIn URL (if possible)
+      Where to search (open sources only):
+      1. LinkedIn Search
+         - Use queries like: site:linkedin.com/in ("${opportunity.company_name}" AND "VP Sales")
+         - Prioritize current employees with relevant decision-making roles.
+      2. Company Website
+         - Check the “Team”, “Leadership”, or “About Us” pages for public-facing execs and department heads.
+      3. Crunchbase or AngelList (for startups)
+         - Identify founders, key team members, and any public hires.
+      4. Press Releases / News Mentions
+         - Google queries like: "${opportunity.company_name}" hiring OR expansion OR launch
+         - Look for recent hiring initiatives or promotions.
+      5. Job Posting Author or Owner
+         - If the job was posted on LinkedIn, grab the “Posted by” user—often the hiring manager.
 
-      Return a JSON object with a "contacts" key, containing an array of contacts.
-      Example:
-      { 
-        "contacts": [ 
-          { "name": "Jane Doe", "title": "VP of Sales", "email": "jane.d@example.com", "linkedin": "https://linkedin.com/in/janedoe" }, 
-          ... 
-        ] 
+      For each contact, return as much of the following as possible:
+      - name
+      - title
+      - email (only if publicly listed or easily inferred)
+      - linkedin (full URL)
+      - seniority (e.g., C-level, VP, Director, Manager)
+      - department (Sales, Engineering, HR, etc.)
+      - reason_for_inclusion (why this person is likely the decision-maker)
+
+      Return a single JSON object with a "contacts" array.
+      Example Output:
+      {
+        "contacts": [
+          {
+            "name": "Sarah Thompson",
+            "title": "VP of Sales",
+            "email": "sarah@acme.io",
+            "linkedin": "https://linkedin.com/in/sarahthompson",
+            "seniority": "VP",
+            "department": "Sales",
+            "reason_for_inclusion": "Sarah is the head of Sales and likely owns hiring for this role."
+          },
+          {
+            "name": "James Liu",
+            "title": "Founder & CEO",
+            "email": "james@acme.io",
+            "linkedin": "https://linkedin.com/in/jamesliu",
+            "seniority": "C-level",
+            "department": "Executive",
+            "reason_for_inclusion": "Small company—CEO is still likely involved in key hires."
+          }
+        ]
       }
     `;
 
