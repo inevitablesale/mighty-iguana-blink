@@ -53,17 +53,13 @@ export function Sidebar() {
       </div>
       <div className="flex-1 flex flex-col space-y-4 overflow-y-auto">
         <nav className="space-y-1">
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/c')}>
+          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
             <PlusCircle className="mr-3 h-5 w-5" />
             New Chat
           </Button>
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/campaigns')}>
             <Briefcase className="mr-3 h-5 w-5" />
             AI Campaigns
-          </Button>
-          <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
-            <LayoutGrid className="mr-3 h-5 w-5" />
-            Deal Stream
           </Button>
         </nav>
         
