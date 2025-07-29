@@ -276,15 +276,45 @@ serve(async (req) => {
               return;
           }
 
-          const opportunitiesToInsert = opportunitiesToReturn.map(opp => ({ /* ... */ })); // Omitted for brevity
+          const opportunitiesToInsert = opportunitiesToReturn.map(opp => ({
+            user_id: user.id,
+            company_name: opp.companyName,
+            role: opp.role,
+            location: opp.location,
+            company_overview: opp.company_overview,
+            match_score: opp.match_score,
+            contract_value_assessment: opp.contract_value_assessment,
+            hiring_urgency: opp.hiring_urgency,
+            pain_points: opp.pain_points,
+            recruiter_angle: opp.recruiter_angle,
+            key_signal_for_outreach: opp.key_signal_for_outreach,
+            company_domain: opp.company_domain,
+          }));
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
           const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
-          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({ /* ... */ }).select().single();
+          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
+            user_id: user.id,
+            name: agentName,
+            prompt: recruiter_specialty,
+            autonomy_level: 'semi-automatic',
+            site_names: sites.split(','),
+            max_results: 20,
+            search_lookback_hours: 72,
+          }).select().single();
+
           if (!agentInsertError && newAgent) {
               sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
-              if (conversationId) { await supabaseAdmin.from('feed_items').insert({ /* ... */ }); }
+              if (conversationId) {
+                await supabaseAdmin.from('feed_items').insert({
+                  user_id: user.id,
+                  conversation_id: conversationId,
+                  type: 'agent_created',
+                  role: 'system',
+                  content: { agentName: newAgent.name }
+                });
+              }
           }
 
           let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
