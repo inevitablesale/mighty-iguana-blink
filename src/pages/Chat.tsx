@@ -12,13 +12,13 @@ import { PresetPrompts } from '@/components/PresetPrompts';
 
 export default function Chat() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [transientMessage, setTransientMessage] = useState<FeedItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const feedEndRef = useRef<HTMLDivElement>(null);
-  const analysisMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const fetchFeedItems = async () => {
@@ -45,14 +45,13 @@ export default function Chat() {
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [feedItems]);
+  }, [feedItems, transientMessage]);
 
   const executeSearch = async (query: string) => {
     if (!query.trim() || isSearching) return;
     
     setInput('');
     setIsSearching(true);
-    analysisMessageIdRef.current = null;
     
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
@@ -75,14 +74,20 @@ export default function Chat() {
     setFeedItems(prev => [...prev, userQueryItem]);
     await supabase.from('feed_items').insert({ ...userQueryItem, id: undefined });
 
+    setTransientMessage({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        conversation_id: currentConversationId,
+        type: 'agent_run_summary',
+        role: 'system',
+        content: { agentName: 'Coogi Assistant', summary: 'Thinking...' },
+        created_at: new Date().toISOString()
+    });
+
     try {
       const response = await fetch(`https://dbtdplhlatnlzcvdvptn.supabase.co/functions/v1/process-chat-command`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${session.access_token}`,
-          'X-Conversation-ID': currentConversationId
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}`, 'X-Conversation-ID': currentConversationId },
         body: JSON.stringify({ query }),
       });
 
@@ -108,32 +113,26 @@ export default function Chat() {
           try { data = JSON.parse(jsonString); } catch (e) { console.error("Failed to parse stream chunk:", jsonString, e); continue; }
 
           if (data.type === 'status') {
-            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: data.message }, created_at: new Date().toISOString() };
-            setFeedItems(prev => [...prev, newItem]);
+            setTransientMessage(prev => prev ? { ...prev, content: { ...prev.content, summary: data.message } } : null);
           } else if (data.type === 'analysis_start') {
-            const newItemId = crypto.randomUUID();
-            analysisMessageIdRef.current = newItemId;
-            const newItem: FeedItem = { id: newItemId, user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: `Analyzing ${data.payload.jobs.length} jobs...`, analysisProgress: { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) } }, created_at: new Date().toISOString() };
-            setFeedItems(prev => [...prev, newItem]);
-          } else if (data.type === 'analysis_progress' && analysisMessageIdRef.current) {
-            setFeedItems(prev => prev.map(item => {
-              if (item.id === analysisMessageIdRef.current && item.content.analysisProgress) {
-                const newJobs = [...item.content.analysisProgress.jobs];
-                const { index, status, match_score } = data.payload;
-                if (newJobs[index]) {
-                  newJobs[index].status = status;
-                  if (match_score !== undefined) {
-                    newJobs[index].match_score = match_score;
-                  }
-                }
-                return { ...item, content: { ...item.content, analysisProgress: { jobs: newJobs } } };
+            setTransientMessage(prev => prev ? { ...prev, content: { ...prev.content, summary: `Analyzing ${data.payload.jobs.length} jobs...`, analysisProgress: { jobs: data.payload.jobs.map((job: any) => ({ ...job, status: 'pending' })) } } } : null);
+          } else if (data.type === 'analysis_progress') {
+            setTransientMessage(prev => {
+              if (!prev || !prev.content.analysisProgress) return prev;
+              const newJobs = [...prev.content.analysisProgress.jobs];
+              const { index, status, match_score } = data.payload;
+              if (newJobs[index]) {
+                newJobs[index].status = status;
+                if (match_score !== undefined) newJobs[index].match_score = match_score;
               }
-              return item;
-            }));
+              return { ...prev, content: { ...prev.content, analysisProgress: { jobs: newJobs } } };
+            });
           } else if (data.type === 'agent_created') {
             const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_created', role: 'system', content: { agentName: data.payload.agentName, summary: `I've created an agent named "${data.payload.agentName}" for you.` }, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, newItem]);
+            await supabase.from('feed_items').insert({ ...newItem, id: undefined });
           } else if (data.type === 'result') {
+            setTransientMessage(null);
             const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
             const finalItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, finalItem]);
@@ -144,6 +143,7 @@ export default function Chat() {
         }
       }
     } catch (err) {
+      setTransientMessage(null);
       toast.error("Search failed", { description: (err as Error).message });
     } finally {
       setIsSearching(false);
@@ -161,11 +161,13 @@ export default function Chat() {
         <div className="max-w-3xl mx-auto space-y-6">
           {loading ? (
             [...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full bg-white/10" />)
-          ) : feedItems.length > 0 ? (
-            feedItems.map(item => 
-              <FeedItemCard key={item.id} item={item} />
-            )
           ) : (
+            <>
+              {feedItems.map(item => <FeedItemCard key={item.id} item={item} />)}
+              {transientMessage && <FeedItemCard item={transientMessage} />}
+            </>
+          )}
+          {feedItems.length === 0 && !transientMessage && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-24">
               <Bot className="h-12 w-12 mb-4 text-primary" />
               <h3 className="text-xl font-semibold text-foreground">AI Search powered by ContractGPT</h3>
