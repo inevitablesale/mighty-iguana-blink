@@ -101,7 +101,7 @@ serve(async (req) => {
       };
 
       try {
-        let { query } = await req.json();
+        const { query } = await req.json();
         if (!query) throw new Error("Search query is required.");
 
         const conversationId = req.headers.get('x-conversation-id');
@@ -111,57 +111,70 @@ serve(async (req) => {
         if (userRes.error) throw new Error("Authentication failed");
         const user = userRes.data.user;
 
-        // Check if this is a refinement query
-        if (conversationId && query.split(' ').length <= 5) {
-            sendUpdate({ type: 'status', message: 'Checking for context...' });
-            const { data: previousMessages, error: historyError } = await supabaseAdmin
-                .from('feed_items')
-                .select('role, content')
-                .eq('conversation_id', conversationId)
-                .order('created_at', { ascending: false })
-                .limit(2);
-
-            if (!historyError && previousMessages && previousMessages.length === 2) {
-                const lastAiResponse = previousMessages[0];
-                const lastUserQuery = previousMessages[1];
-
-                if (lastAiResponse.role === 'system' && lastUserQuery.role === 'user' && lastAiResponse.content?.summary?.includes('To help me focus, could you be more specific?')) {
-                    const originalQuery = lastUserQuery.content?.query;
-                    if (originalQuery) {
-                        const combinedQuery = `${originalQuery} ${query}`;
-                        console.log(`Refined query detected. Combined query: "${combinedQuery}"`);
-                        sendUpdate({ type: 'status', message: `Refining search with: "${query}"` });
-                        query = combinedQuery;
-                    }
-                }
-            }
-        }
-
         const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
         if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
+        // --- CONTEXT-AWARE INTENT DETECTION ---
+        let hasPreviousResults = false;
+        let previousOpportunities = [];
+        let previousSearchParams = null;
+
+        if (conversationId) {
+          const { data: lastAiMessage } = await supabaseAdmin
+            .from('feed_items')
+            .select('content')
+            .eq('conversation_id', conversationId)
+            .eq('role', 'system')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (lastAiMessage && lastAiMessage.content?.opportunities?.length > 0) {
+            hasPreviousResults = true;
+            previousOpportunities = lastAiMessage.content.opportunities;
+            previousSearchParams = lastAiMessage.content.searchParams;
+          }
+        }
+
         const intentPrompt = `
-          You are an AI recruiter assistant specializing in contract acquisition. Your goal is to classify the user's goal.
-
+          You are an AI assistant classifying a user's query.
           Query: "${query}"
+          Context: The last message from the AI ${hasPreviousResults ? 'contained a list of job opportunities' : 'did not contain a list of job opportunities'}.
 
-          Return a JSON object with the following structure:
-          - "intent": Must be one of ["find_opportunities", "find_contacts"].
-          - If intent is "find_contacts", you MUST also return "company_name" and "keywords". "keywords" should be a string of job titles or roles mentioned. If no specific role is mentioned, return an empty string for keywords.
+          Return a JSON object with one of the following structures:
+          1. For a new search for jobs:
+             { "intent": "find_opportunities" }
+          2. For a search for people at a company:
+             { "intent": "find_contacts", "company_name": "...", "keywords": "..." }
+          3. For a request to filter or sort the PREVIOUS list of opportunities:
+             { "intent": "refine_results", "refinement_type": "top_n" | "sort_by_score", "value": (e.g., 3) }
 
           Examples:
-          - Query: "Find me sales roles at Series A companies"
-            → { "intent": "find_opportunities", "company_name": null, "keywords": null }
-
-          - Query: "Who’s the Head of Sales at Salesforce?"
-            → { "intent": "find_contacts", "company_name": "Salesforce", "keywords": "Head of Sales" }
-            
-          - Query: "Show me people who work at Google"
-            → { "intent": "find_contacts", "company_name": "Google", "keywords": "" }
+          - Query: "Find me sales roles" -> { "intent": "find_opportunities" }
+          - Query: "people at Google" -> { "intent": "find_contacts", "company_name": "Google", "keywords": "" }
+          - Query: "can you trim these to the top 3 opportunities" (Context: has results) -> { "intent": "refine_results", "refinement_type": "top_n", "value": 3 }
+          - Query: "show me the best ones" (Context: has results) -> { "intent": "refine_results", "refinement_type": "sort_by_score" }
         `;
-        const { intent, company_name, keywords } = await callGemini(intentPrompt, GEMINI_API_KEY);
+        
+        const { intent, company_name, keywords, refinement_type, value } = await callGemini(intentPrompt, GEMINI_API_KEY);
 
-        if (intent === 'find_contacts' && company_name) {
+        if (intent === 'refine_results' && hasPreviousResults) {
+          sendUpdate({ type: 'status', message: 'Refining your previous results...' });
+          
+          let refinedOpportunities = [...previousOpportunities];
+          refinedOpportunities.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+
+          if (refinement_type === 'top_n' && value) {
+            refinedOpportunities = refinedOpportunities.slice(0, value);
+          }
+          
+          if (refinedOpportunities.length > 0) {
+            sendUpdate({ type: 'result', payload: { text: `Here are the top ${refinedOpportunities.length} opportunities from your last search.`, opportunities: refinedOpportunities, searchParams: previousSearchParams } });
+          } else {
+            sendUpdate({ type: 'result', payload: { text: "I couldn't refine the results as requested. Please try a new search." } });
+          }
+
+        } else if (intent === 'find_contacts' && company_name) {
           sendUpdate({ type: 'status', message: `Searching for contacts at ${company_name}...` });
           
           const { data: contactsData, error: contactsError } = await supabaseAdmin.functions.invoke('find-linkedin-contacts-by-company', {
@@ -183,7 +196,7 @@ serve(async (req) => {
             sendUpdate({ type: 'result', payload: { text: responseText, contacts: contacts } });
           }
 
-        } else {
+        } else { // Default to find_opportunities
           sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
           const searchQueryPrompt = `
             You are an AI recruiting analyst. Break down the query into structured parameters.
