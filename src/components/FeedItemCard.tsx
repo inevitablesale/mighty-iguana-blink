@@ -75,7 +75,7 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
           <div className="flex justify-between items-start">
             <div>
               <p className="font-semibold text-white">{item.content.agentName || 'Coogi Assistant'}</p>
-              <p className="text-white/80">{item.content.summary}</p>
+              <p className="text-white/80 whitespace-pre-wrap">{item.content.summary}</p>
             </div>
             {user && <FeedbackControl contentId={item.id} contentType="feed_item" userId={user.id} />}
           </div>
@@ -101,7 +101,16 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
                   </div>
               </div>
           </div>
-        ) : null}
+        ) : (
+          item.type === 'agent_run_summary' && !item.content.analysisProgress && (
+            <div className="mt-4 p-3 bg-black/20 border border-dashed border-white/20 rounded-lg text-sm text-white/80">
+              <p className="font-semibold text-white">💡 Tip: How to get better results</p>
+              <p className="mt-1">
+                If your search didn't yield good results, try refining the agent I created for you in the sidebar. You can make the search broader (e.g., "SaaS sales roles") and then add more specific criteria in the agent's advanced settings.
+              </p>
+            </div>
+          )
+        )}
       </div>
     </div>
   );

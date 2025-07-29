@@ -150,22 +150,17 @@ serve(async (req) => {
         } else {
           sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
           const searchQueryPrompt = `
-            Analyze the recruiter’s business development request to extract structured search parameters for identifying high-value contract opportunities.
+            Analyze the recruiter’s business development request to extract structured search parameters. The goal is to separate core, searchable keywords from qualitative, analytical filters.
 
             User Query: "${query}"
-            Available sites: linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri.
 
-            Determine:
+            **Instructions:**
+            1.  **search_query**: Identify the core, concrete keywords for a job search. This should include job titles, primary skills, and industry. For example, from "remote fintech startups hiring software engineers with no TA team", the search_query should be "software engineer fintech".
+            2.  **location**: Extract the location. Default to "Remote" if not specified or if the query implies it.
+            3.  **sites**: Determine the best job boards. For most professional roles in the US/Europe, use 'linkedin,indeed,zip_recruiter,google'.
+            4.  **recruiter_specialty**: This is crucial. Create a concise summary of the *entire* user request, including the qualitative filters (like "no talent acquisition team", "high-growth", "recently funded"). This specialty will be used for AI analysis *after* the initial search. For the example above, a good specialty would be "Placing software engineers at remote fintech startups, prioritizing those with no internal talent acquisition team."
 
-            search_query: The role or function the recruiter is targeting.
-
-            location: Based on user input (default to “Remote” if unclear).
-
-            sites: Use most relevant job boards based on region.
-
-            recruiter_specialty: Condense the request into a BD-focused summary (e.g., "securing sales leadership contracts at SaaS companies"). This will be used to tailor contact-finding and pitch strategies.
-
-            Return only a valid JSON object with those keys.
+            Return only a single, valid JSON object with keys: "search_query", "location", "sites", and "recruiter_specialty".
           `;
           const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
           
