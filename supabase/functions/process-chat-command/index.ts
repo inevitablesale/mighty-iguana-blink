@@ -100,8 +100,6 @@ serve(async (req) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
 
-      const timers = [];
-
       try {
         let { query } = await req.json();
         if (!query) throw new Error("Search query is required.");
@@ -155,7 +153,7 @@ serve(async (req) => {
           - Query: "Find me sales roles at Series A companies"
             → { "intent": "find_opportunities" }
 
-          - Query: "Who’s the hiring manager at Shopify?"
+          - Query: "Who’s the Head of Sales at Salesforce?"
             → { "intent": "find_contacts", "company_name": "Shopify" }
         `;
         const { intent, company_name } = await callGemini(intentPrompt, GEMINI_API_KEY);
@@ -210,15 +208,7 @@ serve(async (req) => {
           
           const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites || 'linkedin,indeed,zip_recruiter,google'}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
 
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Compiling results from multiple job boards...' }), 4000));
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'This is a big search, still working on it...' }), 9000));
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 15000));
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Almost there, just a few more seconds...' }), 22000));
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'The search is taking a bit longer than usual. Hang tight...' }), 30000));
-          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Just wrapping up the search now...' }), 45000));
-
           const scrapingResponse = await scrapingPromise;
-          timers.forEach(clearTimeout);
 
           if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
           const rawJobResults = (await scrapingResponse.json())?.jobs;
@@ -346,7 +336,6 @@ serve(async (req) => {
       } catch (error) {
         sendUpdate({ type: 'error', message: error.message });
       } finally {
-        timers.forEach(clearTimeout);
         controller.close();
       }
     }
