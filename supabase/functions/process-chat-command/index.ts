@@ -176,52 +176,75 @@ serve(async (req) => {
           });
 
           const enrichmentPromises = jobsToAnalyze.map((job, index) => (async () => {
-            const jobHash = await createJobHash(job);
-            const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
-            let analysisData;
-            if (cached) {
-                analysisData = cached.analysis_data;
-            } else {
-                const singleEnrichmentPrompt = `
-                    You are a world-class recruiting strategist with web search capabilities. Analyze the following job posting based on a recruiter's stated specialty.
-                    Recruiter's specialty: "${recruiter_specialty}"
-                    Job Posting: ${JSON.stringify(job)}
-                    
-                    Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
+            try {
+              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
 
-                    **Intelligence Field Instructions:**
-                    - "contract_value_assessment": If a salary range is found in the job data (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, use your knowledge to estimate a realistic market-rate salary for the role and location, then perform the same 20% fee calculation and return it in the same format.
-                    - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
-                    - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
-                `;
-                analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
-                await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+              const jobHash = await createJobHash(job);
+              const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
+              let analysisData;
+              if (cached) {
+                  analysisData = cached.analysis_data;
+              } else {
+                  const singleEnrichmentPrompt = `
+                      You are a world-class recruiting strategist with web search capabilities. Analyze the following job posting based on a recruiter's stated specialty.
+                      Recruiter's specialty: "${recruiter_specialty}"
+                      Job Posting: ${JSON.stringify(job)}
+                      
+                      Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
+
+                      **Intelligence Field Instructions:**
+                      - "contract_value_assessment": If a salary range is found in the job data (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, use your knowledge to estimate a realistic market-rate salary for the role and location, then perform the same 20% fee calculation and return it in the same format.
+                      - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
+                      - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
+                  `;
+                  analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
+                  await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+              }
+              analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
+              analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
+              
+              const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+              analysisData.company_domain = domainData?.domain;
+
+              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzed', match_score: analysisData.match_score } });
+              return analysisData;
+            } catch (e) {
+              console.error(`Error enriching job at index ${index}:`, e.message);
+              sendUpdate({ type: 'analysis_progress', payload: { index, status: 'error' } });
+              return null;
             }
-            analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
-            analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
-            
-            const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
-            analysisData.company_domain = domainData?.domain;
-
-            sendUpdate({ type: 'analysis_progress', payload: { index: index, match_score: analysisData.match_score } });
-            return analysisData;
           })());
 
           const settledResults = await Promise.allSettled(enrichmentPromises);
           
-          const enrichedOpportunities = [];
-          settledResults.forEach(result => {
-            if (result.status === 'fulfilled' && result.value) {
-              enrichedOpportunities.push(result.value);
-            } else if (result.status === 'rejected') {
-              console.error("An enrichment promise failed:", result.reason);
-            }
-          });
+          const enrichedOpportunities = settledResults
+            .filter(r => r.status === 'fulfilled' && r.value)
+            .map(r => r.value);
 
           let opportunitiesToReturn = enrichedOpportunities.filter(opp => opp.match_score >= 5).sort((a, b) => b.match_score - a.match_score);
           
           if (opportunitiesToReturn.length === 0) {
-              sendUpdate({ type: 'result', payload: { text: "I analyzed the jobs I found, but none were a strong match for your specialty. Try broadening your search." } });
+              if (enrichedOpportunities.length > 0) {
+                  const rejectedJobsSummary = enrichedOpportunities
+                      .slice(0, 5)
+                      .map(job => `- ${job.role} at ${job.companyName} (Score: ${job.match_score})`)
+                      .join('\n');
+
+                  const feedbackPrompt = `
+                      You are a helpful AI recruiting assistant. A user searched for jobs matching the specialty: "${recruiter_specialty}".
+                      You found and analyzed ${enrichedOpportunities.length} jobs, but none scored high enough to be considered a good match (all were below 5/10).
+                      Here is a sample of the rejected jobs and their scores:
+                      ${rejectedJobsSummary}
+
+                      Based on this, provide a concise, helpful message to the user. Explain why these jobs might have been poor matches and suggest 2-3 specific ways they could refine their search query for better results. For example, suggest adding a seniority level (like 'senior', 'director'), a technology (like 'React'), or a more specific industry (like 'B2B SaaS' instead of just 'tech').
+                      Keep the tone encouraging. Start with "I analyzed ${enrichedOpportunities.length} jobs, but they weren't a strong match for your specialty."
+                      Return your response as a single valid JSON object with one key: "responseText".
+                  `;
+                  const feedbackResult = await callGemini(feedbackPrompt, GEMINI_API_KEY);
+                  sendUpdate({ type: 'result', payload: { text: feedbackResult.responseText } });
+              } else {
+                  sendUpdate({ type: 'result', payload: { text: "I couldn't find any open roles matching your request. Please try a different search." } });
+              }
               controller.close();
               return;
           }

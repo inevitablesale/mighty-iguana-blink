@@ -143,7 +143,7 @@ export interface Conversation {
 export interface AnalysisProgressJob {
   company: string;
   title: string;
-  status: 'pending' | 'analyzed';
+  status: 'pending' | 'analyzing' | 'analyzed' | 'error';
   match_score?: number;
 }
 

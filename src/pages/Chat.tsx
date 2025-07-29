@@ -119,7 +119,13 @@ export default function Chat() {
             setFeedItems(prev => prev.map(item => {
               if (item.id === analysisMessageIdRef.current && item.content.analysisProgress) {
                 const newJobs = [...item.content.analysisProgress.jobs];
-                newJobs[data.payload.index] = { ...newJobs[data.payload.index], status: 'analyzed', match_score: data.payload.match_score };
+                const { index, status, match_score } = data.payload;
+                if (newJobs[index]) {
+                  newJobs[index].status = status;
+                  if (match_score !== undefined) {
+                    newJobs[index].match_score = match_score;
+                  }
+                }
                 return { ...item, content: { ...item.content, analysisProgress: { jobs: newJobs } } };
               }
               return item;
