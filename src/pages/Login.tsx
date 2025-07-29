@@ -43,7 +43,7 @@ const Login = () => {
             <CardTitle className="text-3xl font-bold">Coogi</CardTitle>
           </div>
           <CardDescription className="text-white/70 pt-2">
-            Sign in with your provider to continue.
+            Sign in with your business email provider to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
