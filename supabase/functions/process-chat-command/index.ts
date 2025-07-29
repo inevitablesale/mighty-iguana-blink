@@ -100,7 +100,7 @@ serve(async (req) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
 
-      let timer1, timer2;
+      let timer1, timer2, timer3;
 
       try {
         let { query } = await req.json();
@@ -175,10 +175,12 @@ serve(async (req) => {
 
           timer1 = setTimeout(() => sendUpdate({ type: 'status', message: 'This can take a moment. I\'m compiling results from all sources...' }), 8000);
           timer2 = setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 16000);
+          timer3 = setTimeout(() => sendUpdate({ type: 'status', message: 'The search is taking a bit longer than usual. Still working on it...' }), 30000);
 
           const scrapingResponse = await scrapingPromise;
           clearTimeout(timer1);
           clearTimeout(timer2);
+          clearTimeout(timer3);
 
           if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
           const rawJobResults = (await scrapingResponse.json())?.jobs;
@@ -189,23 +191,33 @@ serve(async (req) => {
             return;
           }
 
-          let jobsToAnalyze;
+          sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} total listings. Removing duplicates...` });
+          const uniqueJobsMap = new Map();
+          rawJobResults.forEach(job => {
+              const key = `${job.company?.trim().toLowerCase()}|${job.title?.trim().toLowerCase()}`;
+              if (!uniqueJobsMap.has(key)) {
+                  uniqueJobsMap.set(key, job);
+              }
+          });
+          const jobsToAnalyze = Array.from(uniqueJobsMap.values());
+
+          let finalJobsToAnalyze;
           let resultWarning = null;
 
-          if (rawJobResults.length > 75) {
-              resultWarning = `I found over ${rawJobResults.length} jobs. To give you the best results quickly, I'm analyzing the top 75. You can always refine your search for a more targeted list.`;
-              jobsToAnalyze = [...rawJobResults]
+          if (jobsToAnalyze.length > 75) {
+              resultWarning = `I found over ${jobsToAnalyze.length} unique jobs. To give you the best results quickly, I'm analyzing the top 75. You can always refine your search for a more targeted list.`;
+              finalJobsToAnalyze = [...jobsToAnalyze]
                   .sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0))
                   .slice(0, 75);
           } else {
-              jobsToAnalyze = [...rawJobResults].sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0));
+              finalJobsToAnalyze = [...jobsToAnalyze].sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0));
           }
 
-          sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} potential jobs. Now preparing for analysis...` });
+          sendUpdate({ type: 'status', message: `Found ${jobsToAnalyze.length} unique potential jobs. Now preparing for analysis...` });
           
-          sendUpdate({ type: 'analysis_start', payload: { jobs: jobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
+          sendUpdate({ type: 'analysis_start', payload: { jobs: finalJobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
 
-          const enrichmentPromises = jobsToAnalyze.map((job, index) => (async () => {
+          const enrichmentPromises = finalJobsToAnalyze.map((job, index) => (async () => {
             try {
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
               const jobHash = await createJobHash(job);
@@ -328,6 +340,7 @@ serve(async (req) => {
       } finally {
         clearTimeout(timer1);
         clearTimeout(timer2);
+        clearTimeout(timer3);
         controller.close();
       }
     }
