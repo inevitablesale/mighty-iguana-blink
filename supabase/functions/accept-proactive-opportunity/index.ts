@@ -97,7 +97,7 @@ serve(async (req) => {
         Your task is to return a single, valid JSON object with all the requested keys: "companyName", "role", "location", "company_overview", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "estimated_time_to_fill", "client_demand_signal", "location_flexibility", "seniority_level", "likely_decision_maker", "ta_team_status".
 
         **Detailed Instructions for Intelligence Fields:**
-        - "contract_value_assessment": If a salary is in the job data, calculate 20% of the average and return "Est. Fee: $XX,XXX". If not, estimate a realistic market-rate salary for the role/location, then do the same calculation.
+        - "contract_value_assessment": If a salary range is found in the job data (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, use your knowledge to estimate a realistic market-rate salary for the role and location, then perform the same 20% fee calculation and return it in the same format.
         - "hiring_urgency": Return one of: 'High', 'Medium', or 'Low'.
         - "placement_difficulty": Return one of: 'High', 'Medium', or 'Low'.
         - "estimated_time_to_fill": Return a string like "25-40 days".

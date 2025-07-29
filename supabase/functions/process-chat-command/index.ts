@@ -192,6 +192,7 @@ serve(async (req) => {
                     Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
 
                     **Intelligence Field Instructions:**
+                    - "contract_value_assessment": If a salary range is found in the job data (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, use your knowledge to estimate a realistic market-rate salary for the role and location, then perform the same 20% fee calculation and return it in the same format.
                     - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
                     - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
                 `;
