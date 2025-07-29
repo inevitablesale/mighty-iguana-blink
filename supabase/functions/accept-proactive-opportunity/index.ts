@@ -91,10 +91,10 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const enrichmentPrompt = `
-        You are a world-class recruiting strategist. Analyze the following job posting.
+        You are a world-class recruiting strategist with web search capabilities. Analyze the following job posting.
         Job Posting: ${JSON.stringify(job)}
         
-        Your task is to return a single, valid JSON object with all the requested keys: "companyName", "role", "location", "company_overview", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "estimated_time_to_fill", "client_demand_signal", "location_flexibility", "seniority_level", "likely_decision_maker".
+        Your task is to return a single, valid JSON object with all the requested keys: "companyName", "role", "location", "company_overview", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "placement_difficulty", "estimated_time_to_fill", "client_demand_signal", "location_flexibility", "seniority_level", "likely_decision_maker", "ta_team_status".
 
         **Detailed Instructions for Intelligence Fields:**
         - "contract_value_assessment": If a salary is in the job data, calculate 20% of the average and return "Est. Fee: $XX,XXX". If not, estimate a realistic market-rate salary for the role/location, then do the same calculation.
@@ -105,6 +105,7 @@ serve(async (req) => {
         - "location_flexibility": Return one of: "Remote", "Hybrid", or "Onsite".
         - "seniority_level": Return one of: "Executive", "Senior", "Mid-level", "Entry-level".
         - "likely_decision_maker": Infer the most likely job title of the hiring manager.
+        - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
       `;
     const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
 
@@ -130,6 +131,7 @@ serve(async (req) => {
       seniority_level: analysisData.seniority_level,
       likely_decision_maker: analysisData.likely_decision_maker,
       company_domain: domainData?.domain,
+      ta_team_status: analysisData.ta_team_status || 'Unknown',
     };
 
     const { data: savedOpportunity, error: insertOppError } = await supabaseAdmin

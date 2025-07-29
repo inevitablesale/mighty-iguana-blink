@@ -133,7 +133,15 @@ serve(async (req) => {
         if (cached) {
           analysisData = cached.analysis_data;
         } else {
-          const enrichmentPrompt = `Analyze this job based on this specialty: "${agent.prompt}". Job: ${JSON.stringify(job)}. Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", etc.`;
+          const enrichmentPrompt = `
+            You are a world-class recruiting strategist with web search capabilities. Analyze this job based on this specialty: "${agent.prompt}". 
+            Job: ${JSON.stringify(job)}. 
+            Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
+            
+            **Intelligence Field Instructions:**
+            - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
+            - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
+          `;
           analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
           await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
         }
@@ -160,8 +168,10 @@ serve(async (req) => {
             hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
             key_signal_for_outreach: opp.key_signal_for_outreach, placement_difficulty: opp.placement_difficulty,
             estimated_time_to_fill: opp.estimated_time_to_fill, client_demand_signal: opp.client_demand_signal,
-            location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, likely_decision_maker: opp.likely_decision_maker,
+            location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, 
+            likely_decision_maker: opp.likely_decision_maker,
             company_domain: opp.company_domain,
+            ta_team_status: opp.ta_team_status || 'Unknown',
         }));
         const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
         if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);

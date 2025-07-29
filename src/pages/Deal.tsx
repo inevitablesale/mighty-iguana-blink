@@ -234,7 +234,7 @@ export default function Deal() {
                   <IntelligenceDetail icon={<Briefcase size={14} />} label="Seniority Level" value={opportunity.seniority_level} />
                   <IntelligenceDetail icon={<MapPin size={14} />} label="Location Flexibility" value={opportunity.location_flexibility} />
                   <IntelligenceDetail icon={<Clock size={14} />} label="Est. Time to Fill" value={opportunity.estimated_time_to_fill} />
-                  <IntelligenceDetail icon={<Users size={14} />} label="Client Demand" value={opportunity.client_demand_signal} />
+                  <IntelligenceDetail icon={<Users size={14} />} label="TA Team Status" value={opportunity.ta_team_status} />
                   <IntelligenceDetail icon={<BrainCircuit size={14} />} label="Placement Difficulty" value={opportunity.placement_difficulty} />
                   <IntelligenceDetail icon={<Target size={14} />} label="Likely Decision Maker" value={opportunity.likely_decision_maker} />
                 </dl>

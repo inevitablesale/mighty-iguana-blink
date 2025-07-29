@@ -185,10 +185,15 @@ serve(async (req) => {
                 analysisData = cached.analysis_data;
             } else {
                 const singleEnrichmentPrompt = `
-                    You are a world-class recruiting strategist. Analyze the following job posting based on a recruiter's stated specialty.
+                    You are a world-class recruiting strategist with web search capabilities. Analyze the following job posting based on a recruiter's stated specialty.
                     Recruiter's specialty: "${recruiter_specialty}"
                     Job Posting: ${JSON.stringify(job)}
-                    Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach".
+                    
+                    Return a single, valid JSON object with keys: "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
+
+                    **Intelligence Field Instructions:**
+                    - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
+                    - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
                 `;
                 analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
                 await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
@@ -240,6 +245,8 @@ serve(async (req) => {
               key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
               linkedin_url_slug: opp.linkedin_url_slug || null,
               company_domain: opp.company_domain || null,
+              ta_team_status: opp.ta_team_status || 'Unknown',
+              likely_decision_maker: opp.likely_decision_maker || null,
           }));
 
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
