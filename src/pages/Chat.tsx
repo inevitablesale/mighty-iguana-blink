@@ -78,7 +78,11 @@ export default function Chat() {
     try {
       const response = await fetch(`https://dbtdplhlatnlzcvdvptn.supabase.co/functions/v1/process-chat-command`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Conversation-ID': currentConversationId
+        },
         body: JSON.stringify({ query }),
       });
 
@@ -106,9 +110,6 @@ export default function Chat() {
           if (data.type === 'status') {
             const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: { agentName: 'Coogi Assistant', summary: data.message }, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, newItem]);
-          } else if (data.type === 'agent_prompt_generated') {
-            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_prompt', role: 'system', content: { searchParams: data.payload.searchParams }, created_at: new Date().toISOString() };
-            setFeedItems(prev => [...prev, newItem]);
           } else if (data.type === 'analysis_start') {
             const newItemId = crypto.randomUUID();
             analysisMessageIdRef.current = newItemId;
@@ -123,6 +124,9 @@ export default function Chat() {
               }
               return item;
             }));
+          } else if (data.type === 'agent_created') {
+            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_created', role: 'system', content: { agentName: data.payload.agentName, summary: `I've created an agent named "${data.payload.agentName}" for you.` }, created_at: new Date().toISOString() };
+            setFeedItems(prev => [...prev, newItem]);
           } else if (data.type === 'result') {
             const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
             const finalItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent, created_at: new Date().toISOString() };

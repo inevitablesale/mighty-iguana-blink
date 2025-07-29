@@ -2,7 +2,6 @@ import { FeedItem, Opportunity } from "@/types";
 import { Bot, User, Save, Users, Loader2, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { DealCard } from "./DealCard";
-import { SaveAgentDialog } from "./SaveAgentDialog";
 import { Button } from "./ui/button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { FeedbackControl } from "./FeedbackControl";
@@ -15,26 +14,18 @@ interface FeedItemCardProps {
   item: FeedItem;
 }
 
-const AgentPromptResponse = ({ item }: { item: FeedItem }) => {
-  if (!item.content.searchParams) return null;
-
+const AgentCreatedResponse = ({ item }: { item: FeedItem }) => {
   return (
     <div className="flex items-start gap-4">
       <div className="bg-primary/10 text-primary p-2 rounded-full flex-shrink-0">
-        <Sparkles className="h-5 w-5" />
+        <Bot className="h-5 w-5" />
       </div>
       <div className="flex-1">
-        <div className="p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-white">Agent Prompt Generated</p>
-            <p className="text-sm text-white/80">I've created a prompt for this search. You can save it as an agent to run it automatically in the future.</p>
-          </div>
-          <SaveAgentDialog searchParams={item.content.searchParams}>
-            <Button>
-              <Save className="mr-2 h-4 w-4" />
-              Save Agent
-            </Button>
-          </SaveAgentDialog>
+        <div className="p-3 bg-black/20 border border-white/10 rounded-lg">
+          <p className="font-semibold text-white">New Agent Created</p>
+          <p className="text-sm text-white/80">
+            I've automatically created an agent for you called <span className="font-bold text-white">"{item.content.agentName}"</span>. You can view, edit, or run it from the "Agents" section in the sidebar.
+          </p>
         </div>
       </div>
     </div>
@@ -138,8 +129,8 @@ export function FeedItemCard({ item }: FeedItemCardProps) {
         return <SystemResponse item={item} />;
       case 'user_search':
         return <UserQuery item={item} />;
-      case 'agent_prompt':
-        return <AgentPromptResponse item={item} />;
+      case 'agent_created':
+        return <AgentCreatedResponse item={item} />;
       default:
         // Fallback for any other system message
         if (item.role === 'system') return <SystemResponse item={item} />;

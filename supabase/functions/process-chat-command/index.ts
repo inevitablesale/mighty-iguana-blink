@@ -6,7 +6,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-conversation-id',
 };
 
 // --- Helper functions ---
@@ -104,6 +104,8 @@ serve(async (req) => {
         const { query } = await req.json();
         if (!query) throw new Error("Search query is required.");
 
+        const conversationId = req.headers.get('x-conversation-id');
+
         const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
         const userRes = await supabaseAdmin.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', ''));
         if (userRes.error) throw new Error("Authentication failed");
@@ -141,9 +143,6 @@ serve(async (req) => {
           `;
           const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
           
-          // **NEW**: Stream the agent prompt back immediately
-          sendUpdate({ type: 'agent_prompt_generated', payload: { searchParams: { recruiter_specialty } } });
-
           sendUpdate({ type: 'status', message: `Searching for roles on ${sites}...` });
           const scrapingUrl = `https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=100&enforce_annual_salary=true&hours_old=24`;
           const scrapingResponse = await fetch(scrapingUrl, { signal: AbortSignal.timeout(45000) });
@@ -156,7 +155,6 @@ serve(async (req) => {
             return;
           }
 
-          // **NEW**: Check if results are too broad and ask for clarification
           if (rawJobResults.length > 75) {
             sendUpdate({
               type: 'result',
@@ -202,7 +200,6 @@ serve(async (req) => {
             analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
             analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
             
-            // Get company domain
             const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
             analysisData.company_domain = domainData?.domain;
 
@@ -229,9 +226,6 @@ serve(async (req) => {
               return;
           }
 
-          let responseText = `I found ${opportunitiesToReturn.length} potential deals for you. Here are the top matches. You can now find contacts or create an agent to automate this search.`;
-          sendUpdate({ type: 'status', message: 'Finalizing results...' });
-
           const opportunitiesToInsert = opportunitiesToReturn.map(opp => ({
               user_id: user.id,
               company_name: opp.companyName || opp.company_name,
@@ -253,6 +247,27 @@ serve(async (req) => {
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
+          // Auto-create agent
+          const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
+          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
+              user_id: user.id, name: agentName, prompt: recruiter_specialty,
+              autonomy_level: 'semi-automatic', site_names: sites,
+              search_lookback_hours: 72, max_results: 20,
+          }).select().single();
+
+          if (agentInsertError) {
+              console.error("Failed to auto-create agent:", agentInsertError.message);
+          } else if (newAgent) {
+              sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
+              if (conversationId) {
+                await supabaseAdmin.from('feed_items').insert({
+                    user_id: user.id, conversation_id: conversationId, type: 'agent_created', role: 'system',
+                    content: { agentName: newAgent.name, summary: `Automatically created agent: ${newAgent.name}` }
+                });
+              }
+          }
+
+          let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
           sendUpdate({ type: 'result', payload: { text: responseText, opportunities: savedOpportunities, searchParams: { recruiter_specialty } } });
         }
         

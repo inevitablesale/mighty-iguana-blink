@@ -154,7 +154,7 @@ export interface AnalysisProgress {
 export interface FeedItem {
   id: string;
   user_id: string;
-  type: 'agent_run_summary' | 'user_search' | 'agent_prompt';
+  type: 'agent_run_summary' | 'user_search' | 'agent_created';
   role: 'system' | 'user';
   content: {
     agentName?: string;
