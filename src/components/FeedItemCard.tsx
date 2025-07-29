@@ -21,11 +21,17 @@ const AgentCreatedResponse = ({ item }: { item: FeedItem }) => {
       <div className="bg-primary/10 text-primary p-2 rounded-full flex-shrink-0">
         <Bot className="h-5 w-5" />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 space-y-2">
         <div className="p-3 bg-black/20 border border-white/10 rounded-lg">
           <p className="font-semibold text-white">New Agent Created</p>
           <p className="text-sm text-white/80">
             I've automatically created an agent for you called <span className="font-bold text-white">"{item.content.agentName}"</span>. You can view, edit, or run it from the "Agents" section in the sidebar.
+          </p>
+        </div>
+        <div className="p-3 bg-black/20 border border-dashed border-white/10 rounded-lg text-sm text-white/80">
+          <p className="font-semibold text-white">💡 What's happening now?</p>
+          <p className="mt-1">
+            I'm searching for opportunities based on your new agent's criteria. This can take a minute. You can refine your agent's settings in the sidebar at any time to get different results.
           </p>
         </div>
       </div>

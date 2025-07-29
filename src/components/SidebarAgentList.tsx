@@ -43,6 +43,17 @@ export function SidebarAgentList() {
 
   useEffect(() => {
     fetchAgents();
+
+    const channel = supabase
+      .channel('public:agents')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => {
+        fetchAgents();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchAgents]);
 
   const handleRunAgent = async (agent: Agent) => {
