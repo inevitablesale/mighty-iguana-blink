@@ -128,7 +128,7 @@ export default function Chat() {
               return { ...prev, content: { ...prev.content, analysisProgress: { jobs: newJobs } } };
             });
           } else if (data.type === 'agent_created') {
-            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_created', role: 'system', content: { agentName: data.payload.agentName, summary: `I've created an agent named "${data.payload.agentName}" for you.` }, created_at: new Date().toISOString() };
+            const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_created', role: 'system', content: { agentName: data.payload.agentName, summary: `I've automatically created an agent named "${data.payload.agentName}" for you.` }, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, newItem]);
             await supabase.from('feed_items').insert({ ...newItem, id: undefined });
           } else if (data.type === 'result') {
@@ -164,7 +164,7 @@ export default function Chat() {
           ) : (
             <>
               {feedItems.map(item => <FeedItemCard key={item.id} item={item} />)}
-              {transientMessage && <FeedItemCard item={transientMessage} />}
+              {transientMessage && <FeedItemCard item={transientMessage} isTransient />}
             </>
           )}
           {feedItems.length === 0 && !transientMessage && !loading && (

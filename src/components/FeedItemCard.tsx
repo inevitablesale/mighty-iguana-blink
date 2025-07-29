@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface FeedItemCardProps {
   item: FeedItem;
+  isTransient?: boolean;
 }
 
 const AgentCreatedResponse = ({ item }: { item: FeedItem }) => {
@@ -32,7 +33,7 @@ const AgentCreatedResponse = ({ item }: { item: FeedItem }) => {
   );
 };
 
-const SystemResponse = ({ item }: { item: FeedItem }) => {
+const SystemResponse = ({ item, isTransient }: { item: FeedItem, isTransient?: boolean }) => {
   const { user } = useUserProfile();
   const [isFindingContacts, setIsFindingContacts] = useState(false);
 
@@ -102,7 +103,7 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
               </div>
           </div>
         ) : (
-          item.type === 'agent_run_summary' && !item.content.analysisProgress && (
+          !isTransient && item.type === 'agent_run_summary' && !item.content.analysisProgress && (
             <div className="mt-4 p-3 bg-black/20 border border-dashed border-white/20 rounded-lg text-sm text-white/80">
               <p className="font-semibold text-white">💡 Tip: How to get better results</p>
               <p className="mt-1">
@@ -131,18 +132,18 @@ const UserQuery = ({ item }: { item: FeedItem }) => (
 );
 
 
-export function FeedItemCard({ item }: FeedItemCardProps) {
+export function FeedItemCard({ item, isTransient }: FeedItemCardProps) {
   const renderContent = () => {
     switch (item.type) {
       case 'agent_run_summary':
-        return <SystemResponse item={item} />;
+        return <SystemResponse item={item} isTransient={isTransient} />;
       case 'user_search':
         return <UserQuery item={item} />;
       case 'agent_created':
         return <AgentCreatedResponse item={item} />;
       default:
         // Fallback for any other system message
-        if (item.role === 'system') return <SystemResponse item={item} />;
+        if (item.role === 'system') return <SystemResponse item={item} isTransient={isTransient} />;
         return <p>Unknown feed item role: {item.role}</p>;
     }
   };
