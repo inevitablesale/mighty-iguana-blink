@@ -178,7 +178,6 @@ serve(async (req) => {
           });
 
           const enrichmentPromises = jobsToAnalyze.map((job, index) => (async () => {
-            // ... (enrichment logic remains the same)
             const jobHash = await createJobHash(job);
             const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
             let analysisData;
@@ -196,6 +195,11 @@ serve(async (req) => {
             }
             analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
             analysisData.linkedin_url_slug = extractLinkedInSlug(job.company_linkedin_url);
+            
+            // Get company domain
+            const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+            analysisData.company_domain = domainData?.domain;
+
             sendUpdate({ type: 'analysis_progress', payload: { index: index, match_score: analysisData.match_score } });
             return analysisData;
           })());
@@ -235,6 +239,7 @@ serve(async (req) => {
               recruiter_angle: opp.recruiter_angle || 'N/A',
               key_signal_for_outreach: opp.key_signal_for_outreach || 'N/A',
               linkedin_url_slug: opp.linkedin_url_slug || null,
+              company_domain: opp.company_domain || null,
           }));
 
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();

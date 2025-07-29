@@ -21,6 +21,7 @@ export interface Opportunity {
   role: string;
   location: string;
   match_score: number; // The overall "Recruiter Fit" score
+  company_domain?: string | null;
   
   // Core Deal Intelligence
   company_overview: string;

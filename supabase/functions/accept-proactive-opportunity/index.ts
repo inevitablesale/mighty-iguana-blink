@@ -108,9 +108,12 @@ serve(async (req) => {
       `;
     const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
 
+    const companyName = analysisData.companyName || job.company;
+    const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName } });
+
     const newOpportunity = {
       user_id: user.id,
-      company_name: analysisData.companyName || job.company,
+      company_name: companyName,
       role: analysisData.role || job.title,
       location: analysisData.location || job.location,
       match_score: proactiveOpp.relevance_score,
@@ -126,6 +129,7 @@ serve(async (req) => {
       location_flexibility: analysisData.location_flexibility,
       seniority_level: analysisData.seniority_level,
       likely_decision_maker: analysisData.likely_decision_maker,
+      company_domain: domainData?.domain,
     };
 
     const { data: savedOpportunity, error: insertOppError } = await supabaseAdmin

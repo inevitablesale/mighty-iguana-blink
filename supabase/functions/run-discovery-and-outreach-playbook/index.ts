@@ -129,12 +129,20 @@ serve(async (req) => {
       const enrichmentPromises = rawJobResults.map(async (job) => {
         const jobHash = await createJobHash(job);
         const { data: cached } = await supabaseAdmin.from('job_analysis_cache').select('analysis_data').eq('job_hash', jobHash).single();
-        if (cached) return { ...cached.analysis_data, match_score: sanitizeMatchScore(cached.analysis_data.match_score) };
-
-        const enrichmentPrompt = `Analyze this job based on this specialty: "${agent.prompt}". Job: ${JSON.stringify(job)}. Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", etc.`;
-        const analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
+        let analysisData;
+        if (cached) {
+          analysisData = cached.analysis_data;
+        } else {
+          const enrichmentPrompt = `Analyze this job based on this specialty: "${agent.prompt}". Job: ${JSON.stringify(job)}. Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", etc.`;
+          analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
+          await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+        }
         analysisData.match_score = sanitizeMatchScore(analysisData.match_score);
-        await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
+        
+        // Get company domain
+        const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+        analysisData.company_domain = domainData?.domain;
+
         return analysisData;
       });
 
@@ -153,6 +161,7 @@ serve(async (req) => {
             key_signal_for_outreach: opp.key_signal_for_outreach, placement_difficulty: opp.placement_difficulty,
             estimated_time_to_fill: opp.estimated_time_to_fill, client_demand_signal: opp.client_demand_signal,
             location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, likely_decision_maker: opp.likely_decision_maker,
+            company_domain: opp.company_domain,
         }));
         const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
         if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);

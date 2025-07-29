@@ -5,7 +5,7 @@ import { Opportunity, EvaluatedContact, Campaign, ContactEnrichmentTask } from '
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Search, ThumbsUp, ThumbsDown, BarChart, Star, Briefcase, MapPin, Clock, Users, BrainCircuit, Target, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, ThumbsUp, ThumbsDown, BarChart, Star, Briefcase, MapPin, Clock, Users, BrainCircuit, Target, Send, Globe } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -19,7 +19,7 @@ interface Analysis {
   summary: string;
 }
 
-const IntelligenceDetail = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string | undefined | null }) => {
+const IntelligenceDetail = ({ icon, label, value, isLink = false }: { icon: React.ReactNode, label: string, value: string | undefined | null, isLink?: boolean }) => {
   if (!value) return null;
   return (
     <div>
@@ -27,7 +27,15 @@ const IntelligenceDetail = ({ icon, label, value }: { icon: React.ReactNode, lab
         {icon}
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-foreground font-semibold">{value}</dd>
+      <dd className="mt-1 text-sm text-foreground font-semibold">
+        {isLink ? (
+          <a href={`http://${value}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 };
@@ -222,6 +230,7 @@ export default function Deal() {
               <CardHeader><CardTitle>Enriched Deal Intelligence</CardTitle></CardHeader>
               <CardContent>
                 <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
+                  <IntelligenceDetail icon={<Globe size={14} />} label="Company Domain" value={opportunity.company_domain} isLink={true} />
                   <IntelligenceDetail icon={<Briefcase size={14} />} label="Seniority Level" value={opportunity.seniority_level} />
                   <IntelligenceDetail icon={<MapPin size={14} />} label="Location Flexibility" value={opportunity.location_flexibility} />
                   <IntelligenceDetail icon={<Clock size={14} />} label="Est. Time to Fill" value={opportunity.estimated_time_to_fill} />
