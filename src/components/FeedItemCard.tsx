@@ -118,7 +118,7 @@ const SystemResponse = ({ item, isTransient }: { item: FeedItem, isTransient?: b
               </div>
           </div>
         ) : (
-          !isTransient && item.type === 'agent_run_summary' && !item.content.analysisProgress && (
+          !isTransient && item.type === 'agent_run_summary' && !item.content.analysisProgress && (!item.content.opportunities || item.content.opportunities.length === 0) && (
             <div className="mt-4 p-3 bg-black/20 border border-dashed border-white/20 rounded-lg text-sm text-white/80">
               <p className="font-semibold text-white">💡 Tip: How to get better results</p>
               <p className="mt-1">
