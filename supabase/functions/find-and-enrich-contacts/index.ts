@@ -9,53 +9,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callGemini(prompt, apiKey, retries = 3, delay = 1000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          }),
-        }
-      );
-
-      if (geminiResponse.status === 503) {
-        if (i < retries - 1) {
-          console.warn(`Gemini API returned 503. Retrying in ${delay / 1000}s... (${i + 1}/${retries})`);
-          await new Promise(res => setTimeout(res, delay));
-          delay *= 2; // Exponential backoff
-          continue;
-        } else {
-          throw new Error(`Gemini API error: The model is overloaded. Please try again later. (Status: 503)`);
-        }
-      }
-
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorText}`);
-      }
-
-      const geminiResult = await geminiResponse.json();
-      const aiResponseText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!aiResponseText) throw new Error("Failed to get a valid response from Gemini.");
-      
-      try {
-        return JSON.parse(aiResponseText);
-      } catch (e) {
-        console.error("Failed to parse Gemini JSON response:", aiResponseText);
-        throw new Error(`JSON parsing error: ${e.message}`);
-      }
-    } catch (error) {
-      if (i === retries - 1) throw error;
+// New helper function to call Apify
+async function callApifyActor(actorId, input, token) {
+    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(180000) // 3 minute timeout
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Apify actor ${actorId} failed:`, errorText);
+      throw new Error(`Apify actor ${actorId} failed: ${response.statusText}`);
     }
-  }
-  throw new Error("Gemini API call failed after multiple retries.");
+    return await response.json();
 }
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -67,59 +37,67 @@ serve(async (req) => {
 
   try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("API keys are not set.");
+    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
+    if (!APIFY_API_TOKEN) throw new Error("APIFY_API_TOKEN secret is not set.");
 
-    const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id').eq('id', opportunityId).single();
+    const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id, likely_decision_maker').eq('id', opportunityId).single();
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
-    const researchPrompt = `
-      You are an expert recruiter’s AI sourcing assistant. Your job is to find staffing decision-makers at "${opportunity.company_name}" for the open role of "${opportunity.role}".
+    // --- Start of new logic: Using Apify/Apollo instead of Gemini ---
+    const companyNameEncoded = encodeURIComponent(opportunity.company_name);
+    // Use a broader set of titles to increase chances of finding a match
+    const titles = [
+        opportunity.likely_decision_maker,
+        opportunity.role, 
+        "Hiring Manager", 
+        "Talent Acquisition", 
+        "Recruiter", 
+        "Head of Talent", 
+        "Chief People Officer", 
+        "VP of People",
+        "CEO",
+        "Founder"
+    ].filter(Boolean); // Filter out any null/undefined values
 
-      **CRITICAL INSTRUCTION: You MUST use your web search capabilities to find real people. DO NOT invent or use placeholder names like 'John Doe' or 'Jane Smith'. If you cannot find any real, verifiable contacts, you MUST return an empty "contacts" array.**
+    const titlesEncoded = titles.map(t => `personTitles[]=${encodeURIComponent(t)}`).join('&');
+    const apolloUrl = `https://app.apollo.io/#/people?organizationName=${companyNameEncoded}&${titlesEncoded}`;
 
-      Who to target:
-      Focus on people who are likely to own the hiring decision or benefit from recruiting help. Ideal titles include:
-      - Hiring manager (e.g., VP of Sales for a sales role)
-      - Department leads (e.g., Head of Engineering, Marketing Director)
-      - C-level (e.g., CEO, COO, CTO at small companies)
-      - Founders (for startups)
-      - HR / People Ops / Talent (only if no other signals exist)
+    const apolloInput = { 
+        "url": apolloUrl,
+        "max_result": 5, // Get a few top results
+        "include_email": true
+    };
+    
+    const apolloResults = await callApifyActor('microworlds~apollo-scraper', apolloInput, APIFY_API_TOKEN);
+    // --- End of new logic ---
 
-      Where to search (open sources only):
-      1. LinkedIn Search
-      2. Company Website
-      3. Crunchbase or AngelList (for startups)
-      4. Press Releases / News Mentions
-      5. Job Posting Author or Owner
-
-      For each contact, return as much of the following as possible:
-      - name
-      - title
-      - email (only if publicly listed or easily inferred)
-      - linkedin (full URL)
-      - seniority (e.g., C-level, VP, Director, Manager)
-      - department (Sales, Engineering, HR, etc.)
-      - reason_for_inclusion (why this person is likely the decision-maker)
-
-      Return a single JSON object with a "contacts" array. If no real contacts are found, return \`{"contacts": []}\`.
-    `;
-
-    const researchResult = await callGemini(researchPrompt, GEMINI_API_KEY);
-    const foundContacts = researchResult.contacts || [];
-
-    if (foundContacts.length === 0) {
-        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'AI web search completed but found no contacts.' }).eq('id', taskId);
+    if (!apolloResults || apolloResults.length === 0) {
+        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Apollo.io search completed but found no contacts.' }).eq('id', taskId);
         return new Response(JSON.stringify({ message: "No contacts found." }), { status: 200, headers: corsHeaders });
     }
 
-    const contactsToInsert = foundContacts.map(c => ({
-        task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
-        name: c.name, job_title: c.title, email: c.email,
-        linkedin_profile_url: c.linkedin,
-        email_status: c.email ? 'verified' : null // Assume verified if found
-    }));
-    const { data: savedContacts, error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert).select();
+    const contactsToInsert = apolloResults.map(c => ({
+        task_id: taskId, 
+        opportunity_id: opportunityId, 
+        user_id: opportunity.user_id,
+        name: c.name, 
+        job_title: c.title, 
+        email: c.email,
+        linkedin_profile_url: c.linkedinUrl, // Correct field from apollo-scraper
+        phone_number: c.phone_numbers ? c.phone_numbers[0] : null,
+        email_status: c.email ? 'verified' : null // Assume verified from Apollo
+    })).filter(c => c.email); // Only insert contacts with an email
+
+    if (contactsToInsert.length === 0) {
+        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Apollo.io found contacts, but none had emails.' }).eq('id', taskId);
+        return new Response(JSON.stringify({ message: "No contacts with emails found." }), { status: 200, headers: corsHeaders });
+    }
+
+    const { data: savedContacts, error: insertError } = await supabaseAdmin
+      .from('contacts')
+      .upsert(contactsToInsert, { onConflict: 'opportunity_id, email' }) // Use upsert to avoid duplicates
+      .select();
+      
     if (insertError) throw new Error(`Failed to save contacts: ${insertError.message}`);
 
     await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete' }).eq('id', taskId);
@@ -128,7 +106,7 @@ serve(async (req) => {
         const { data: agent } = await supabaseAdmin.from('agents').select('autonomy_level').eq('id', opportunity.agent_id).single();
         if (agent && (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic')) {
             const authHeader = req.headers.get('Authorization');
-            const topContact = savedContacts.find(c => c.email);
+            const topContact = savedContacts[0]; // The first result is likely the best
             if (topContact && authHeader) {
                 await supabaseAdmin.functions.invoke('generate-outreach-for-opportunity', {
                     headers: { 'Authorization': authHeader },
