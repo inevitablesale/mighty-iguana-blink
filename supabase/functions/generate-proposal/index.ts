@@ -29,27 +29,17 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an expert legal and business affairs assistant for a top-tier recruitment agency. Your task is to generate a formal, professional recruitment services proposal based on industry best practices.
+      You are a legal and BD assistant for a recruiting firm.
 
-The client is: ${campaign.company_name}
-The role to be filled is: ${campaign.role}
-The proposed fee structure is: "${feeStructure}"
+      Company: ${campaign.company_name}
+      Role: ${campaign.role}
+      Fee: "${feeStructure}"
 
-Generate a JSON object with a single key: "proposalBody". The value should be a complete, well-formatted proposal document as a single string. Use markdown for formatting (e.g., # for headers, * for italics, \\n for newlines).
+      Generate a formal, professional recruitment services proposal based on industry best practices.
+      The proposal must include sections for: Introduction, Scope of Services, Fee Structure, Contingency Basis, Candidate Guarantee, Confidentiality, Non-Solicitation, and Acceptance.
 
-The proposal must include the following sections, written in clear, professional language:
-1.  **Introduction**: A brief introduction of the proposal for recruitment services for the specified role.
-2.  **Scope of Services**: Detail the comprehensive services the agency will provide. This must include: candidate sourcing from a global talent pool, rigorous screening and vetting, interview coordination, offer negotiation support, and background checks.
-3.  **Fee Structure**: Clearly state the fee based on the provided structure: "${feeStructure}". Specify that the fee is due upon the successful candidate's official start date.
-4.  **Contingency Basis**: State clearly that this is a contingency-based agreement, meaning no fee is due unless the client hires a candidate presented by the agency.
-5.  **Candidate Guarantee**: Include a 90-day replacement guarantee. If the hired candidate leaves for any reason (excluding redundancy or elimination of the position) within 90 days of their start date, the agency will find a replacement candidate at no additional cost.
-6.  **Confidentiality**: A standard clause ensuring that all information shared by the client and about the candidates will be kept strictly confidential.
-7.  **Non-Solicitation**: A standard clause prohibiting the client from directly hiring any candidate presented by the agency for a period of 12 months without the agency's consent and payment of the agreed fee.
-8.  **Acceptance**: A concluding section with a call to action and fields for the client's authorized signature, name, title, and date to formalize the agreement.
-
-The entire output must be a single valid JSON object.
-**Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
-`;
+      Return a JSON object with a single key: "proposalBody". The value should be a complete, well-formatted proposal document as a single string, using markdown for formatting.
+    `;
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,

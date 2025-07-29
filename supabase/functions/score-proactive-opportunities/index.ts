@@ -113,14 +113,18 @@ serve(async (req) => {
                 if (assignedOppIds.has(opportunity.id)) continue; // Already assigned
 
                 const scoringPrompt = `
-                  You are a contract lead generator for a recruiting firm.
-                  Score this role as a BD lead based on the recruiter’s intent:
+                  You are a contract lead generator.
+
                   Recruiter Profile: "${profile.intent_profile.summary}"
                   Job: ${JSON.stringify(opportunity.job_data)}
 
-                  Return a JSON object with:
-                  - "relevance_score" (1–10)
-                  - "relevance_reasoning" (why this is a promising contract win opportunity)
+                  Return a JSON object with the following structure:
+                  {
+                    "relevance_score": 1–10,
+                    "relevance_reasoning": "A concise reason why this is a good BD opportunity. E.g., 'This is a high-comp sales leadership role at a Series A SaaS startup with no recruiters on staff.'",
+                    "what_to_do_next": "A short action phrase. E.g., 'Find contact → Send proposal'",
+                    "likely_contract_type": "Contingency"
+                  }
                 `;
 
                 try {
@@ -157,13 +161,16 @@ serve(async (req) => {
 
     for (const opportunity of unassignedOpportunities) {
         const generalScoringPrompt = `
-            You are an AI sourcing analyst.
-            Score this opportunity’s general recruitment sales value for contract seekers.
+            You are an AI recruiting analyst. Score this role for general contract acquisition value.
+
             Job: ${JSON.stringify(opportunity.job_data)}
 
-            Return a JSON with:
-            - "relevance_score"
-            - "relevance_reasoning" (e.g., “Senior-level role at under-resourced startup with no TA team”)
+            Return a JSON object with the following structure:
+            {
+              "relevance_score": 1–10,
+              "relevance_reasoning": "A concise reason for the score. E.g., 'Enterprise AE role at bootstrapped SaaS company with no TA lead.'",
+              "market_heat": 8
+            }
         `;
 
         try {

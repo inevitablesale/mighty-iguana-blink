@@ -134,14 +134,27 @@ serve(async (req) => {
           analysisData = cached.analysis_data;
         } else {
           const enrichmentPrompt = `
-            You are a world-class recruiting strategist with web search capabilities. Analyze this job based on this specialty: "${agent.prompt}". 
-            Job: ${JSON.stringify(job)}. 
-            Return JSON with "companyName", "role", "location", "company_overview", "match_score", "contract_value_assessment", "hiring_urgency", "pain_points", "recruiter_angle", "key_signal_for_outreach", "ta_team_status", "likely_decision_maker".
-            
-            **Intelligence Field Instructions:**
-            - "contract_value_assessment": If a salary range is found in the job data (e.g., $100k - $120k), calculate the average salary ($110k), take 20% of that to estimate the placement fee ($22k), and return a string like 'Est. Fee: $22,000'. If no salary is found, use your knowledge to estimate a realistic market-rate salary for the role and location, then perform the same 20% fee calculation and return it in the same format.
-            - "ta_team_status": Search public sources (like LinkedIn) for employees at the company with titles like 'Talent Acquisition' or 'Recruiter'. Classify the team as 'No Recruiters', 'Lean Team' (1-2), 'Healthy Team' (3+), or 'Unknown'.
-            - "likely_decision_maker": Infer the most likely job title of the hiring manager for this specific role.
+            You are a world-class recruiting strategist.
+
+            Specialty: "${agent.prompt}"
+            Job: ${JSON.stringify(job)}
+
+            Return a JSON object with the following structure:
+            {
+              "companyName": "...",
+              "role": "...",
+              "location": "...",
+              "match_score": 1–10,
+              "contract_value_assessment": "High" | "Medium" | "Low",
+              "hiring_urgency": "High" | "Moderate" | "Low",
+              "pain_points": ["An array of reasons this role is hard to fill. E.g., 'Aggressive Q4 targets', 'No recruiter on staff'"],
+              "recruiter_angle": "A specific pitch angle. E.g., 'Offer GTM support as a fractional embedded recruiter'",
+              "key_signal_for_outreach": "The single best hook for an email. E.g., 'Recently raised $15M, hiring revenue leadership'",
+              "ta_team_status": "Lean",
+              "likely_decision_maker": "The job title of the likely hiring manager. E.g., 'Head of RevOps'",
+              "recruiting_risk_factors": ["An array of risks. E.g., 'No salary listed', 'Position reposted'"],
+              "bd_pitch_prompt": "A short question to pitch in an email. E.g., 'Help you staff your GTM team ahead of Q4 push?'"
+            }
           `;
           analysisData = await callGemini(enrichmentPrompt, GEMINI_API_KEY);
           await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
@@ -166,7 +179,8 @@ serve(async (req) => {
         const opportunitiesToInsert = validatedOpportunities.map(opp => ({
             user_id: user.id, agent_id: agentId, company_name: opp.companyName, role: opp.role, location: opp.location,
             match_score: opp.match_score, company_overview: opp.company_overview, contract_value_assessment: opp.contract_value_assessment,
-            hiring_urgency: opp.hiring_urgency, pain_points: opp.pain_points, recruiter_angle: opp.recruiter_angle,
+            hiring_urgency: opp.hiring_urgency, pain_points: Array.isArray(opp.pain_points) ? opp.pain_points.join('. ') : opp.pain_points, 
+            recruiter_angle: opp.recruiter_angle,
             key_signal_for_outreach: opp.key_signal_for_outreach, placement_difficulty: opp.placement_difficulty,
             estimated_time_to_fill: opp.estimated_time_to_fill, client_demand_signal: opp.client_demand_signal,
             location_flexibility: opp.location_flexibility, seniority_level: opp.seniority_level, 

@@ -91,20 +91,19 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const outreachPrompt = `
-      You are a world-class BD copywriter for recruiters.
-      Write a personalized cold email pitch to secure a staffing contract.
+      You are a top-performing agency recruiter. Write a cold email for this opportunity.
 
-      Inputs:
-      - Recipient: { "name": "${contact.name}", "title": "${contact.job_title}" }
-      - Recruiter Profile: { "name": "${profile?.first_name || 'your partner at Coogi'}", "niche": "${opportunity.agents.prompt}", "angle": "${opportunity.recruiter_angle}" }
-      - Client Opportunity: { "company": "${opportunity.company_name}", "role": "${opportunity.role}", "pain_points": "${opportunity.pain_points}", "key_signal": "${opportunity.key_signal_for_outreach}" }
+      Use:
+      - Enriched Opportunity: ${JSON.stringify(opportunity)}
+      - Contact: ${contact.name}, ${contact.title}
 
-      Write a 2-paragraph email that:
-      1. Uses the Key Signal as the opener (“Saw this role reposted”)
-      2. Offers immediate help (“We specialize in this exact need…”)
-      3. Ends with a low-friction CTA (e.g., “Want me to send a few candidates?”)
+      Structure:
+      - Hook: “Saw you’re hiring for [ROLE]”
+      - Value: Tie to recruiter’s specialty + urgency
+      - CTA: “Have 10 mins this week?”
 
-      Return as JSON: { "subject": "...", "body": "..." }
+      Return JSON:
+      { "subject": "...", "body": "..." }
     `;
 
     const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);

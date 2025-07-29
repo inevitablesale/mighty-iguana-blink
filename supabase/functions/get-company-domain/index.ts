@@ -54,7 +54,11 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not set.");
     }
 
-    const findUrlPrompt = `What is the official website URL for the company "${companyName}"? Return a single valid JSON object with one key: "websiteUrl". If you cannot find it, return null.`;
+    const findUrlPrompt = `
+      Query: What is the official website for "${companyName}"?
+
+      Return a JSON object with one key: { "websiteUrl": "..." } or null if not found.
+    `;
     const urlResult = await callGemini(findUrlPrompt, GEMINI_API_KEY);
     const websiteUrl = urlResult?.websiteUrl;
 

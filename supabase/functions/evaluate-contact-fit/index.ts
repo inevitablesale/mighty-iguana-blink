@@ -96,21 +96,15 @@ serve(async (req) => {
     }
 
     const prompt = `
-      You are vetting decision-makers to pitch staffing help.
-      Evaluate the contact below as a buyer of recruiting services for this role.
+      You are scoring a potential hiring contact.
 
-      Recruiter's Focus: "${recruiterFocus}"
-      Role to Fill: ${opportunity.role}
-      Company: ${opportunity.company_name}
-      Contact: {
-        "name": "${contact.name}",
-        "title": "${contact.job_title}"
-      }
+      Contact: ${JSON.stringify(contact)}
+      Role being hired: "${opportunity.role}"
 
       Return a single, valid JSON object with the following keys:
       - "score": An integer from 1 to 10 for decision-making authority.
       - "status": A string, which must be one of 'Good Match', 'Potential Fit', or 'Not a Match'.
-      - "reasoning": A concise explanation (e.g., “Heads Sales for this function,” or “Likely internal TA, avoid”).
+      - "reasoning": A concise explanation (e.g., “This person is the CRO and likely owns headcount for the AE team.”).
     `;
 
     const evaluation = await callGemini(prompt, GEMINI_API_KEY);

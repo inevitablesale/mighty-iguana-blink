@@ -142,7 +142,22 @@ serve(async (req) => {
         const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
         if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
 
-        const intentPrompt = `...`; // Omitted for brevity, no changes here
+        const intentPrompt = `
+          You are an AI recruiter assistant specializing in contract acquisition. Your goal is to classify the user's goal.
+
+          Query: "${query}"
+
+          Return a JSON object:
+          - "intent": one of ["find_opportunities", "find_contacts"]
+          - If intent is "find_contacts", also return "company_name".
+
+          Examples:
+          - Query: "Find me sales roles at Series A companies"
+            → { "intent": "find_opportunities" }
+
+          - Query: "Who’s the hiring manager at Shopify?"
+            → { "intent": "find_contacts", "company_name": "Shopify" }
+        `;
         const { intent, company_name } = await callGemini(intentPrompt, GEMINI_API_KEY);
 
         if (intent === 'find_contacts' && company_name) {
@@ -150,17 +165,20 @@ serve(async (req) => {
         } else {
           sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
           const searchQueryPrompt = `
-            Analyze the recruiter’s business development request to extract structured search parameters. The goal is to separate core, searchable keywords from qualitative, analytical filters.
+            You are an AI recruiting analyst. Break down the query into structured parameters.
 
             User Query: "${query}"
 
-            **Instructions:**
-            1.  **search_query**: Identify the core, concrete keywords for a job search. This should include job titles, primary skills, and industry. For example, from "remote fintech startups hiring software engineers with no TA team", the search_query should be "software engineer fintech".
-            2.  **location**: Extract the location. Default to "Remote" if not specified or if the query implies it.
-            3.  **sites**: Determine the best job boards. For most professional roles in the US/Europe, use 'linkedin,indeed,zip_recruiter,google'.
-            4.  **recruiter_specialty**: This is crucial. Create a concise summary of the *entire* user request, including the qualitative filters (like "no talent acquisition team", "high-growth", "recently funded"). This specialty will be used for AI analysis *after* the initial search. For the example above, a good specialty would be "Placing software engineers at remote fintech startups, prioritizing those with no internal talent acquisition team."
-
-            Return only a single, valid JSON object with keys: "search_query", "location", "sites", and "recruiter_specialty".
+            Return a JSON object with the following structure. Be thorough.
+            {
+              "search_query": "The core job title or skills to search for. E.g., 'senior sales roles'",
+              "location": "The city, state, or country. E.g., 'New York'",
+              "industry": "The company's industry. E.g., 'B2B SaaS'",
+              "seniority": "The seniority level. E.g., 'Senior'",
+              "recruiter_specialty": "A concise summary of the recruiter's focus. E.g., 'Sales placements in SaaS'",
+              "contractability_tags": ["An array of tags indicating contract viability. E.g., 'enterprise GTM', 'series B startup', 'urgent hire', 'no TA team'"],
+              "target_contact_role": "The ideal job title of the person to contact. E.g., 'VP of Sales'"
+            }
           `;
           const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
           
@@ -170,7 +188,7 @@ serve(async (req) => {
             name: agentName,
             prompt: recruiter_specialty,
             autonomy_level: 'semi-automatic',
-            site_names: Array.isArray(sites) ? sites : sites.split(','),
+            site_names: sites || ["linkedin", "indeed", "zip_recruiter", "google"],
             max_results: 20,
             search_lookback_hours: 72,
           }).select().single();
@@ -188,9 +206,9 @@ serve(async (req) => {
               }
           }
 
-          sendUpdate({ type: 'status', message: `Searching for roles on ${sites}...` });
+          sendUpdate({ type: 'status', message: `Searching for roles on ${sites || 'major job boards'}...` });
           
-          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
+          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites || 'linkedin,indeed,zip_recruiter,google'}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
 
           timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Compiling results from multiple job boards...' }), 4000));
           timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'This is a big search, still working on it...' }), 9000));
@@ -247,25 +265,26 @@ serve(async (req) => {
                   analysisData = cached.analysis_data;
               } else {
                   const singleEnrichmentPrompt = `
-                    You are a business development strategist for a recruiting firm.
-                    Evaluate the job below as a lead for client acquisition (not candidate placement).
+                    You are a contract recruiter assistant. Analyze the job below.
 
-                    Recruiter’s Focus: "${recruiter_specialty}"
-                    Job Posting: ${JSON.stringify(job)}
+                    Input:
+                    - Specialty: "${recruiter_specialty}"
+                    - Job: ${JSON.stringify(job)}
 
-                    Return a single JSON object with:
-                    - companyName
-                    - role
-                    - location
-                    - company_overview
-                    - match_score (1–10, based on BD opportunity fit)
-                    - contract_value_assessment (20% of average salary)
-                    - hiring_urgency (based on signals like reposts, stale posts)
-                    - pain_points (reasons this may be hard to fill internally)
-                    - recruiter_angle (what value the recruiter can pitch)
-                    - key_signal_for_outreach (ideal hook for your email)
-
-                    This prompt should guide the recruiter’s outreach and negotiation.
+                    Return JSON:
+                    {
+                      "companyName": "...",
+                      "role": "...",
+                      "location": "...",
+                      "match_score": 1–10,
+                      "contract_likelihood": "High" | "Low",
+                      "likely_contract_type": "Contingency" | "RPO" | "Freelance" | "Embedded",
+                      "ta_team_status": "None" | "Lean" | "Healthy" | "Unknown",
+                      "comp_band": "$120K–$160K",
+                      "urgency_signals": ["Backfill", "Product Launch", "Investor Pressure"],
+                      "recruiter_pitch": "Looks like this VP of Sales role has no recruiter assigned and is tied to recent product push—great time to reach out.",
+                      "decision_maker_title": "Chief Revenue Officer"
+                    }
                   `;
                   analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
                   await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
@@ -290,17 +309,22 @@ serve(async (req) => {
               if (enrichedOpportunities.length > 0) {
                   const rejectedJobsSummary = enrichedOpportunities.slice(0, 5).map(job => `- ${job.role} at ${job.companyName} (Score: ${job.match_score})`).join('\n');
                   const feedbackPrompt = `
-                      You are a recruiting business advisor. A user searched for jobs matching the specialty: "${recruiter_specialty}". You analyzed roles, but none were worth pitching. Here are the failed jobs and match scores: ${rejectedJobsSummary}.
+                      You are a recruiting strategist. A user searched for jobs using this specialty: "${recruiter_specialty}" but nothing qualified.
 
-                      Provide an encouraging but direct JSON response that:
-                      - Explains why the roles weren’t ideal for outreach
-                      - Suggests 2–3 refined queries that would yield better leads
+                      Failed jobs and match scores:
+                      ${rejectedJobsSummary}
 
-                      Begin with: "I analyzed ${enrichedOpportunities.length} jobs, but they weren’t a strong fit for client outreach."
-                      Return a single JSON object with: "responseText".
+                      Return a JSON object with the following keys:
+                      {
+                        "responseText": "I analyzed ${enrichedOpportunities.length} jobs, but they weren’t a strong fit for client outreach.",
+                        "reasoning": "A summary of why the roles were not a good fit. E.g., 'Roles were entry-level or had robust internal TA teams already managing the hiring.'",
+                        "suggestedQueries": [
+                          "A list of 2-3 better queries. E.g., 'Look for Head of Sales roles at Series B startups'"
+                        ]
+                      }
                   `;
                   const feedbackResult = await callGemini(feedbackPrompt, GEMINI_API_KEY);
-                  sendUpdate({ type: 'result', payload: { text: feedbackResult.responseText } });
+                  sendUpdate({ type: 'result', payload: { text: `${feedbackResult.responseText}\n\n**Reasoning:** ${feedbackResult.reasoning}\n\n**Try these instead:**\n- ${feedbackResult.suggestedQueries.join('\n- ')}` } });
               } else {
                   sendUpdate({ type: 'result', payload: { text: "I couldn't find any open roles matching your request. Please try a different search." } });
               }
@@ -315,12 +339,14 @@ serve(async (req) => {
             location: opp.location,
             company_overview: opp.company_overview,
             match_score: opp.match_score,
-            contract_value_assessment: opp.contract_value_assessment,
-            hiring_urgency: opp.hiring_urgency,
+            contract_value_assessment: opp.comp_band || opp.contract_value_assessment,
+            hiring_urgency: Array.isArray(opp.urgency_signals) ? opp.urgency_signals.join(', ') : opp.hiring_urgency,
             pain_points: opp.pain_points,
-            recruiter_angle: opp.recruiter_angle,
+            recruiter_angle: opp.recruiter_pitch || opp.recruiter_angle,
             key_signal_for_outreach: opp.key_signal_for_outreach,
             company_domain: opp.company_domain,
+            ta_team_status: opp.ta_team_status,
+            likely_decision_maker: opp.decision_maker_title,
           }));
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);

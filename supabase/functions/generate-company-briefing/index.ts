@@ -29,24 +29,17 @@ serve(async (req) => {
     }
 
     const prompt = `
-You are an AI research analyst. Your task is to generate a concise, factual briefing for the company: "${companyName}".
-Your primary goal is accuracy and reliability. Do not invent or embellish information.
+      You are an AI research analyst. Build a briefing on: "${companyName}"
 
-**Instructions:**
-1.  **Perform a targeted search for information about the company, focusing on the last 6 months.**
-2.  Generate a JSON object with the keys defined below.
-3.  If you cannot find specific details for a section, you must explicitly state that the information is not readily available or return an empty array where appropriate.
-
-**JSON Structure:**
-- "overview": A factual summary of what the company does.
-- "recentNews": An array of objects, where each object has "title" (the news headline), "source" (the publication name, e.g., 'TechCrunch'), and "date" (e.g., 'YYYY-MM-DD'). If no news is found in the last 6 months, return an empty array.
-- "keyPersonnel": A bulleted list (as a single string with '\\n- ' separators) of key executives. If not found, state "Key personnel information not readily available."
-- "techStack": A comma-separated string of technologies the company is known to use. If unknown, state "Tech stack not publicly specified."
-- "hiringAnalysis": A brief analysis of their likely hiring needs based on the factual information gathered.
-
-The entire output must be a single valid JSON object.
-**Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
-`;
+      Return a JSON object with the following structure:
+      {
+        "overview": "A factual summary of what the company does.",
+        "recentNews": "A summary of news from the last 6 months. If none, state that.",
+        "keyPersonnel": ["An array of key executive titles. E.g., 'CEO', 'Head of GTM', 'VP Talent'"],
+        "techStack": "A comma-separated string of known technologies.",
+        "hiringAnalysis": "A brief analysis of hiring needs. E.g., 'Hiring for VP Sales + AE; no recruiter currently listed.'"
+      }
+    `;
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
