@@ -104,7 +104,7 @@ export function ChatHistory() {
   }
 
   return (
-    <div className="flex-grow overflow-y-auto">
+    <div>
       <div className="space-y-1 px-3">
         {conversations.map((convo) => (
           <Link
