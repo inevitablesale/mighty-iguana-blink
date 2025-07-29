@@ -100,7 +100,7 @@ serve(async (req) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
 
-      let timer1, timer2, timer3;
+      const timers = [];
 
       try {
         let { query } = await req.json();
@@ -173,14 +173,15 @@ serve(async (req) => {
           
           const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
 
-          timer1 = setTimeout(() => sendUpdate({ type: 'status', message: 'This can take a moment. I\'m compiling results from all sources...' }), 8000);
-          timer2 = setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 16000);
-          timer3 = setTimeout(() => sendUpdate({ type: 'status', message: 'The search is taking a bit longer than usual. Still working on it...' }), 30000);
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Compiling results from multiple job boards...' }), 4000));
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'This is a big search, still working on it...' }), 9000));
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 15000));
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Almost there, just a few more seconds...' }), 22000));
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'The search is taking a bit longer than usual. Hang tight...' }), 30000));
+          timers.push(setTimeout(() => sendUpdate({ type: 'status', message: 'Just wrapping up the search now...' }), 45000));
 
           const scrapingResponse = await scrapingPromise;
-          clearTimeout(timer1);
-          clearTimeout(timer2);
-          clearTimeout(timer3);
+          timers.forEach(clearTimeout);
 
           if (!scrapingResponse.ok) throw new Error(`Job scraping API failed: ${await scrapingResponse.text()}`);
           const rawJobResults = (await scrapingResponse.json())?.jobs;
@@ -305,6 +306,30 @@ serve(async (req) => {
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
+          const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
+          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
+            user_id: user.id,
+            name: agentName,
+            prompt: recruiter_specialty,
+            autonomy_level: 'semi-automatic',
+            site_names: Array.isArray(sites) ? sites : sites.split(','),
+            max_results: 20,
+            search_lookback_hours: 72,
+          }).select().single();
+
+          if (!agentInsertError && newAgent) {
+              sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
+              if (conversationId) {
+                await supabaseAdmin.from('feed_items').insert({
+                  user_id: user.id,
+                  conversation_id: conversationId,
+                  type: 'agent_created',
+                  role: 'system',
+                  content: { agentName: newAgent.name }
+                });
+              }
+          }
+
           let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
           if (resultWarning) {
               responseText = `${resultWarning}\n\n${responseText}`;
@@ -314,9 +339,7 @@ serve(async (req) => {
       } catch (error) {
         sendUpdate({ type: 'error', message: error.message });
       } finally {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
+        timers.forEach(clearTimeout);
         controller.close();
       }
     }
