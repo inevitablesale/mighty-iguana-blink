@@ -131,9 +131,21 @@ export default function Chat() {
             const newItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_created', role: 'system', content: { agentName: data.payload.agentName, summary: `I've automatically created an agent named "${data.payload.agentName}" for you.` }, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, newItem]);
             await supabase.from('feed_items').insert({ ...newItem, id: undefined });
+          } else if (data.type === 'opportunity_found') {
+            setTransientMessage(prev => {
+                if (!prev) return null;
+                const newOpps = [...(prev.content.opportunities || []), data.payload];
+                return { ...prev, content: { ...prev.content, opportunities: newOpps } };
+            });
           } else if (data.type === 'result') {
+            const finalContent = {
+                agentName: transientMessage?.content.agentName || 'Coogi Assistant',
+                summary: data.payload.text,
+                opportunities: transientMessage?.content.opportunities || [],
+                searchParams: data.payload.searchParams,
+                analysisProgress: transientMessage?.content.analysisProgress
+            };
             setTransientMessage(null);
-            const finalContent = { agentName: 'Coogi Assistant', summary: data.payload.text, opportunities: data.payload.opportunities, searchParams: data.payload.searchParams };
             const finalItem: FeedItem = { id: crypto.randomUUID(), user_id: user.id, conversation_id: currentConversationId, type: 'agent_run_summary', role: 'system', content: finalContent, created_at: new Date().toISOString() };
             setFeedItems(prev => [...prev, finalItem]);
             await supabase.from('feed_items').insert({ ...finalItem, id: undefined });

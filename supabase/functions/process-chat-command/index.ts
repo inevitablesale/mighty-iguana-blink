@@ -255,6 +255,8 @@ serve(async (req) => {
           
           sendUpdate({ type: 'analysis_start', payload: { jobs: finalJobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
 
+          let successfulOpportunityCount = 0;
+
           const enrichmentPromises = finalJobsToAnalyze.map((job, index) => (async () => {
             try {
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
@@ -290,8 +292,36 @@ serve(async (req) => {
                   await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
               }
               analysisData.match_score = sanitizeMatchScore(analysisData.match_score || analysisData.matchScore);
-              const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
-              analysisData.company_domain = domainData?.domain;
+              
+              if (analysisData.match_score >= 5) {
+                const { data: domainData } = await supabaseAdmin.functions.invoke('get-company-domain', { body: { companyName: analysisData.companyName || job.company } });
+                
+                const opportunityToInsert = {
+                  user_id: user.id,
+                  company_name: analysisData.companyName,
+                  role: analysisData.role,
+                  location: analysisData.location,
+                  company_overview: analysisData.company_overview,
+                  match_score: analysisData.match_score,
+                  contract_value_assessment: analysisData.comp_band || analysisData.contract_value_assessment,
+                  hiring_urgency: Array.isArray(analysisData.urgency_signals) ? analysisData.urgency_signals.join(', ') : analysisData.hiring_urgency,
+                  pain_points: analysisData.pain_points,
+                  recruiter_angle: analysisData.recruiter_pitch || analysisData.recruiter_angle,
+                  key_signal_for_outreach: analysisData.key_signal_for_outreach,
+                  company_domain: domainData?.domain,
+                  ta_team_status: analysisData.ta_team_status,
+                  likely_decision_maker: analysisData.decision_maker_title,
+                };
+
+                const { data: savedOpportunity, error: insertError } = await supabaseAdmin.from('opportunities').insert(opportunityToInsert).select().single();
+                if (insertError) throw new Error(`Failed to save opportunity: ${insertError.message}`);
+                
+                if (savedOpportunity) {
+                  successfulOpportunityCount++;
+                  sendUpdate({ type: 'opportunity_found', payload: savedOpportunity });
+                }
+              }
+
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzed', match_score: analysisData.match_score } });
               return analysisData;
             } catch (e) {
@@ -301,61 +331,17 @@ serve(async (req) => {
             }
           })());
 
-          const settledResults = await Promise.allSettled(enrichmentPromises);
-          const enrichedOpportunities = settledResults.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
-          let opportunitiesToReturn = enrichedOpportunities.filter(opp => opp.match_score >= 5).sort((a, b) => b.match_score - a.match_score);
+          await Promise.allSettled(enrichmentPromises);
           
-          if (opportunitiesToReturn.length === 0) {
-              if (enrichedOpportunities.length > 0) {
-                  const rejectedJobsSummary = enrichedOpportunities.slice(0, 5).map(job => `- ${job.role} at ${job.companyName} (Score: ${job.match_score})`).join('\n');
-                  const feedbackPrompt = `
-                      You are a recruiting strategist. A user searched for jobs using this specialty: "${recruiter_specialty}" but nothing qualified.
-
-                      Failed jobs and match scores:
-                      ${rejectedJobsSummary}
-
-                      Return a JSON object with the following keys:
-                      {
-                        "responseText": "I analyzed ${enrichedOpportunities.length} jobs, but they weren’t a strong fit for client outreach.",
-                        "reasoning": "A summary of why the roles were not a good fit. E.g., 'Roles were entry-level or had robust internal TA teams already managing the hiring.'",
-                        "suggestedQueries": [
-                          "A list of 2-3 better queries. E.g., 'Look for Head of Sales roles at Series B startups'"
-                        ]
-                      }
-                  `;
-                  const feedbackResult = await callGemini(feedbackPrompt, GEMINI_API_KEY);
-                  sendUpdate({ type: 'result', payload: { text: `${feedbackResult.responseText}\n\n**Reasoning:** ${feedbackResult.reasoning}\n\n**Try these instead:**\n- ${feedbackResult.suggestedQueries.join('\n- ')}` } });
-              } else {
-                  sendUpdate({ type: 'result', payload: { text: "I couldn't find any open roles matching your request. Please try a different search." } });
+          if (successfulOpportunityCount === 0) {
+              sendUpdate({ type: 'result', payload: { text: "I analyzed all the jobs, but none were a strong enough fit to recommend. Please try a more specific search." } });
+          } else {
+              let responseText = `I found ${successfulOpportunityCount} potential deals for you. Here are the top matches.`;
+              if (resultWarning) {
+                  responseText = `${resultWarning}\n\n${responseText}`;
               }
-              controller.close();
-              return;
+              sendUpdate({ type: 'result', payload: { text: responseText, searchParams: { recruiter_specialty } } });
           }
-
-          const opportunitiesToInsert = opportunitiesToReturn.map(opp => ({
-            user_id: user.id,
-            company_name: opp.companyName,
-            role: opp.role,
-            location: opp.location,
-            company_overview: opp.company_overview,
-            match_score: opp.match_score,
-            contract_value_assessment: opp.comp_band || opp.contract_value_assessment,
-            hiring_urgency: Array.isArray(opp.urgency_signals) ? opp.urgency_signals.join(', ') : opp.hiring_urgency,
-            pain_points: opp.pain_points,
-            recruiter_angle: opp.recruiter_pitch || opp.recruiter_angle,
-            key_signal_for_outreach: opp.key_signal_for_outreach,
-            company_domain: opp.company_domain,
-            ta_team_status: opp.ta_team_status,
-            likely_decision_maker: opp.decision_maker_title,
-          }));
-          const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
-          if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
-
-          let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
-          if (resultWarning) {
-              responseText = `${resultWarning}\n\n${responseText}`;
-          }
-          sendUpdate({ type: 'result', payload: { text: responseText, opportunities: savedOpportunities, searchParams: { recruiter_specialty } } });
         }
       } catch (error) {
         sendUpdate({ type: 'error', message: error.message });
