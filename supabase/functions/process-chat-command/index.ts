@@ -145,7 +145,7 @@ serve(async (req) => {
           
           sendUpdate({ type: 'status', message: `Searching for roles on ${sites}...` });
           
-          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=100&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(45000) });
+          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=75&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
 
           timer1 = setTimeout(() => sendUpdate({ type: 'status', message: 'This can take a moment. I\'m compiling results from all sources...' }), 8000);
           timer2 = setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 16000);
