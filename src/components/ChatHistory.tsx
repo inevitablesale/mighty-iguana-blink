@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Conversation } from '@/types';
 import { Link, useParams, useNavigate } from 'react-router-dom';
@@ -14,31 +14,34 @@ export function ChatHistory() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchConversations = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching conversations", error);
-      } else {
-        setConversations(data || []);
-      }
+  const fetchConversations = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
-    };
+      return;
+    }
 
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching conversations", error);
+      toast.error("Could not load chat history.");
+    } else {
+      setConversations(data || []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
     fetchConversations();
 
     const channel = supabase
       .channel('public:conversations')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, (payload) => {
-        console.log('Change received!', payload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
         fetchConversations();
       })
       .subscribe();
@@ -46,7 +49,7 @@ export function ChatHistory() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchConversations]);
 
   const handleDelete = async (e: React.MouseEvent, convoToDeleteId: string) => {
     e.preventDefault();

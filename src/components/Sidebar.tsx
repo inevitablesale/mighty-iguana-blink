@@ -51,8 +51,8 @@ export function Sidebar() {
           <span className="text-lg">Coogi AI</span>
         </a>
       </div>
-      <div className="flex-1 flex flex-col space-y-4 overflow-y-auto">
-        <nav className="space-y-1">
+      <div className="flex-1 flex flex-col space-y-4 min-h-0">
+        <nav className="space-y-1 flex-shrink-0">
           <Button variant="ghost" className="w-full justify-start text-base" onClick={() => navigate('/')}>
             <PlusCircle className="mr-3 h-5 w-5" />
             New Chat
@@ -63,13 +63,15 @@ export function Sidebar() {
           </Button>
         </nav>
         
-        <div>
-          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">Agents</h3>
-          <SidebarAgentList />
+        <div className="flex flex-col min-h-0">
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3 flex-shrink-0">Agents</h3>
+          <div className="overflow-y-auto">
+            <SidebarAgentList />
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col min-h-0">
-          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3">History</h3>
+          <h3 className="text-xs font-semibold uppercase text-sidebar-foreground/70 mb-2 px-3 flex-shrink-0">History</h3>
           <ChatHistory />
         </div>
       </div>
