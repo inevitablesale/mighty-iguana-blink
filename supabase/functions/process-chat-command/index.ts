@@ -176,7 +176,10 @@ serve(async (req) => {
             const responseText = message || `I couldn't find any contacts at ${company_name} matching your criteria.`;
             sendUpdate({ type: 'result', payload: { text: responseText } });
           } else {
-            const responseText = `I found ${contacts.length} contacts at ${company_name}. Here are the top results:`;
+            let responseText = `I found ${contacts.length} contacts at ${company_name}. Here are the results:`;
+            if (keywords) {
+              responseText += `\n\n(Note: Keyword filtering is temporarily disabled, so I'm showing all contacts I found for this company.)`;
+            }
             sendUpdate({ type: 'result', payload: { text: responseText, contacts: contacts } });
           }
 

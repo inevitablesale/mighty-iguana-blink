@@ -49,11 +49,10 @@ serve(async (req) => {
     }
     const companyId = companyProfileResponse.data.id;
 
-    // Step 2: Get Company People using the company_id and optional keywords
+    // Step 2: Get Company People using the company_id.
+    // NOTE: The 'keywords' parameter is temporarily disabled as it was causing API errors.
+    // This will return all available contacts for the company.
     const peopleParams = { company_id: companyId };
-    if (keywords) {
-      peopleParams.keywords = keywords;
-    }
     const companyPeopleResponse = await callRapidApi('/api/v1/company/people', peopleParams, RAPIDAPI_KEY);
 
     if (!companyPeopleResponse.success || !companyPeopleResponse.data || companyPeopleResponse.data.length === 0) {
