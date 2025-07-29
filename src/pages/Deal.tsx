@@ -133,8 +133,8 @@ export default function Deal() {
     setIsFindingContacts(true);
     const toastId = toast.loading("Adding contact search to the queue...");
     try {
-      const { error } = await supabase.functions.invoke('batch-create-contact-tasks', {
-        body: { opportunityIds: [opportunityId] }
+      const { error } = await supabase.functions.invoke('create-single-contact-task', {
+        body: { opportunityId }
       });
       if (error) throw new Error(error.message);
       toast.success("Contact search queued!", { id: toastId, description: "The system will start finding contacts shortly." });
