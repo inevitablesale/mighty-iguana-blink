@@ -48,13 +48,31 @@ serve(async (req) => {
     }));
 
     if (tasksToInsert.length > 0) {
-      const { error: insertError } = await supabaseAdmin.from('contact_enrichment_tasks').insert(tasksToInsert);
+      // Insert tasks and get them back
+      const { data: savedTasks, error: insertError } = await supabaseAdmin
+        .from('contact_enrichment_tasks')
+        .insert(tasksToInsert)
+        .select();
+      
       if (insertError) throw insertError;
 
-      // Non-blocking call to process the queue
-      supabaseAdmin.functions.invoke('process-enrichment-queue', {
-        headers: { 'Authorization': req.headers.get('Authorization') }
-      }).catch(console.error);
+      const taskIds = savedTasks.map(t => t.id);
+
+      // Mark tasks as 'processing' immediately
+      await supabaseAdmin
+        .from('contact_enrichment_tasks')
+        .update({ status: 'processing' })
+        .in('id', taskIds);
+
+      // Invoke the enrichment function for each task in the background
+      const processingPromises = savedTasks.map(task => 
+        supabaseAdmin.functions.invoke('find-and-enrich-contacts', {
+          body: { opportunityId: task.opportunity_id, taskId: task.id }
+        })
+      );
+
+      // We don't wait for these to finish, just log if the invocation itself fails
+      Promise.allSettled(processingPromises).catch(console.error);
     }
 
     return new Response(JSON.stringify({ message: `Queued contact search for ${tasksToInsert.length} opportunities.` }), {
