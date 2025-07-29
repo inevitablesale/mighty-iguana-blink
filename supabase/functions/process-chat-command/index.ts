@@ -299,7 +299,7 @@ serve(async (req) => {
             name: agentName,
             prompt: recruiter_specialty,
             autonomy_level: 'semi-automatic',
-            site_names: sites.split(','),
+            site_names: Array.isArray(sites) ? sites : sites.split(','),
             max_results: 20,
             search_lookback_hours: 72,
           }).select().single();
