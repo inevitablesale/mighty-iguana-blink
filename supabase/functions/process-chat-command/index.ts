@@ -103,7 +103,7 @@ serve(async (req) => {
       let timer1, timer2;
 
       try {
-        const { query } = await req.json();
+        let { query } = await req.json();
         if (!query) throw new Error("Search query is required.");
 
         const conversationId = req.headers.get('x-conversation-id');
@@ -112,6 +112,32 @@ serve(async (req) => {
         const userRes = await supabaseAdmin.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', ''));
         if (userRes.error) throw new Error("Authentication failed");
         const user = userRes.data.user;
+
+        // Check if this is a refinement query
+        if (conversationId && query.split(' ').length <= 5) {
+            sendUpdate({ type: 'status', message: 'Checking for context...' });
+            const { data: previousMessages, error: historyError } = await supabaseAdmin
+                .from('feed_items')
+                .select('role, content')
+                .eq('conversation_id', conversationId)
+                .order('created_at', { ascending: false })
+                .limit(2);
+
+            if (!historyError && previousMessages && previousMessages.length === 2) {
+                const lastAiResponse = previousMessages[0];
+                const lastUserQuery = previousMessages[1];
+
+                if (lastAiResponse.role === 'system' && lastUserQuery.role === 'user' && lastAiResponse.content?.summary?.includes('To help me focus, could you be more specific?')) {
+                    const originalQuery = lastUserQuery.content?.query;
+                    if (originalQuery) {
+                        const combinedQuery = `${originalQuery} ${query}`;
+                        console.log(`Refined query detected. Combined query: "${combinedQuery}"`);
+                        sendUpdate({ type: 'status', message: `Refining search with: "${query}"` });
+                        query = combinedQuery;
+                    }
+                }
+            }
+        }
 
         const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
         if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY secret is not set.");
@@ -145,7 +171,7 @@ serve(async (req) => {
           
           sendUpdate({ type: 'status', message: `Searching for roles on ${sites}...` });
           
-          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=75&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
+          const scrapingPromise = fetch(`https://coogi-jobspy-production.up.railway.app/jobs?query=${encodeURIComponent(search_query)}&location=${encodeURIComponent(location)}&sites=${sites}&results=150&enforce_annual_salary=true&hours_old=24`, { signal: AbortSignal.timeout(60000) });
 
           timer1 = setTimeout(() => sendUpdate({ type: 'status', message: 'This can take a moment. I\'m compiling results from all sources...' }), 8000);
           timer2 = setTimeout(() => sendUpdate({ type: 'status', message: 'Filtering out duplicates and irrelevant listings...' }), 16000);
@@ -163,15 +189,19 @@ serve(async (req) => {
             return;
           }
 
+          let jobsToAnalyze;
+          let resultWarning = null;
+
           if (rawJobResults.length > 75) {
-            sendUpdate({ type: 'result', payload: { text: `I found over ${rawJobResults.length} jobs. To help me focus, could you be more specific? For example, add a seniority level like "senior" or a company type like "startup".` } });
-            controller.close();
-            return;
+              resultWarning = `I found over ${rawJobResults.length} jobs. To give you the best results quickly, I'm analyzing the top 75. You can always refine your search for a more targeted list.`;
+              jobsToAnalyze = [...rawJobResults]
+                  .sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0))
+                  .slice(0, 75);
+          } else {
+              jobsToAnalyze = [...rawJobResults].sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0));
           }
 
           sendUpdate({ type: 'status', message: `Found ${rawJobResults.length} potential jobs. Now preparing for analysis...` });
-          
-          const jobsToAnalyze = [...rawJobResults].sort((a, b) => (b.max_amount || 0) - (a.max_amount || 0));
           
           sendUpdate({ type: 'analysis_start', payload: { jobs: jobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
 
@@ -258,6 +288,9 @@ serve(async (req) => {
           }
 
           let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
+          if (resultWarning) {
+              responseText = `${resultWarning}\n\n${responseText}`;
+          }
           sendUpdate({ type: 'result', payload: { text: responseText, opportunities: savedOpportunities, searchParams: { recruiter_specialty } } });
         }
       } catch (error) {
