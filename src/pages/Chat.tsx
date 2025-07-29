@@ -141,7 +141,7 @@ export default function Chat() {
             const finalContent = {
                 agentName: transientMessage?.content.agentName || 'Coogi Assistant',
                 summary: data.payload.text,
-                opportunities: transientMessage?.content.opportunities || [],
+                opportunities: data.payload.opportunities || transientMessage?.content.opportunities || [],
                 searchParams: data.payload.searchParams,
                 analysisProgress: transientMessage?.content.analysisProgress
             };

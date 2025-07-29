@@ -245,9 +245,9 @@ serve(async (req) => {
           
           sendUpdate({ type: 'analysis_start', payload: { jobs: finalJobsToAnalyze.map(j => ({ company: j.company, title: j.title })) } });
 
-          let successfulOpportunityCount = 0;
+          const successfulOpportunities = [];
 
-          const enrichmentPromises = finalJobsToAnalyze.map((job, index) => (async () => {
+          for (const [index, job] of finalJobsToAnalyze.entries()) {
             try {
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzing' } });
               const jobHash = await createJobHash(job);
@@ -307,30 +307,26 @@ serve(async (req) => {
                 if (insertError) throw new Error(`Failed to save opportunity: ${insertError.message}`);
                 
                 if (savedOpportunity) {
-                  successfulOpportunityCount++;
+                  successfulOpportunities.push(savedOpportunity);
                   sendUpdate({ type: 'opportunity_found', payload: savedOpportunity });
                 }
               }
 
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'analyzed', match_score: analysisData.match_score } });
-              return analysisData;
             } catch (e) {
               console.error(`Error enriching job at index ${index}:`, e.message);
               sendUpdate({ type: 'analysis_progress', payload: { index, status: 'error' } });
-              return null;
             }
-          })());
-
-          await Promise.allSettled(enrichmentPromises);
+          }
           
-          if (successfulOpportunityCount === 0) {
+          if (successfulOpportunities.length === 0) {
               sendUpdate({ type: 'result', payload: { text: "I analyzed all the jobs, but none were a strong enough fit to recommend. Please try a more specific search." } });
           } else {
-              let responseText = `I found ${successfulOpportunityCount} potential deals for you. Here are the top matches.`;
+              let responseText = `I found ${successfulOpportunities.length} potential deals for you. Here are the top matches.`;
               if (resultWarning) {
                   responseText = `${resultWarning}\n\n${responseText}`;
               }
-              sendUpdate({ type: 'result', payload: { text: responseText, searchParams: { recruiter_specialty } } });
+              sendUpdate({ type: 'result', payload: { text: responseText, searchParams: { recruiter_specialty }, opportunities: successfulOpportunities } });
           }
         }
       } catch (error) {
