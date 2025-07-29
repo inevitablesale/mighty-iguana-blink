@@ -9,23 +9,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// New helper function to call Apify
-async function callApifyActor(actorId, input, token) {
-    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`;
+// Helper to call the RapidAPI
+async function callRapidApi(endpoint, params, apiKey) {
+    const url = new URL(`https://fresh-linkedin-scraper-api.p.rapidapi.com${endpoint}`);
+    url.search = new URLSearchParams(params).toString();
+
     const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+        method: 'GET',
+        headers: {
+            'x-rapidapi-key': apiKey,
+            'x-rapidapi-host': 'fresh-linkedin-scraper-api.p.rapidapi.com'
+        },
         signal: AbortSignal.timeout(180000) // 3 minute timeout
     });
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Apify actor ${actorId} failed:`, errorText);
-      throw new Error(`Apify actor ${actorId} failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`RapidAPI endpoint ${endpoint} failed:`, errorText);
+        throw new Error(`RapidAPI endpoint ${endpoint} failed: ${response.statusText}`);
     }
     return await response.json();
 }
-
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -37,90 +41,54 @@ serve(async (req) => {
 
   try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
-    if (!APIFY_API_TOKEN) throw new Error("APIFY_API_TOKEN secret is not set.");
+    const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY");
+    if (!RAPIDAPI_KEY) throw new Error("RAPIDAPI_KEY secret is not set in Supabase project secrets.");
 
     const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id, likely_decision_maker').eq('id', opportunityId).single();
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
-    // --- Start of new logic: Using Apify/Apollo instead of Gemini ---
-    const companyNameEncoded = encodeURIComponent(opportunity.company_name);
-    // Use a broader set of titles to increase chances of finding a match
-    const titles = [
-        opportunity.likely_decision_maker,
-        opportunity.role, 
-        "Hiring Manager", 
-        "Talent Acquisition", 
-        "Recruiter", 
-        "Head of Talent", 
-        "Chief People Officer", 
-        "VP of People",
-        "CEO",
-        "Founder"
-    ].filter(Boolean); // Filter out any null/undefined values
-
-    const titlesEncoded = titles.map(t => `personTitles[]=${encodeURIComponent(t)}`).join('&');
-    const apolloUrl = `https://app.apollo.io/#/people?organizationName=${companyNameEncoded}&${titlesEncoded}`;
-
-    const apolloInput = { 
-        "url": apolloUrl,
-        "max_result": 5, // Get a few top results
-        "include_email": true
-    };
+    // Step 1: Get Company Profile to find company_id
+    const companyProfileResponse = await callRapidApi('/api/v1/company/profile', { company: opportunity.company_name }, RAPIDAPI_KEY);
     
-    const apolloResults = await callApifyActor('microworlds~apollo-scraper', apolloInput, APIFY_API_TOKEN);
-    // --- End of new logic ---
+    if (!companyProfileResponse.success || !companyProfileResponse.data?.id) {
+        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Could not find company profile on LinkedIn.' }).eq('id', taskId);
+        return new Response(JSON.stringify({ message: "No company profile found." }), { status: 200, headers: corsHeaders });
+    }
+    const companyId = companyProfileResponse.data.id;
 
-    if (!apolloResults || apolloResults.length === 0) {
-        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Apollo.io search completed but found no contacts.' }).eq('id', taskId);
-        return new Response(JSON.stringify({ message: "No contacts found." }), { status: 200, headers: corsHeaders });
+    // Step 2: Get Company People using the company_id
+    const companyPeopleResponse = await callRapidApi('/api/v1/company/people', { company_id: companyId }, RAPIDAPI_KEY);
+
+    if (!companyPeopleResponse.success || !companyPeopleResponse.data || companyPeopleResponse.data.length === 0) {
+        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Company profile found, but no people were listed.' }).eq('id', taskId);
+        return new Response(JSON.stringify({ message: "No people found for this company." }), { status: 200, headers: corsHeaders });
     }
 
-    const contactsToInsert = apolloResults.map(c => ({
+    const contactsToInsert = companyPeopleResponse.data.map(p => ({
         task_id: taskId, 
         opportunity_id: opportunityId, 
         user_id: opportunity.user_id,
-        name: c.name, 
-        job_title: c.title, 
-        email: c.email,
-        linkedin_profile_url: c.linkedinUrl, // Correct field from apollo-scraper
-        phone_number: c.phone_numbers ? c.phone_numbers[0] : null,
-        email_status: c.email ? 'verified' : null // Assume verified from Apollo
-    })).filter(c => c.email); // Only insert contacts with an email
-
-    if (contactsToInsert.length === 0) {
-        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'Apollo.io found contacts, but none had emails.' }).eq('id', taskId);
-        return new Response(JSON.stringify({ message: "No contacts with emails found." }), { status: 200, headers: corsHeaders });
-    }
+        name: p.full_name, 
+        job_title: p.title, 
+        email: null, // IMPORTANT: This API does not provide emails.
+        linkedin_profile_url: p.url,
+        phone_number: null, // IMPORTANT: This API does not provide phone numbers.
+        email_status: null
+    }));
 
     const { data: savedContacts, error: insertError } = await supabaseAdmin
       .from('contacts')
-      .upsert(contactsToInsert, { onConflict: 'opportunity_id, email' }) // Use upsert to avoid duplicates
+      .upsert(contactsToInsert, { onConflict: 'opportunity_id, linkedin_profile_url' }) // Use linkedin_profile_url for conflict since email is null
       .select();
       
     if (insertError) throw new Error(`Failed to save contacts: ${insertError.message}`);
 
     await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete' }).eq('id', taskId);
 
-    if (opportunity.agent_id) {
-        const { data: agent } = await supabaseAdmin.from('agents').select('autonomy_level').eq('id', opportunity.agent_id).single();
-        if (agent && (agent.autonomy_level === 'semi-automatic' || agent.autonomy_level === 'automatic')) {
-            const authHeader = req.headers.get('Authorization');
-            const topContact = savedContacts[0]; // The first result is likely the best
-            if (topContact && authHeader) {
-                await supabaseAdmin.functions.invoke('generate-outreach-for-opportunity', {
-                    headers: { 'Authorization': authHeader },
-                    body: { 
-                      opportunityId, 
-                      contact: topContact, 
-                      isAutomatic: agent.autonomy_level === 'automatic' 
-                    }
-                });
-            }
-        }
-    }
+    // NOTE: Automatic outreach generation is skipped because the new API does not provide emails.
+    // The logic for this used to be here.
 
-    return new Response(JSON.stringify({ message: `Successfully found and saved ${savedContacts.length} contacts.` }), { status: 200, headers: corsHeaders });
+    return new Response(JSON.stringify({ message: `Successfully found and saved ${savedContacts.length} contacts (without emails).` }), { status: 200, headers: corsHeaders });
 
   } catch (error) {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
