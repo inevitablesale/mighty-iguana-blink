@@ -57,18 +57,6 @@ async function callGemini(prompt, apiKey, retries = 3, delay = 1000) {
   throw new Error("Gemini API call failed after multiple retries.");
 }
 
-async function callApifyActor(actorId, input, token) {
-    const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-        signal: AbortSignal.timeout(180000)
-    });
-    if (!response.ok) throw new Error(`Apify actor ${actorId} failed: ${await response.text()}`);
-    return await response.json();
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -80,63 +68,44 @@ serve(async (req) => {
   try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
-    if (!GEMINI_API_KEY || !APIFY_API_TOKEN) throw new Error("API keys are not set.");
+    if (!GEMINI_API_KEY) throw new Error("API keys are not set.");
 
     const { data: opportunity, error: oppError } = await supabaseAdmin.from('opportunities').select('company_name, role, user_id, agent_id').eq('id', opportunityId).single();
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
-    let allContacts = [];
+    const researchPrompt = `
+      You are an expert recruitment researcher with access to a web search tool. Your task is to find potential contacts at the company "${opportunity.company_name}" who are relevant for the open role of "${opportunity.role}".
 
-    const companyNameEncoded = encodeURIComponent(opportunity.company_name);
-    const titles = [opportunity.role, "Talent Acquisition", "Recruiter", "Hiring Manager"];
-    const titlesEncoded = titles.map(t => `personTitles[]=${encodeURIComponent(t)}`).join('&');
-    const apolloUrl = `https://app.apollo.io/#/people?organizationName=${companyNameEncoded}&${titlesEncoded}`;
+      **Instructions:**
+      1.  Perform web searches to find people who work at "${opportunity.company_name}". Prioritize finding individuals with job titles relevant to "${opportunity.role}".
+      2.  Search for up to 5 of the most relevant individuals.
+      3.  For each person you identify, you MUST find their full name and current job title.
+      4.  For each person, do your best to also find a professional email address. If you find an email, include it. If not, leave it as null.
+      5.  Return a single, valid JSON object with one key: "contacts".
+      6.  The value of "contacts" should be an array of objects, where each object has the keys "name", "job_title", and "email".
 
-    const apolloInput = { 
-        "url": apolloUrl,
-        "max_result": 10,
-        "include_email": true
-    };
-    
-    const apolloResults = await callApifyActor('microworlds~apollo-scraper', apolloInput, APIFY_API_TOKEN).catch(e => { console.error("Apollo actor failed:", e.message); return []; });
-    
-    allContacts.push(...apolloResults.map(r => ({ 
-        name: r.name, 
-        job_title: r.title, 
-        email: r.email, 
-        phone_number: r.phone_numbers ? r.phone_numbers[0] : null,
-        source: 'Apollo' 
-    })).filter(c => c.email || c.phone_number));
+      **Example Response:**
+      {
+        "contacts": [
+          { "name": "Jane Doe", "job_title": "VP of Engineering", "email": "jane.d@example.com" },
+          { "name": "John Smith", "job_title": "Senior Engineering Manager", "email": "j.smith@example.com" },
+          { "name": "Peter Jones", "job_title": "Director of Engineering", "email": null }
+        ]
+      }
+    `;
 
-    const findUrlPrompt = `What is the official website URL for "${opportunity.company_name}"? Return JSON with key "websiteUrl".`;
-    const urlResult = await callGemini(findUrlPrompt, GEMINI_API_KEY);
-    if (urlResult.websiteUrl) {
-        const deepScrapeInput = { "websites": [urlResult.websiteUrl], "scrapeTypes": ["emails"], "maxDepth": 1 };
-        const deepScrapeResults = await callApifyActor('peterasorensen~snacci', deepScrapeInput, APIFY_API_TOKEN).catch(e => { console.error("Deep scrape actor failed:", e.message); return []; });
-        if (deepScrapeResults.length > 0 && deepScrapeResults[0].emails) {
-            allContacts.push(...deepScrapeResults[0].emails.map(email => ({ name: 'General Contact', job_title: 'From Website', email, source: 'Website' })));
-        }
-    }
+    const researchResult = await callGemini(researchPrompt, GEMINI_API_KEY);
+    const foundContacts = researchResult.contacts || [];
 
-    if (allContacts.length === 0) {
-        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'No contacts found from any source.' }).eq('id', taskId);
+    if (foundContacts.length === 0) {
+        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'AI web search completed but found no contacts.' }).eq('id', taskId);
         return new Response(JSON.stringify({ message: "No contacts found." }), { status: 200, headers: corsHeaders });
     }
 
-    const rankingPrompt = `You are an expert recruitment researcher. You have been given a list of potential contacts from various sources (LinkedIn, Apollo, Website). Your task is to intelligently rank all of these contacts from most to least relevant for the role of "${opportunity.role}" at "${opportunity.company_name}". Consider the contact's job title and the reliability of their source (LinkedIn and Apollo are more reliable than a generic website email). Return a single, valid JSON object with one key: "ranked_contacts". The value should be an array of ALL the original contact objects, sorted by relevance (most relevant first).`;
-    const rankedResult = await callGemini(rankingPrompt, GEMINI_API_KEY);
-    const rankedContacts = (rankedResult.ranked_contacts || []).slice(0, 10);
-
-    if (rankedContacts.length === 0) {
-        await supabaseAdmin.from('contact_enrichment_tasks').update({ status: 'complete', error_message: 'AI found contacts but none were deemed relevant.' }).eq('id', taskId);
-        return new Response(JSON.stringify({ message: "No relevant contacts identified." }), { status: 200, headers: corsHeaders });
-    }
-
-    const contactsToInsert = rankedContacts.map(c => ({
+    const contactsToInsert = foundContacts.map(c => ({
         task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
-        name: c.name, job_title: c.job_title, email: c.email, phone_number: c.phone_number, linkedin_profile_url: c.linkedin_profile_url,
-        email_status: c.email ? 'verified' : null
+        name: c.name, job_title: c.job_title, email: c.email,
+        email_status: c.email ? 'verified' : null // Assume verified if found
     }));
     const { data: savedContacts, error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert).select();
     if (insertError) throw new Error(`Failed to save contacts: ${insertError.message}`);
