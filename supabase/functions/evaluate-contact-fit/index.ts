@@ -84,9 +84,11 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    if (oppError || !opportunity?.agents?.prompt) {
-      throw new Error("Could not find opportunity or its associated playbook prompt.");
+    if (oppError) {
+      throw new Error(`Could not find opportunity: ${oppError.message}`);
     }
+
+    const recruiterFocus = opportunity.agents?.prompt || `finding candidates for ${opportunity.role} roles`;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
@@ -97,7 +99,7 @@ serve(async (req) => {
       You are vetting decision-makers to pitch staffing help.
       Evaluate the contact below as a buyer of recruiting services for this role.
 
-      Recruiter's Focus: "${opportunity.agents.prompt}"
+      Recruiter's Focus: "${recruiterFocus}"
       Role to Fill: ${opportunity.role}
       Company: ${opportunity.company_name}
       Contact: {

@@ -76,6 +76,8 @@ serve(async (req) => {
     const researchPrompt = `
       You are an expert recruiter’s AI sourcing assistant. Your job is to find staffing decision-makers at "${opportunity.company_name}" for the open role of "${opportunity.role}".
 
+      **CRITICAL INSTRUCTION: You MUST use your web search capabilities to find real people. DO NOT invent or use placeholder names like 'John Doe' or 'Jane Smith'. If you cannot find any real, verifiable contacts, you MUST return an empty "contacts" array.**
+
       Who to target:
       Focus on people who are likely to own the hiring decision or benefit from recruiting help. Ideal titles include:
       - Hiring manager (e.g., VP of Sales for a sales role)
@@ -86,17 +88,10 @@ serve(async (req) => {
 
       Where to search (open sources only):
       1. LinkedIn Search
-         - Use queries like: site:linkedin.com/in ("${opportunity.company_name}" AND "VP Sales")
-         - Prioritize current employees with relevant decision-making roles.
       2. Company Website
-         - Check the “Team”, “Leadership”, or “About Us” pages for public-facing execs and department heads.
       3. Crunchbase or AngelList (for startups)
-         - Identify founders, key team members, and any public hires.
       4. Press Releases / News Mentions
-         - Google queries like: "${opportunity.company_name}" hiring OR expansion OR launch
-         - Look for recent hiring initiatives or promotions.
       5. Job Posting Author or Owner
-         - If the job was posted on LinkedIn, grab the “Posted by” user—often the hiring manager.
 
       For each contact, return as much of the following as possible:
       - name
@@ -107,30 +102,7 @@ serve(async (req) => {
       - department (Sales, Engineering, HR, etc.)
       - reason_for_inclusion (why this person is likely the decision-maker)
 
-      Return a single JSON object with a "contacts" array.
-      Example Output:
-      {
-        "contacts": [
-          {
-            "name": "Sarah Thompson",
-            "title": "VP of Sales",
-            "email": "sarah@acme.io",
-            "linkedin": "https://linkedin.com/in/sarahthompson",
-            "seniority": "VP",
-            "department": "Sales",
-            "reason_for_inclusion": "Sarah is the head of Sales and likely owns hiring for this role."
-          },
-          {
-            "name": "James Liu",
-            "title": "Founder & CEO",
-            "email": "james@acme.io",
-            "linkedin": "https://linkedin.com/in/jamesliu",
-            "seniority": "C-level",
-            "department": "Executive",
-            "reason_for_inclusion": "Small company—CEO is still likely involved in key hires."
-          }
-        ]
-      }
+      Return a single JSON object with a "contacts" array. If no real contacts are found, return \`{"contacts": []}\`.
     `;
 
     const researchResult = await callGemini(researchPrompt, GEMINI_API_KEY);
