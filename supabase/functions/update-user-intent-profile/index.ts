@@ -88,16 +88,17 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const synthesisPrompt = `
-      Analyze the following list of recruiter agent prompts. Synthesize them into a concise, holistic summary of the recruiter's business focus and ideal client profile. This summary will be used to find new, relevant opportunities for them.
-
-      Recruiter's Agent Prompts:
+      You are building a high-level intent profile for a recruiter focused on contract acquisition.
+      Given this list of saved prompts:
       - ${agentPrompts}
+      
+      Create a JSON summary that reflects:
+      - Their industry focus
+      - Typical role targets
+      - Ideal client company profile
 
-      Return a single, valid JSON object with one key: "intent_profile_summary". The value should be a descriptive paragraph.
-      Example output:
-      {
-        "intent_profile_summary": "This recruiter specializes in placing senior B2B SaaS sales leaders and account executives into high-growth, remote-first companies in North America, with a focus on Series A to C startups."
-      }
+      Return a single, valid JSON object with one key: "intent_profile_summary".
+      Example: { "intent_profile_summary": "Helping fintech startups with no in-house recruiting hire mid-to-senior GTM leaders in the U.S." }
     `;
 
     const result = await callGemini(synthesisPrompt, GEMINI_API_KEY);

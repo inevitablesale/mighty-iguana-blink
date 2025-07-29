@@ -113,16 +113,14 @@ serve(async (req) => {
                 if (assignedOppIds.has(opportunity.id)) continue; // Already assigned
 
                 const scoringPrompt = `
-                You are an AI recruitment analyst. Score a job opportunity based on its relevance to a specific recruiter's profile.
-                **Recruiter's Profile (Their Specialty):** "${profile.intent_profile.summary}"
-                **Job Opportunity to Score:** ${JSON.stringify(opportunity.job_data, null, 2)}
-                **Instructions:**
-                1. Analyze the job opportunity carefully.
-                2. Compare it against the recruiter's specific profile.
-                3. Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation for your score).
-                4. A score of 7-10 means it's a strong match for this specific recruiter.
-                5. Your reasoning MUST be addressed to the recruiter, explaining *why* this is a good or bad match for *them*.
-                Return ONLY a single, valid JSON object.
+                  You are a contract lead generator for a recruiting firm.
+                  Score this role as a BD lead based on the recruiter’s intent:
+                  Recruiter Profile: "${profile.intent_profile.summary}"
+                  Job: ${JSON.stringify(opportunity.job_data)}
+
+                  Return a JSON object with:
+                  - "relevance_score" (1–10)
+                  - "relevance_reasoning" (why this is a promising contract win opportunity)
                 `;
 
                 try {
@@ -159,14 +157,13 @@ serve(async (req) => {
 
     for (const opportunity of unassignedOpportunities) {
         const generalScoringPrompt = `
-            You are an AI market analyst. Evaluate the following job posting for its general quality and attractiveness to a generic, high-performing recruiter. Do not consider any specific user profile.
-            **Job Opportunity to Evaluate:** ${JSON.stringify(opportunity.job_data, null, 2)}
-            **Instructions:**
-            1.  Assess the role's quality based on factors like salary (if available), company reputation (inferred), clarity of the job description, and seniority.
-            2.  Return a JSON object with "relevance_score" (an integer 1-10) and "relevance_reasoning" (a concise explanation of why this is a generally attractive opportunity).
-            3.  A score of 7-10 indicates a high-quality, "hot market" opportunity.
-            4.  The reasoning should be general, e.g., "This is a senior role at a well-known tech company with a competitive salary range."
-            Return ONLY a single, valid JSON object.
+            You are an AI sourcing analyst.
+            Score this opportunity’s general recruitment sales value for contract seekers.
+            Job: ${JSON.stringify(opportunity.job_data)}
+
+            Return a JSON with:
+            - "relevance_score"
+            - "relevance_reasoning" (e.g., “Senior-level role at under-resourced startup with no TA team”)
         `;
 
         try {

@@ -46,29 +46,22 @@ serve(async (req) => {
     }
 
     const prompt = `
-      You are an expert talent market analyst. Your task is to assess the "propensity to switch" for the team or hiring manager related to this job opportunity, and the overall urgency of the hire.
+      You are a contract sales strategist.
+      Assess how urgently this company needs external help to fill the role.
 
-      Opportunity Details:
-      - Company: ${opportunity.company_name}
-      - Role: ${opportunity.role}
-      - Location: ${opportunity.location}
-      - AI-Generated Company Overview: "${opportunity.company_overview}"
-      - AI-Generated Pain Points: "${opportunity.pain_points}"
-
-      Instructions:
-      Analyze the provided data to identify signals that suggest the company is highly motivated to fill this role quickly. Consider factors like:
-      - Is this a backfill for a recent departure?
-      - Is it a new role due to expansion (check the overview for growth signals)?
-      - Do the pain points suggest a critical business need?
-      - Are there any public signals (you'll have to infer these) like recent funding rounds, product launches, or stock performance that would increase hiring pressure?
+      Input: {
+        "company": "${opportunity.company_name}",
+        "role": "${opportunity.role}",
+        "location": "${opportunity.location}",
+        "overview": "${opportunity.company_overview}",
+        "pain_points": "${opportunity.pain_points}"
+      }
 
       Return a single, valid JSON object with the following keys:
-      - "score": An integer from 1 to 10 indicating the likelihood that the hiring team is motivated and will engage with a recruiter. 10 is most likely.
-      - "positive_signals": An array of strings listing the factors that INCREASE the score.
-      - "negative_signals": An array of strings listing the factors that DECREASE the score (or suggest it's a standard, non-urgent hire).
-      - "summary": A one-paragraph summary of your analysis.
-
-      Ensure the entire output is a single valid JSON object.
+      - "score": An integer from 1 to 10 indicating the urgency and need for external help.
+      - "positive_signals": An array of strings listing factors that suggest high urgency (e.g., role reposted, recent layoffs, company expansion, high churn).
+      - "negative_signals": An array of strings listing factors that suggest low urgency (e.g., strong internal TA team, niche skill easily sourced).
+      - "summary": A concise paragraph explaining why this company is or isn't ready for recruiter outreach.
     `;
 
     const geminiResponse = await fetch(

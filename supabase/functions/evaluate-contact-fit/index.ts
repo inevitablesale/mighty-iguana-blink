@@ -94,25 +94,21 @@ serve(async (req) => {
     }
 
     const prompt = `
-      You are an AI recruitment assistant. Evaluate how well the following person fits the recruiter's specialty for a specific role.
+      You are vetting decision-makers to pitch staffing help.
+      Evaluate the contact below as a buyer of recruiting services for this role.
 
-      Recruiter's Specialty (Evaluation Criteria): "${opportunity.agents.prompt}"
-      Role to Fill: ${opportunity.role} at ${opportunity.company_name}
-      Person to Evaluate:
-      - Name: ${contact.name}
-      - Title: ${contact.job_title}
-
-      Based ONLY on the information provided, provide a single, valid JSON object with the following keys:
-      - "score": An integer from 1 to 10 indicating how well the person's title matches the role and specialty.
-      - "status": A string, which must be one of 'Good Match', 'Potential Fit', or 'Not a Match'.
-      - "reasoning": A concise, one-sentence explanation for your evaluation.
-
-      Example Response:
-      {
-        "score": 8,
-        "status": "Good Match",
-        "reasoning": "The contact's title as 'VP of Engineering' is a strong fit for the specified 'Head of Engineering' role within the tech sector."
+      Recruiter's Focus: "${opportunity.agents.prompt}"
+      Role to Fill: ${opportunity.role}
+      Company: ${opportunity.company_name}
+      Contact: {
+        "name": "${contact.name}",
+        "title": "${contact.job_title}"
       }
+
+      Return a single, valid JSON object with the following keys:
+      - "score": An integer from 1 to 10 for decision-making authority.
+      - "status": A string, which must be one of 'Good Match', 'Potential Fit', or 'Not a Match'.
+      - "reasoning": A concise explanation (e.g., “Heads Sales for this function,” or “Likely internal TA, avoid”).
     `;
 
     const evaluation = await callGemini(prompt, GEMINI_API_KEY);

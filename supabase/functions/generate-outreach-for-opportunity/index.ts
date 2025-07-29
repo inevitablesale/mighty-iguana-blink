@@ -91,37 +91,20 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set.");
 
     const outreachPrompt = `
-      You are an expert business development copywriter for a top-tier recruiter. Your task is to write a concise, compelling, and personalized cold email based on detailed analysis, addressed to a specific person.
+      You are a world-class BD copywriter for recruiters.
+      Write a personalized cold email pitch to secure a staffing contract.
 
-      **Recipient:**
-      - Name: ${contact.name}
-      - Title: ${contact.job_title}
+      Inputs:
+      - Recipient: { "name": "${contact.name}", "title": "${contact.job_title}" }
+      - Recruiter Profile: { "name": "${profile?.first_name || 'your partner at Coogi'}", "niche": "${opportunity.agents.prompt}", "angle": "${opportunity.recruiter_angle}" }
+      - Client Opportunity: { "company": "${opportunity.company_name}", "role": "${opportunity.role}", "pain_points": "${opportunity.pain_points}", "key_signal": "${opportunity.key_signal_for_outreach}" }
 
-      **Recruiter Profile:**
-      - Name: ${profile?.first_name || 'your partner at Coogi'}
-      - Specialties: "${opportunity.agents.prompt}"
-      - Recommended Angle: "${opportunity.recruiter_angle}"
+      Write a 2-paragraph email that:
+      1. Uses the Key Signal as the opener (“Saw this role reposted”)
+      2. Offers immediate help (“We specialize in this exact need…”)
+      3. Ends with a low-friction CTA (e.g., “Want me to send a few candidates?”)
 
-      **Client Opportunity:**
-      - Company: ${opportunity.company_name}
-      - Role: ${opportunity.role}
-      - Key Signal for Outreach: "${opportunity.key_signal_for_outreach}"
-      - Client's Likely Pain Points: "${opportunity.pain_points}"
-
-      **Contact Info:**
-      - Calendly Link: ${profile?.calendly_url || '(not provided)'}
-
-      **Instructions:**
-      1.  Write a professional, concise email (2-3 short paragraphs) addressed directly to ${contact.name}.
-      2.  Use the "Key Signal for Outreach" as your opening hook.
-      3.  Subtly address the "Client's Likely Pain Points" in the body of the email.
-      4.  Incorporate the "Recommended Recruiter Angle" to position the recruiter as the perfect solution.
-      5.  If a Calendly link is provided, include a clear call to action to book a meeting using it. If not, suggest a brief call.
-      6.  Do NOT use placeholders like "[Your Name]".
-      7.  When you insert a personalized element (like the Key Signal, Pain Points, or Recruiter Angle), wrap it in <mark> tags. For example: "I saw <mark>your recent funding announcement</mark> and wanted to reach out."
-
-      Return a JSON object with two keys: "subject" and "body". The subject line should be compelling and reference the role.
-      **Crucially, ensure that any double quotes within the string values of the final JSON are properly escaped with a backslash (e.g., "some \\"quoted\\" text").**
+      Return as JSON: { "subject": "...", "body": "..." }
     `;
 
     const outreachResult = await callGemini(outreachPrompt, GEMINI_API_KEY);

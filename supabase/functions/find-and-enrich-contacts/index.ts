@@ -74,23 +74,21 @@ serve(async (req) => {
     if (oppError) throw new Error(`Failed to fetch opportunity: ${oppError.message}`);
 
     const researchPrompt = `
-      You are an expert recruitment researcher with access to a web search tool. Your task is to find potential contacts at the company "${opportunity.company_name}" who are relevant for the open role of "${opportunity.role}".
+      You are a recruiter’s AI assistant.
+      Identify decision-makers at "${opportunity.company_name}" for the open role of "${opportunity.role}".
 
-      **Instructions:**
-      1.  Perform web searches to find people who work at "${opportunity.company_name}". Prioritize finding individuals with job titles relevant to "${opportunity.role}".
-      2.  Search for up to 5 of the most relevant individuals.
-      3.  For each person you identify, you MUST find their full name and current job title.
-      4.  For each person, do your best to also find a professional email address. If you find an email, include it. If not, leave it as null.
-      5.  Return a single, valid JSON object with one key: "contacts".
-      6.  The value of "contacts" should be an array of objects, where each object has the keys "name", "job_title", and "email".
+      Focus on buyers of staffing services (e.g., VP of [Department], COO, Hiring Manager).
 
-      **Example Response:**
-      {
-        "contacts": [
-          { "name": "Jane Doe", "job_title": "VP of Engineering", "email": "jane.d@example.com" },
-          { "name": "John Smith", "job_title": "Senior Engineering Manager", "email": "j.smith@example.com" },
-          { "name": "Peter Jones", "job_title": "Director of Engineering", "email": null }
-        ]
+      For each:
+      - name, title, email, LinkedIn URL (if possible)
+
+      Return a JSON object with a "contacts" key, containing an array of contacts.
+      Example:
+      { 
+        "contacts": [ 
+          { "name": "Jane Doe", "title": "VP of Sales", "email": "jane.d@example.com", "linkedin": "https://linkedin.com/in/janedoe" }, 
+          ... 
+        ] 
       }
     `;
 
@@ -104,7 +102,8 @@ serve(async (req) => {
 
     const contactsToInsert = foundContacts.map(c => ({
         task_id: taskId, opportunity_id: opportunityId, user_id: opportunity.user_id,
-        name: c.name, job_title: c.job_title, email: c.email,
+        name: c.name, job_title: c.title, email: c.email,
+        linkedin_profile_url: c.linkedin,
         email_status: c.email ? 'verified' : null // Assume verified if found
     }));
     const { data: savedContacts, error: insertError } = await supabaseAdmin.from('contacts').insert(contactsToInsert).select();

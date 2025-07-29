@@ -123,7 +123,24 @@ serve(async (req) => {
           // Contact finding logic remains the same
         } else {
           sendUpdate({ type: 'status', message: 'Deconstructing your request...' });
-          const searchQueryPrompt = `...`; // Omitted for brevity, no changes here
+          const searchQueryPrompt = `
+            Analyze the recruiter’s business development request to extract structured search parameters for identifying high-value contract opportunities.
+
+            User Query: "${query}"
+            Available sites: linkedin, indeed, zip_recruiter, glassdoor, google, bayt, naukri.
+
+            Determine:
+
+            search_query: The role or function the recruiter is targeting.
+
+            location: Based on user input (default to “Remote” if unclear).
+
+            sites: Use most relevant job boards based on region.
+
+            recruiter_specialty: Condense the request into a BD-focused summary (e.g., "securing sales leadership contracts at SaaS companies"). This will be used to tailor contact-finding and pitch strategies.
+
+            Return only a valid JSON object with those keys.
+          `;
           const { search_query, location, sites, recruiter_specialty } = await callGemini(searchQueryPrompt, GEMINI_API_KEY);
           
           sendUpdate({ type: 'status', message: `Searching for roles on ${sites}...` });
@@ -167,7 +184,27 @@ serve(async (req) => {
               if (cached) {
                   analysisData = cached.analysis_data;
               } else {
-                  const singleEnrichmentPrompt = `...`; // Omitted for brevity, no changes here
+                  const singleEnrichmentPrompt = `
+                    You are a business development strategist for a recruiting firm.
+                    Evaluate the job below as a lead for client acquisition (not candidate placement).
+
+                    Recruiter’s Focus: "${recruiter_specialty}"
+                    Job Posting: ${JSON.stringify(job)}
+
+                    Return a single JSON object with:
+                    - companyName
+                    - role
+                    - location
+                    - company_overview
+                    - match_score (1–10, based on BD opportunity fit)
+                    - contract_value_assessment (20% of average salary)
+                    - hiring_urgency (based on signals like reposts, stale posts)
+                    - pain_points (reasons this may be hard to fill internally)
+                    - recruiter_angle (what value the recruiter can pitch)
+                    - key_signal_for_outreach (ideal hook for your email)
+
+                    This prompt should guide the recruiter’s outreach and negotiation.
+                  `;
                   analysisData = await callGemini(singleEnrichmentPrompt, GEMINI_API_KEY);
                   await supabaseAdmin.from('job_analysis_cache').insert({ job_hash: jobHash, analysis_data: analysisData });
               }
@@ -191,13 +228,14 @@ serve(async (req) => {
               if (enrichedOpportunities.length > 0) {
                   const rejectedJobsSummary = enrichedOpportunities.slice(0, 5).map(job => `- ${job.role} at ${job.companyName} (Score: ${job.match_score})`).join('\n');
                   const feedbackPrompt = `
-                      You are a helpful AI recruiting assistant. A user searched for jobs matching the specialty: "${recruiter_specialty}".
-                      You found and analyzed ${enrichedOpportunities.length} jobs, but none scored high enough to be considered a good match (all were below 5/10).
-                      Here is a sample of the rejected jobs and their scores:
-                      ${rejectedJobsSummary}
-                      Based on this, provide a concise, helpful message to the user. Explain why these jobs might have been poor matches and suggest 2-3 specific ways they could refine their search query for better results. For example, suggest adding a seniority level (like 'senior', 'director'), a technology (like 'React'), or a more specific industry (like 'B2B SaaS' instead of just 'tech').
-                      Keep the tone encouraging. Start with "I analyzed ${enrichedOpportunities.length} jobs, but they weren't a strong match for your specialty."
-                      Return your response as a single valid JSON object with one key: "responseText".
+                      You are a recruiting business advisor. A user searched for jobs matching the specialty: "${recruiter_specialty}". You analyzed roles, but none were worth pitching. Here are the failed jobs and match scores: ${rejectedJobsSummary}.
+
+                      Provide an encouraging but direct JSON response that:
+                      - Explains why the roles weren’t ideal for outreach
+                      - Suggests 2–3 refined queries that would yield better leads
+
+                      Begin with: "I analyzed ${enrichedOpportunities.length} jobs, but they weren’t a strong fit for client outreach."
+                      Return a single JSON object with: "responseText".
                   `;
                   const feedbackResult = await callGemini(feedbackPrompt, GEMINI_API_KEY);
                   sendUpdate({ type: 'result', payload: { text: feedbackResult.responseText } });
