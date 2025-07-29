@@ -85,47 +85,51 @@ const SystemResponse = ({ item, isTransient }: { item: FeedItem, isTransient?: b
               <p className="font-semibold text-white">{item.content.agentName || 'Coogi Assistant'}</p>
               <p className="text-white/80 whitespace-pre-wrap">{item.content.summary}</p>
             </div>
-            {user && <FeedbackControl contentId={item.id} contentType="feed_item" userId={user.id} />}
+            {user && !isTransient && <FeedbackControl contentId={item.id} contentType="feed_item" userId={user.id} />}
           </div>
           <p className="text-xs text-white/50 mt-1">{formatDistanceToNow(new Date(item.created_at))} ago</p>
         </div>
 
-        {item.content.analysisProgress ? (
+        {item.content.analysisProgress && (
           <AnalysisProgressView progress={item.content.analysisProgress} />
-        ) : item.content.opportunities && item.content.opportunities.length > 0 ? (
+        )}
+        
+        {item.content.opportunities && item.content.opportunities.length > 0 && (
           <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {item.content.opportunities.slice(0, 4).map((opp) => (
                       <DealCard key={opp.id} opportunity={opp} />
                   ))}
               </div>
-              <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium text-white/90">What's next?</p>
-                  <div className="flex items-center gap-2">
-                    {item.content.opportunities && item.content.opportunities.length > 4 && (
-                      <Button asChild variant="outline">
-                        <Link to="/opportunities" state={{ opportunities: item.content.opportunities, searchParams: item.content.searchParams }}>
-                          <LayoutGrid className="mr-2 h-4 w-4" />
-                          View All {item.content.opportunities.length} Results
-                        </Link>
+              {!isTransient && (
+                <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
+                    <p className="text-sm font-medium text-white/90">What's next?</p>
+                    <div className="flex items-center gap-2">
+                      {item.content.opportunities && item.content.opportunities.length > 4 && (
+                        <Button asChild variant="outline">
+                          <Link to="/opportunities" state={{ opportunities: item.content.opportunities, searchParams: item.content.searchParams }}>
+                            <LayoutGrid className="mr-2 h-4 w-4" />
+                            View All {item.content.opportunities.length} Results
+                          </Link>
+                        </Button>
+                      )}
+                      <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
+                        {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                        Find Contacts for All
                       </Button>
-                    )}
-                    <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
-                      {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-                      Find Contacts for All
-                    </Button>
-                  </div>
-              </div>
+                    </div>
+                </div>
+              )}
           </div>
-        ) : (
-          !isTransient && item.type === 'agent_run_summary' && !item.content.analysisProgress && (!item.content.opportunities || item.content.opportunities.length === 0) && (
-            <div className="mt-4 p-3 bg-black/20 border border-dashed border-white/20 rounded-lg text-sm text-white/80">
-              <p className="font-semibold text-white">💡 Tip: How to get better results</p>
-              <p className="mt-1">
-                If your search didn't yield good results, try refining the agent I created for you in the sidebar. You can make the search broader (e.g., "SaaS sales roles") and then add more specific criteria in the agent's advanced settings.
-              </p>
-            </div>
-          )
+        )}
+
+        {!isTransient && item.type === 'agent_run_summary' && !item.content.analysisProgress && (!item.content.opportunities || item.content.opportunities.length === 0) && (
+          <div className="mt-4 p-3 bg-black/20 border border-dashed border-white/20 rounded-lg text-sm text-white/80">
+            <p className="font-semibold text-white">💡 Tip: How to get better results</p>
+            <p className="mt-1">
+              If your search didn't yield good results, try refining the agent I created for you in the sidebar. You can make the search broader (e.g., "SaaS sales roles") and then add more specific criteria in the agent's advanced settings.
+            </p>
+          </div>
         )}
       </div>
     </div>
