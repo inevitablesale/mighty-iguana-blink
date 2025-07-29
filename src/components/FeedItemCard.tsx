@@ -9,6 +9,7 @@ import { AnalysisProgressView } from "./AnalysisProgressView";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { SaveAgentDialog } from "./SaveAgentDialog";
 
 interface FeedItemCardProps {
   item: FeedItem;
@@ -94,6 +95,14 @@ const SystemResponse = ({ item }: { item: FeedItem }) => {
               <div className="mt-4 p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between gap-4">
                   <p className="text-sm font-medium text-white/90">What's next?</p>
                   <div className="flex items-center gap-2">
+                    {item.content.searchParams && (
+                      <SaveAgentDialog searchParams={item.content.searchParams}>
+                        <Button variant="outline">
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Search as Agent
+                        </Button>
+                      </SaveAgentDialog>
+                    )}
                     <Button variant="secondary" onClick={handleFindAllContacts} disabled={isFindingContacts}>
                       {isFindingContacts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
                       Find Contacts for All

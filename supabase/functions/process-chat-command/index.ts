@@ -305,30 +305,6 @@ serve(async (req) => {
           const { data: savedOpportunities, error: insertOppError } = await supabaseAdmin.from('opportunities').insert(opportunitiesToInsert).select();
           if (insertOppError) throw new Error(`Failed to save opportunities: ${insertOppError.message}`);
 
-          const agentName = recruiter_specialty.length > 50 ? recruiter_specialty.substring(0, 47) + '...' : recruiter_specialty;
-          const { data: newAgent, error: agentInsertError } = await supabaseAdmin.from('agents').insert({
-            user_id: user.id,
-            name: agentName,
-            prompt: recruiter_specialty,
-            autonomy_level: 'semi-automatic',
-            site_names: Array.isArray(sites) ? sites : sites.split(','),
-            max_results: 20,
-            search_lookback_hours: 72,
-          }).select().single();
-
-          if (!agentInsertError && newAgent) {
-              sendUpdate({ type: 'agent_created', payload: { agentName: newAgent.name } });
-              if (conversationId) {
-                await supabaseAdmin.from('feed_items').insert({
-                  user_id: user.id,
-                  conversation_id: conversationId,
-                  type: 'agent_created',
-                  role: 'system',
-                  content: { agentName: newAgent.name }
-                });
-              }
-          }
-
           let responseText = `I found ${savedOpportunities.length} potential deals for you. Here are the top matches.`;
           if (resultWarning) {
               responseText = `${resultWarning}\n\n${responseText}`;
